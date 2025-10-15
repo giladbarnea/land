@@ -1,0 +1,46 @@
+compdef _git gd=git-diff
+compdef '_cat; compadd -x "$(docstring git.beforeafter)" ""; _describe command "( $(docstring.getopts git.beforeafter) )"' git.beforeafter
+compdef '_cat; compadd -x "$(docstring gexclude)" ""; _describe command "( $(docstring.getopts gexclude) )"' gexclude
+compdef 'compadd -x "$(docstring gexcluded)" ""; _describe command "( $(docstring.getopts gexcluded) )"' gexcluded
+compdef 'compadd -x "$(docstring git.added)" ""; _describe command "( $(docstring.getopts git.added) )"' git.added
+compdef 'compadd -x "$(docstring git.clean)" ""; _describe command "( $(docstring.getopts git.clean) )"' git.clean
+compdef 'compadd -x "$(docstring git.commits)" ""; _describe command "( $(docstring.getopts git.commits) )"' git.commits
+compdef 'compadd -x "$(docstring git.showcommit)" ""; _describe command "( $(docstring.getopts git.showcommit) $(git branch --list --all | awk "{print \$1}") )";' git.showcommit
+compdef 'compadd -x "$(docstring git.firstcommit)" ""; _describe command "( $(docstring.getopts git.firstcommit) $(git branch --list --all | awk "{print \$1}") )";' git.firstcommit
+compdef 'compadd -x "$(docstring git.lastcommit)" ""; _describe command "( $(docstring.getopts git.lastcommit) $(git branch --list --all | awk "{print \$1}") )";' git.lastcommit
+compdef 'compadd -x "$(docstring git.deleted)" ""; _describe command "( $(docstring.getopts git.deleted) )"' git.deleted
+compdef 'compadd -x "$(docstring git.diff-files)" ""; _describe command "( $(docstring.getopts git.diff-files) )"' git.diff-files
+compdef 'compadd -x "$(docstring git.modified)" ""; _describe command "( $(docstring.getopts git.modified) )"' git.modified
+compdef 'compadd -x "$(docstring git.rootpath)" ""; _describe command "( $(docstring.getopts git.rootpath) )"' git.rootpath
+compdef 'compadd -x "$(docstring git.newpr)" ""; _describe command "( $(docstring.getopts git.newpr) )"' git.newpr
+compdef 'compadd -x "$(docstring git.staged)" ""; _describe command "( $(docstring.getopts git.staged) )"' git.staged
+compdef 'compadd -x "$(docstring git.parentbranch)" ""; _describe command "( $(docstring.getopts git.parentbranch) )"' git.parentbranch
+compdef 'compadd -x "$(docstring git.stfiles)" ""; _describe command "( $(docstring.getopts git.stfiles) )"' git.stfiles
+compdef 'compadd -x "$(docstring git.untracked)" ""; _describe command "( $(docstring.getopts git.untracked) )"' git.untracked
+compdef 'compadd -x "$(docstring git.user_repos)" ""; _describe command "( $(docstring.getopts git.user_repos) )"' git.user_repos
+
+compdef _git git.blame-who=git-log
+compdef _git git.my-commits=git-log
+
+compdef '_describe command "( $(git.branches) )"' grename
+
+# Completion for git.download-repo-dir
+_git_download_repo_dir(){
+  zstyle ':completion::complete:git.download-repo-dir:*:descriptions' format "$(docstring git.download-repo-dir $SCRIPTS/git.sh)"
+  local dir_def='[subdirectory within the repo]:subdir:'
+  local ext_def="[file extension filter]:extension:"
+  local branch_def='[branch or tag name]:branch:'
+  local output_def='[output directory]:output:'
+  _arguments \
+    '1:OWNER/REPO:' \
+    "-d${dir_def}" \
+    "--dir=${dir_def}" \
+    '(-r --recursive)'{-r,--recursive}'[download recursively]' \
+    "-e${ext_def}" \
+    "--extension=${ext_def}" \
+    "-b${branch_def}" \
+    "--branch=${branch_def}" \
+    "-o${output_def}" \
+    "--output=${output_def}" \
+}
+compdef _git_download_repo_dir git.download-repo-dir

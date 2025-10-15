@@ -1,0 +1,11 @@
+#compdef cd
+_my_cd(){
+	_arguments \
+    '*:directory:_files -/' \
+    {-q,--quiet}"[Sets everything to false. Default false]" \
+    --ls"[Run ls after navigating to the directory. Default true]" \
+    --show-git-status"[Run \`git status -s\` if directory is a git repo. Default true]" \
+    --fzf-on-fail"[Run \`fzfd\` on destination if failed to cd. Default true]"
+}
+
+compdef _my_cd cd

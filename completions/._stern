@@ -1,0 +1,31 @@
+#compdef stern
+compdef _stern_wrapper stern
+
+# zsh completion for stern                                -*- shell-script -*-
+
+__stern_debug()
+{
+    local file="$BASH_COMP_DEBUG_FILE"
+    if [[ -n ${file} ]]; then
+        echo "$*" >> "${file}"
+    fi
+}
+
+_stern_wrapper()
+{
+    _get_stern_completion_function(){
+        # The whole thing, e.g. _stern(){ ... }
+        stern --completion zsh | gsed -nz 's/.*\(_stern()[[:space:]]*{[[:space:]]*.*[[:space:]]*}\).*/\1/p'
+    }
+    if [[ ! -e /tmp/_stern_completions ]]; then
+        _get_stern_completion_function > /tmp/_stern_completions
+    fi
+    source /tmp/_stern_completions
+    _stern "$@"
+}
+
+# don't run the completion function when being source-ed or eval-ed
+if [[ "$funcstack[1]" = "_stern" || "$funcstack[1]" = "_stern_wrapper" ]]; then
+    _stern_wrapper
+fi
+compdef _stern_wrapper stern

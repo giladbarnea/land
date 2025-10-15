@@ -1,0 +1,14 @@
+#compdef datamodel-codegen
+
+_datamodel-codegen(){
+  type datamodel-codegen &> /dev/null || return 1
+  if [[ ! -e /tmp/_datamodel-codegen_completions ]]; then
+    datamodel-codegen --help | command grep -Po --color=never '(-[a-zA-Z0-9_]{1}|-{2}[a-zA-Z0-9-_]{2,})' | sort -u > /tmp/_datamodel-codegen_completions
+  fi
+	_describe command "(
+    $(</tmp/_datamodel-codegen_completions)
+	)"
+	_arguments '*:directory:_files'
+}
+
+compdef _datamodel-codegen datamodel-codegen

@@ -1,0 +1,5 @@
+shell=zsh
+external-sources=true
+add-default-case=true
+check-extra-masked-returns=true
+check-set-e-suppressed=true

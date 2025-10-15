@@ -1,0 +1,97 @@
+#compdef fzfx fzff fzfd cdfzf
+
+# Completion for fzfx and its wrapper functions (fzff, fzfd, cdfzf)
+# Based on the implementation in fzf.sh
+
+# Get unique directory names up to 4 levels deep
+# Uses zsh's extended globbing and qualifiers
+.cdfzf_get_dir_names() {
+	unsetopt globdots
+    print -l -- **/(/F)
+}
+
+_cdfzf() {
+    local curcontext="$curcontext" state line ret=1
+    typeset -A opt_args
+
+    # Inherit all options from _fzfx but modify the final argument to use directory name completion
+    _arguments -C \
+        '-d[Search directories only]' \
+        '-f[Search files only]' \
+        '-p[Enable preview window]' \
+        '--preview[Enable preview window]' \
+        '-c[Copy result to clipboard]' \
+        '--copy-res[Copy result to clipboard]' \
+        '-i[Case insensitive search]' \
+        '+i[Case sensitive search]' \
+        '-q[Specify search query]:query:' \
+        '--max-depth=[Maximum directory depth]:depth:(1 2 3 4 5 6 7 8 9 10)' \
+        '--min-depth=[Minimum directory depth]:depth:(1 2 3 4 5 6 7 8 9 10)' \
+        '--exact-depth=[Exact directory depth]:depth:(1 2 3 4 5 6 7 8 9 10)' \
+        '--retry-deeper=[Retry behavior when no results found]:mode:(respect-user-esc always never)' \
+        '*:directory name:->dirnames' \
+        && ret=0
+
+    case $state in
+        dirnames)
+            local -a dir_names
+            dir_names=( $(.cdfzf_get_dir_names) )
+            _describe -t directories 'directory names' dir_names
+            ;;
+    esac
+
+    return ret
+}
+
+_fzfx() {
+    local curcontext="$curcontext" state line ret=1
+    typeset -A opt_args
+
+    # Main arguments specification
+    _arguments -C \
+        '-d[Search directories only]' \
+        '-f[Search files only]' \
+        '-p[Enable preview window]' \
+        '--preview[Enable preview window]' \
+        '-c[Copy result to clipboard]' \
+        '--copy-res[Copy result to clipboard]' \
+        '-i[Case insensitive search]' \
+        '+i[Case sensitive search]' \
+        '-q[Specify search query]:query:' \
+        '--max-depth=[Maximum directory depth]:depth:(1 2 3 4 5 6 7 8 9 10)' \
+        '--min-depth=[Minimum directory depth]:depth:(1 2 3 4 5 6 7 8 9 10)' \
+        '--exact-depth=[Exact directory depth]:depth:(1 2 3 4 5 6 7 8 9 10)' \
+        '--retry-deeper=[Retry behavior when no results found]:mode:(respect-user-esc always never)' \
+        '*:initial query:->query' \
+        && ret=0
+
+    case $state in
+        query)
+            # No completion for the query - user should type freely
+            return 0
+            ;;
+    esac
+
+    return ret
+}
+
+# Wrapper completion functions that inherit from _fzfx
+_fzff() {
+    # fzff is fzfx -f, so we add -f to the command line
+    words=(${words[1]} -f "${(@)words[2,-1]}")
+    (( CURRENT++ ))
+    _fzfx
+}
+
+_fzfd() {
+    # fzfd is fzfx -d, so we add -d to the command line
+    words=(${words[1]} -d "${(@)words[2,-1]}")
+    (( CURRENT++ ))
+    _fzfd
+}
+
+# Register the completion functions
+compdef _fzfx fzfx
+compdef _fzff fzff
+compdef _fzfd fzfd
+compdef _cdfzf cdfzf

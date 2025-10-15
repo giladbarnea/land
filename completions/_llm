@@ -1,0 +1,715 @@
+#compdef llm
+
+# Note: read meta/llm-completions-design.md before making changes to this file.
+
+# Quick script to get a markdown source of truth for llm subcommands (OK to run by AI agent)
+# for subcmd in prompt $(llm --help | awk '/^ +aliases +/ {p=1} p {print $1}'); do echo '## `'"$subcmd"'`' | tee /tmp/"$subcmd".md; command llm "$subcmd" --help 2>&1 >> /tmp/"$subcmd".md; done
+
+_insert_double_quote(){ compadd -Q -S '"' '' ; }
+
+# region [-------- Completion Data Declarations --------]
+
+typeset -a LLM_LOGS_CHILD_COMMANDS=(
+  'list:Show logged prompts and their responses'
+  'backup:Backup your logs database to this file'
+  'off:Turn off logging for all prompts'
+  'on:Turn on logging for all prompts'
+  'path:Output the path to the logs.db file'
+  'status:Show current status of database logging'
+)
+
+typeset -a LLM_KEYS_CHILD_COMMANDS=(
+  'list:List names of all stored keys'
+  'get:Return the value of a stored key'
+  'path:Output the path to the keys.json file'
+  'set:Save a key in the keys.json file'
+)
+
+typeset -a LLM_COMMON_OPTIONS=(
+  # These are actually the options of `llm` (no subcommand) and `llm prompt`. 
+  #  They just happen to *share* many options with other subcommands.
+  #  Reusing them for other subcommands is a hack and ideally we'd have a separate set of options for each subcommand, even if it would mean some duplication.
+  '(-m --model)'{-m,--model}'[Specify the model to use]:model:_.llm_model_names'
+  '(-t --template)'{-t,--template}'[Specify the template to use]:template:_.llm_template_names'
+  '(-o --option)'{-o,--option}'[Set an option]:option:'
+  '(-s --system)'{-s,--system}'[Set system prompt]:system prompt:'
+  '(-d --database)'{-d,--database}'[Path to log database]:database:_files'
+  '(-q --query)'{-q,--query}'[Use first model matching these strings]:query:_.llm_model_names'
+  '(-a --attachment)'{-a,--attachment}'[Attach a file or URL]:attachment:_files'
+  '(--at --attachment-type)'{--at,--attachment-type}'[Attachment with explicit mimetype]:attachment type:'
+  '(-T --tool)'{-T,--tool}'[Name of a tool to make available to the model]:tool:'
+  '--functions[Python code block or file path defining functions to register as tools]:functions:_files'
+  '(--td --tools-debug)'{--td,--tools-debug}'[Show full details of tool executions]'
+  '(--ta --tools-approve)'{--ta,--tools-approve}'[Manually approve every tool execution]'
+  '(--cl --chain-limit)'{--cl,--chain-limit}'[How many chained tool responses to allow]:limit:'
+  '--schema[JSON schema, filepath or ID]:schema:'
+  '--schema-multi[JSON schema to use for multiple results]:schema:'
+  '(-f --fragment)'{-f,--fragment}'[Fragment to add to the prompt]:fragment:'
+  '(--sf --system-fragment)'{--sf,--system-fragment}'[Fragment to add to system prompt]:fragment:'
+  '(-p --param)'{-p,--param}'[Parameters for template]:param:'
+  '--no-stream[Do not stream output]'
+  '(-n --no-log)'{-n,--no-log}'[Do not log to database]'
+  '--log[Log prompt and response to the database]'
+  '(-c --continue)'{-c,--continue}'[Continue the most recent conversation]'
+  '(--cid --conversation)'{--cid,--conversation}'[Continue the conversation with the given ID]:conversation:_.llm_conversation_ids'
+  '--key[API key to use]:key:'
+  '--save[Save prompt with this template name]:template name:'
+  '--async[Run prompt asynchronously]'
+  '(-u --usage)'{-u,--usage}'[Show token usage]'
+  '(-x --extract)'{-x,--extract}'[Extract first fenced code block]'
+  '(--xl --extract-last)'{--xl,--extract-last}'[Extract last fenced code block]'
+  '--no-format-stdin[Disable stdin formatting]'
+  '(-q --quiet)'{-q,--quiet}'[Do not print debug information]'
+  '--no-clear[Do not clear the screen]'
+  '--format-stdin[Enable stdin formatting]'
+  '(-re --reasoning-effort)'{-re,--reasoning-effort}'[Set reasoning effort]:reasoning_effort:(minimal low medium high)'
+  '--no-md[Disable markdown rendering]'
+  '--md[Enable markdown rendering]'
+  '(-i --inline-code-lexer)'{-i,--inline-code-lexer}'[Set inline code lexer]:lexer:_.llm_lexer_names'
+  '(-st --tag --stdin-tag)'{-st,--tag,--stdin-tag}'[Set stdin tag]:tag:'
+  '(-w --write)'{-w,--write}'[Write output to file]:write path:_files'
+  '--help[Show this message and exit]'
+)
+
+# Core external subcommand option arrays (placeholders for future enrichment)
+typeset -a LLM_LOGS_OPTIONS=(
+  # For `llm logs` and `llm logs list`
+  '(-n --count)'{-n,--count}'[Number of entries to show - defaults to 3, use 0 for all]:count:'
+  '(-d --database)'{-d,--database}'[Path to log database]:database:_files'
+  '(-m --model)'{-m,--model}'[Filter by model or model alias]:model:_.llm_model_names'
+  '(-q --query)'{-q,--query}'[Search for logs matching this string]:query:'
+  '(-f --fragment)'{-f,--fragment}'[Filter for prompts using these fragments]:fragment:'
+  '(-T --tool)'{-T,--tool}'[Filter for prompts with results from these tools]:tool:'
+  '--tools[Filter for prompts with results from any tools]'
+  '(--schema)--schema[JSON schema, filepath or ID]:schema:'
+  '(--schema-multi)--schema-multi[JSON schema used for multiple results]:schema-multi:'
+  '(--data)--data[Output newline-delimited JSON data for schema]'
+  '(--data-array)--data-array[Output JSON array of data for schema]'
+  '(--data-key)--data-key[Return JSON objects from array in this key]:data-key:'
+  '(--data-ids)--data-ids[Attach corresponding IDs to JSON objects]'
+  '(-t --truncate)'{-t,--truncate}'[Truncate long strings in output]'
+  '(-s --short)'{-s,--short}'[Shorter YAML output with truncated prompts]'
+  '(-u --usage)'{-u,--usage}'[Include token usage]'
+  '(-r --response)'{-r,--response}'[Just output the last response]'
+  '(-x --extract)'{-x,--extract}'[Extract first fenced code block]'
+  '(--xl --extract-last)'{--xl,--extract-last}'[Extract last fenced code block]'
+  '(-c --current)'{-c,--current}'[Show logs from the current conversation]'
+  '(--cid --conversation)'{--cid,--conversation}'[Show logs for this conversation ID]:conversation:_.llm_conversation_ids'
+  '(--id-gt)--id-gt[Return responses with ID > this]:id-gt:'
+  '(--id-gte)--id-gte[Return responses with ID >= this]:id-gte:'
+  '(--json)--json[Output logs as JSON]'
+  '(-e --expand)'{-e,--expand}'[Expand fragments to show their content]'
+  '(--help)--help[Show this message and exit]'
+)
+
+typeset -a LLM_TEMPLATES_OPTIONS=(
+  '--help[Show this message and exit]'
+)
+
+typeset -a LLM_MODELS_OPTIONS=(
+  '--help[Show this message and exit]'
+)
+
+typeset -a LLM_CHAT_OPTIONS=(
+  '(-s --system)'{-s,--system}'[System prompt to use]:system prompt:'
+  '(-m --model)'{-m,--model}'[Model to use]:model:_.llm_model_names'
+  '(-c --continue)'{-c,--continue}'[Continue the most recent conversation]'
+  '(--cid --conversation)'{--cid,--conversation}'[Continue the conversation with the given ID]:conversation:_.llm_conversation_ids'
+  '(-f --fragment)'{-f,--fragment}'[Fragment (alias, URL, hash or file path) to add to the prompt]:fragment:'
+  '(--sf --system-fragment)'{--sf,--system-fragment}'[Fragment to add to system prompt]:fragment:'
+  '(-t --template)'{-t,--template}'[Template to use]:template:_.llm_template_names'
+  '(-p --param)'{-p,--param}'[Parameters for template]:param:'
+  '(-o --option)'{-o,--option}'[key/value options for the model]:option:'
+  '(-d --database)'{-d,--database}'[Path to log database]:database:_files'
+  '--no-stream[Do not stream output]'
+  '--key[API key to use]:key:'
+  '(-T --tool)'{-T,--tool}'[Name of a tool to make available to the model]:tool:'
+  '--functions[Python code block or file path defining functions to register as tools]:functions:_files'
+  '(--td --tools-debug)'{--td,--tools-debug}'[Show full details of tool executions]'
+  '(--ta --tools-approve)'{--ta,--tools-approve}'[Manually approve every tool execution]'
+  '(--cl --chain-limit)'{--cl,--chain-limit}'[How many chained tool responses to allow]:limit:'
+  '--help[Show this message and exit]'
+)
+
+typeset -a LLM_JQ_OPTIONS=(
+  '(-m --model)'{-m,--model}'[Model to use]:model:_.llm_model_names'
+  '(-l --length)'{-l,--length}'[Example length to use]:length:'
+  '(-o --output)'{-o,--output}'[Just show the jq program]'
+  '(-s --silent)'{-s,--silent}'[Dont output jq program]'
+  '(-v --verbose)'{-v,--verbose}'[Verbose output of prompt and response]'
+  '--help[Show this message and exit]'
+)
+
+# Wrapper-specific filtered arrays (docstrings in llm.zsh take precedence)
+# Source of truth is the custom wrapper functions in llm.zsh. Additionally, should be kept in sync with:
+# 1. the 'Completion Registration' region (bottom of this file).
+# 2. the 'case $cmd in' block in the main '_llm' completion function.
+typeset -a SIMPLIFY_OPTIONS=( ${(M)LLM_COMMON_OPTIONS:#^(*--template*)} )
+
+typeset -a COMPRESS_OPTIONS=(
+  ${(M)LLM_COMMON_OPTIONS:#^(*--system*)}
+  '(-r --rate)'{-r,--rate}'[Compression rate]:rate:(aggressive high-quality)'
+)
+
+typeset -a PYAI_OPTIONS=( ${(M)LLM_COMMON_OPTIONS:#^(*--(system|template)*)} )
+
+typeset -a ZSHAI_OPTIONS=( ${(M)LLM_COMMON_OPTIONS:#^(*--system*)} )
+
+typeset -a ZSHCMD_OPTIONS=( ${LLM_COMMON_OPTIONS[@]} )
+
+typeset -a MERGE_OPTIONS=(
+  ${LLM_COMMON_OPTIONS[@]}
+  '--plan[Enable planning pass]'
+  '--no-plan[Skip planning pass]'
+  '--prompt-append[Append text to merge prompt]:text:'
+  '--strategy[Merge strategy]:strategy:(default pick-best)'
+)
+
+
+# region [-------- Main llm Completion Function --------]
+
+# Handles cases from specific and high-level to general and low-level. 
+_llm() {
+  zstyle ':completion::complete:llm:*:descriptions' format "$(docstring llm "$HOME"/dev/bashscripts/llm.zsh)"
+  local curcontext="$curcontext" state line
+  typeset -A opt_args
+  # shellcheck disable=SC2154
+  local cmd="${service}"
+
+  # Custom wrapper dispatch: pick the correct option array.
+  #  Ideally should cover all wrapper functions in llm.zsh NOT having 'llm' in their name.
+  #  Should be kept in sync with:
+  #  1. 'Wrapper-specific filtered arrays' (top of this file)
+  #  2. the 'Completion Registration' region (bottom of this file).
+  local -a ACTIVE_OPTIONS
+  case "$cmd" in
+    (simplify) ACTIVE_OPTIONS=( ${SIMPLIFY_OPTIONS[@]} ) ;;
+    (compress) ACTIVE_OPTIONS=( ${COMPRESS_OPTIONS[@]} ) ;;
+    (pyai)     ACTIVE_OPTIONS=( ${PYAI_OPTIONS[@]} ) ;;
+    (zshai)    ACTIVE_OPTIONS=( ${ZSHAI_OPTIONS[@]} ) ;;
+    (zshcmd)   ACTIVE_OPTIONS=( ${ZSHCMD_OPTIONS[@]} ) ;;
+    (merge)    ACTIVE_OPTIONS=( ${MERGE_OPTIONS[@]} ) ;;
+    (*)        ACTIVE_OPTIONS=( ${LLM_COMMON_OPTIONS[@]} ) ;;
+  esac
+
+  # *Option*-specific handlers: model / template / lexer / attachment special completions.
+  #  Could be moved below to the 'llm' (args) handler for better organization.
+  if [[ ${words[$CURRENT-1]} == "-m" || ${words[$CURRENT-1]} == "--model" || ${words[$CURRENT]} == --model=* ]]; then
+    _.llm_model_names; return 0
+  fi
+  if [[ ${words[$CURRENT-1]} == "-t" || ${words[$CURRENT-1]} == "--template" || ${words[$CURRENT]} == --template=* ]]; then
+    _.llm_template_names; return 0
+  fi
+  if [[ ${words[$CURRENT-1]} == "-i" || ${words[$CURRENT-1]} == "--inline-code-lexer" || ${words[$CURRENT]} == --inline-code-lexer=* ]]; then
+    _.llm_lexer_names; return 0
+  fi
+  if [[ ${words[$CURRENT-1]} == "-a" || ${words[$CURRENT-1]} == "--attachment" || ${words[$CURRENT]} == --attachment=* ]]; then
+    _files; return 0
+  fi
+
+  if [[ ${words[$CURRENT-1]} == "-st" || ${words[$CURRENT-1]} == "--tag" || ${words[$CURRENT-1]} == "--stdin-tag" ]]; then
+    if [[ -z "${words[$CURRENT]}" ]]; then _insert_double_quote; fi
+    return 0
+  fi
+  if [[ ${words[$CURRENT-1]} == "-s" || ${words[$CURRENT-1]} == "--system" ]]; then
+    if [[ -z "${words[$CURRENT]}" ]]; then _insert_double_quote; fi
+    return 0
+  fi
+
+  # -- Handle the 'llm' command. Either:
+  #  1. llm "some input" [options]. Equivalent to llm prompt "some input" [options].
+  #  2. llm subcmd [options].
+  #  3. llm subcmd child-subcmd [options].
+  if [[ "$cmd" == "llm" ]]; then
+    local -a llm_subcommands=(
+      'prompt:Execute a prompt'
+      'aliases:Manage model aliases'
+      'chat:Hold an ongoing chat with a model'
+      'cluster:Generate clusters from embeddings in a collection'
+      'cmd:Generate and execute commands in your shell'
+      # 'cmdcomp:Not installed'
+      'collections:View and manage collections of embeddings'
+      'embed:Embed text and store or return the result'
+      'embed-models:Manage available embedding models'
+      'embed-multi:Store embeddings for multiple strings at once'
+      'fragments:Manage fragments that are stored in the database'
+      # These are commented on purpose: '-m gemini/grok' falsely recognized as the 'gemini/grok' pos subcommand.
+      # 'gemini:Commands relating to the llm-gemini plugin'
+      # 'grok:Commands for the Grok model'
+      'install:Install packages from PyPI into the same environment as LLM'
+      'jq:Pipe JSON data into this tool and provide a description'
+      'keys:Manage stored API keys for different models'
+      'logs:Tools for exploring logged prompts and responses'
+      'mistral:Commands for working directly with the Mistral API'
+      'models:Manage available models'
+      # 'notebook:Not installed'
+      'openai:Commands for working directly with the OpenAI API'
+      'openrouter:Commands relating to the llm-openrouter plugin'
+      'plugins:List installed plugins'
+      'python:Run Python interpreter, passing through any arguments'
+      'schemas:Manage stored schemas'
+      'similar:Return top N similar IDs from a collection using cosine similarity'
+      'templates:Manage stored prompt templates'
+      'tools:Manage tools that can be made available to LLMs'
+      'uninstall:Uninstall Python packages from the LLM environment'
+      'whisper-api:Commands for working directly with the Whisper API'
+    )
+    _arguments -C \
+      ${ACTIVE_OPTIONS[@]} \
+      '1: :->first_arg' \
+      '*:: :->args' && return 0
+    case $state in
+      (first_arg)
+        print "$0 │ Handling first_arg state: ${state}; words[1]: '${words[1]}'; words[2]: '${words[2]}'\n" >> /tmp/llm.log
+        _describe -t subcommands 'llm subcommands' llm_subcommands
+        ;;
+      (args)
+        # Handle a positional argument.
+        if [[ ${llm_subcommands[(r)${words[1]}:*]} ]]; then
+          case ${words[1]} in
+            # -- Subcommands supported by the custom `llm` function wrapper (see `supported_subcommands` array in `llm.zsh`)
+            (prompt|cmd)
+              print "$0 │ Handling args state. words[1] is (prompt|cmd). ${state}; words[1]: '${words[1]}'; words[2]: '${words[2]}'\n" >> /tmp/llm.log
+              _arguments ${LLM_COMMON_OPTIONS[@]} ;;
+            (chat)
+              # Dedicated options for `llm chat`.
+              print "$0 │ Handling args state. words[1] is (chat). ${state}; words[1]: '${words[1]}'; words[2]: '${words[2]}'\n" >> /tmp/llm.log
+              _arguments ${LLM_CHAT_OPTIONS[@]} ;;
+            
+            # -- Subcommands NOT supported by the custom `llm` function wrapper, but we DO have a completion function for.
+            (jq)
+              _llm:jq ;;
+            (logs) 
+              _llm:logs ;;
+            (models) _arguments ${LLM_MODELS_OPTIONS[@]} ;;
+            (templates) _arguments ${LLM_TEMPLATES_OPTIONS[@]} ;;
+            (keys)
+              _llm:keys ;;
+            (*)
+              # Subcommand is neither wrapped nor has a completion function.
+              local help_text
+              help_text=$(cached command llm "${words[1]}" --help 2>/dev/null)
+              if [[ -n "$help_text" ]]; then
+                _message "$help_text"
+              else
+                _message "No help available"
+              fi
+              ;;
+          esac
+        else
+          # Handle a -<TAB> option for the bare 'llm' command which defaults to 'prompt' subcommand. E.g., llm 'do this' -<TAB>
+          _arguments ${LLM_COMMON_OPTIONS[@]}
+        fi
+        ;;
+    esac
+  else
+    # Wrapper command
+    _arguments ${ACTIVE_OPTIONS[@]}
+  fi
+}
+
+# region [-------- Subcommand Handlers --------]
+
+# Naming conventions:
+# Handlers of direct subcommands are named _llm:<subcmd>.
+# Handlers of child commands of direct subcommands are named _llm:<subcmd>:<child-subcmd>.
+# Helpers (not handlers) start with _. (with a dot for "private")
+# Remember that 'llm' does a lot of default commands if omited: 'llm' == 'llm prompt'; subcommands with a 'list' child-subcommand always default to it, like 'llm logs' == 'llm logs list'.
+
+# 'llm logs' subcommand handler
+_llm:logs(){
+  local curcontext="$curcontext" state line
+  typeset -A opt_args
+  
+  _arguments -C \
+    '1: :->first_arg' \
+    '*:: :->args'
+  print "$0 │ state: ${state}; words[1]: '${words[1]}'; words[2]: '${words[2]}'\n" >> /tmp/llm.log
+  
+  case $state in
+    (first_arg)
+      realasync terminal-notifier -title "_llm:logs first_arg" -message "words[$CURRENT]: '${words[$CURRENT]}'"
+      # Bare 'llm logs': display subcommand names or options depending on current token
+      if [[ ${words[$CURRENT]} == -* ]]; then
+        _llm:logs:list  # same role as main _llm options branch
+      else
+        _describe -t subcommands 'llm logs subcommands' LLM_LOGS_CHILD_COMMANDS
+      fi
+      ;;
+    (args)
+      # An 'llm logs <subcmd>': handle subcommand-specific options
+      # terminal-notifier -title "_llm:logs args" -message "subcmd: $subcmd; words[1]: ${words[1]}; words[2]: ${words[2]}"
+      if [[ ${words[1]} != -* && ${LLM_LOGS_CHILD_COMMANDS[(r)${words[1]}:*]} ]]; then
+        local subcmd=${words[1]}
+        case $subcmd in
+          # First cover 'llm logs' subcommands we have a completion function for.
+          (list) _llm:logs:list ;;
+          (*)
+            # Valid 'llm logs' subcommands we don't have a completion function for.
+            local help_text
+            help_text=$(cached command llm logs "$subcmd" --help 2>/dev/null)
+            if [[ "$?" != 0 || -z "$help_text" ]]; then
+              realasync terminal-notifier -message "No help available for subcommand: $subcmd"
+              _message "No help available for subcommand: $subcmd"
+              return 1
+            fi
+            _message "$(
+              printf "%s\n%s" \
+                "$(print -P "\033[3m%F{8}No completion available for 'llm logs ${words[1]}', printing help%f\033[0m")" \
+                "$help_text"
+            )"
+            ;;
+        esac
+      else
+        # Unknown 'llm logs' subcommand.
+        _arguments "(--help)--help[Show help (No completion available for 'llm logs ${words[1]}')]"
+        return 0
+      fi
+      ;;
+    
+  esac
+}
+
+
+# 'llm logs list' subcommand handler
+_llm:logs:list() {
+  print "[_llm:logs:list] words[1]: '${words[1]}'; words[2]: '${words[2]}'\n" >> /tmp/llm.log
+  local -a logs_list_options=(${LLM_LOGS_OPTIONS[@]})
+  
+  # -- Handle custom `llm logs` wrappers from llm.zsh --
+  # Ideally should be moved to the data declarations at the top of this file.
+  
+  # Filter out unsupported options for llm-response
+  if [[ ${words[(r)llm-response]} ]]; then
+    local -a llm_response_unsupported_options=(
+      '-r' '--response'
+      # Don't break but either don't do anything or beat the purpose of the function:
+      '-s' '--short'
+      '-q' '--query'  
+      '-u' '--usage'
+      '--json'
+    )
+    local pat="${(j:|:)llm_response_unsupported_options}"
+    logs_list_options=( ${logs_list_options:#*($~pat)*} )
+  fi
+  
+  # Filter out unsupported options for llm-logs and add --no-messages and --all-messages
+  if [[ ${words[(r)llm-logs]} ]]; then
+    logs_list_options+=(
+      '(--no-messages)'--no-messages'[Do not show prompt, system and response fields]'
+      '(--all-messages)'--all-messages'[Show all messages, not just the first one per conversation]'
+    )
+    local -a llm_logs_unsupported_options=(
+      -s --short
+      # Don't break but either don't do anything or beat the purpose of the function:
+      --json
+      -x --extract
+      --xl --extract-last
+      -r --response
+      -u --usage
+      -t --truncate
+    )
+    local pat="${(j:|:)llm_logs_unsupported_options}"
+    logs_list_options=( ${logs_list_options:#*($~pat)*} )
+  fi
+  
+  # Filter out unsupported options for llm-cids
+  if [[ ${words[(r)llm-cids]} ]]; then
+    local -a llm_cids_unsupported_options=(
+      -s --short
+      # Don't break but either don't do anything or beat the purpose of the function:
+      --json
+      -t --truncate
+      -r --response
+      -u --usage
+    )
+    local pat="${(j:|:)llm_cids_unsupported_options}"
+    logs_list_options=( ${logs_list_options:#*($~pat)*} )
+  fi
+  
+  _arguments '*:options:' ${logs_list_options[@]}
+}
+
+# 'llm keys' subcommand handler
+_llm:keys(){
+  local curcontext="$curcontext" state line
+  typeset -A opt_args
+
+  _arguments -C \
+    '1: :->first_arg' \
+    '*:: :->args'
+  case $state in
+    (first_arg)
+      case ${words[1]} in
+        (-*) _arguments '(--help)--help[Show this message and exit.]' ;;
+        (*)  _describe -t subcommands 'llm keys subcommands' LLM_KEYS_CHILD_COMMANDS ;;
+      esac
+      ;;
+    (args)
+      if [[ ${words[1]} != -* && ${LLM_KEYS_CHILD_COMMANDS[(r)${words[1]}:*]} ]]; then
+        local subcmd=${words[1]}
+        case $subcmd in
+          (list|path)
+            _arguments '(--help)--help[Show this message and exit.]' ;;
+          (get)
+            _arguments \
+              '1:name:->key_name' \
+              '(--help)--help[Show this message and exit.]' && return 0
+            case $state in
+              (key_name) _.llm_key_names ;;
+            esac ;;
+          (set)
+            _arguments \
+              '1:name:->key_name' \
+              '--value[Value to set]:value:' \
+              '(--help)--help[Show this message and exit.]' && return 0
+            case $state in
+              (key_name) _.llm_key_names ;;
+            esac ;;
+          (*)
+            _arguments '(--help)--help[Show this message and exit.]' ;;
+        esac
+      else
+        _arguments '(--help)--help[Show this message and exit.]'
+      fi
+      ;;
+  esac
+}
+
+# 'llm jq' subcommand handler
+_llm:jq(){
+  print "$0 │ ${state}; words[1]: '${words[1]}'; words[2]: '${words[2]}'\n" >> /tmp/llm.log
+  local curcontext="$curcontext" state line
+  typeset -A opt_args
+  local -a jq_subcommands
+  _arguments -C \
+    '1:description:->jq_desc' \
+    ${LLM_JQ_OPTIONS[@]} && return 0
+  case $state in
+    (jq_desc) _insert_double_quote ;;
+  esac
+}
+
+# region [-------- Helpers --------]
+
+# For -m or --model options.
+_.llm_model_names() {
+  local -au models
+  models=( ${(f)"$(cached command llm models list | .llm-models-filter-interesting)"} )
+  models+=( $(jq -r 'keys|join(" ")' "$HOME/Library/Application Support/io.datasette.llm/aliases.json") )
+  models+=( $(cached command llm logs list -n 0 --json --truncate | jq '.[].model' -r | sort -u) )
+  
+  # Check if we're completing after -m or --model
+  if [[ ${words[$CURRENT-1]} == "-m" || ${words[$CURRENT-1]} == "--model" ]]; then
+    compadd -a models
+    return 0
+  fi
+  
+  # Handle --model= prefix
+  local prefix=""
+  if [[ ${words[$CURRENT]} == --model=* ]]; then
+    prefix=${words[$CURRENT]#--model=}
+    models=(${(M)models:#${prefix}*})
+    compadd -p '--model=' -a models
+    return 0
+  fi
+  
+  # Default behavior
+  compadd -a models
+}
+
+# For --cid and --conversation options.
+_.llm_conversation_ids(){
+  local -a conversation_ids
+  conversation_ids=( $(cached llm-cids) )
+  local -a indexed_conversation_ids
+  local -i i=0
+  for cid in $conversation_ids; do
+    i=$((i+1))
+    indexed_conversation_ids+=( "${cid}:${i}" )
+  done
+  
+  if [[ ${words[$CURRENT-1]} == "--cid" || ${words[$CURRENT-1]} == "--conversation" || ${words[$CURRENT]} == --conversation=* || ${words[$CURRENT]} == --cid=* ]]; then
+    _describe -t conversation_ids 'Conversation IDs' indexed_conversation_ids
+    return 0
+  fi
+  return 1
+}
+
+
+# For -t or --template options.
+# TODO: this doesn't capture all the templates in the templates directory. See `.llm-template-path` in llm.zsh for how to get all templates.
+_.llm_template_names() {
+  local templates_dir="$HOME/Library/Application Support/io.datasette.llm/templates"
+  local -a templates all_files
+
+  # Get all yaml/yml files and strip the extension
+  # (.): glob qualifier to match only regular files, not directories
+  # N: null glob (don't error if no matches)
+  # :t:r: take the tail (filename only) and remove extension
+  # shellcheck disable=SC1036
+  all_files=( ${templates_dir}/*.{yaml,yml}(.N) )
+  templates=( ${all_files:t:r} )
+  
+  # Check if we're completing after -t or --template
+  if [[ ${words[$CURRENT-1]} == "-t" || ${words[$CURRENT-1]} == "--template" ]]; then
+    compadd -a templates
+    return 0
+  fi
+  
+  # Handle --template= prefix
+  if [[ ${words[$CURRENT]} == --template=* ]]; then
+    local prefix=${words[$CURRENT]#--template=}
+    templates=(${(M)templates:#${prefix}*})
+    compadd -p '--template=' -a templates
+    return 0
+  fi
+  
+  # Default behavior
+  compadd -a templates
+}
+
+# For -i or --inline-code-lexer options.
+_.llm_lexer_names() {
+  local -a lexers
+  lexers=(
+    'python:Python programming language'
+    'bash:Bash shell scripting'
+    'zsh:Z shell scripting'
+    'javascript:JavaScript programming language'
+    'typescript:TypeScript programming language'
+    'ruby:Ruby programming language'
+    'go:Go programming language'
+    'rust:Rust programming language'
+    'java:Java programming language'
+    'c:C programming language'
+    'cpp:C++ programming language'
+    'csharp:C# programming language'
+    'php:PHP programming language'
+    'html:HTML markup'
+    'css:CSS styling'
+    'json:JSON data format'
+    'yaml:YAML data format'
+    'markdown:Markdown formatting'
+    'sql:SQL database queries'
+  )
+  
+  # Handle --inline-code-lexer= prefix
+  if [[ ${words[$CURRENT]} == --inline-code-lexer=* ]]; then
+    local prefix=${words[$CURRENT]#--inline-code-lexer=}
+    lexers=(${(M)lexers:#${prefix}*})
+    _describe -t lexers -p '--inline-code-lexer=' 'code lexers' lexers
+    return 0
+  fi
+  
+  # Default behavior
+  _describe -t lexers 'code lexers' lexers
+}
+
+# Dynamic key names for `llm keys`
+_.llm_key_names(){
+  local -a names
+  names=( ${(f)"$(cached command llm keys list 2>/dev/null)"} )
+  _describe -t keynames 'Key names' names
+}
+
+# region [-------- Completion Registration --------]
+
+compdef _llm zshcmd
+
+compdef _llm llm simplify compress zshai zshcmd pyai claudeai 'claudeai+' gemini flashlite flash 'flash+' grok '4.1' '4.5' '4o' '4o@' o1 o1pro o3 o3m o4m
+
+compdef _llm:logs:list llm-logs llm-response llm-cids
+
+
+
+# region [-------- Extras --------]
+
+# Define completion functions for .ppx options
+_ppx_model_names() {
+  local -a models
+  models=(
+    'sonar-pro:Perplexity pro model'
+    'sonar-reasoning-pro:Perplexity reasoning model'
+    'sonar-deep-research:Perplexity deep research model'
+  )
+  if [[ ${words[$CURRENT-1]} == "-m" || ${words[$CURRENT-1]} == "--model" || ${words[$CURRENT]} == --model=* ]]; then
+    _describe -t models 'Models' models
+    return 0
+  fi
+  return 1
+}
+
+_ppx_reasoning_effort() {
+  local -a efforts
+  efforts=(
+    'low:Low reasoning effort'
+    'medium:Medium reasoning effort (default)'
+    'high:High reasoning effort'
+  )
+  if [[ ${words[$CURRENT-1]} == "-re" || ${words[$CURRENT-1]} == "--reasoning-effort" || ${words[$CURRENT]} == --reasoning-effort=* ]]; then
+    _describe -t efforts 'Reasoning effort' efforts
+    return 0
+  fi
+  return 1
+}
+
+_ppx_search_mode() {
+  local -a modes
+  modes=(
+    'web:Web search mode (default)'
+    'academic:Academic search mode'
+  )
+  if [[ ${words[$CURRENT-1]} == "-sm" || ${words[$CURRENT-1]} == "--search-mode" || ${words[$CURRENT]} == --search-mode=* ]]; then
+    _describe -t modes 'Search mode' modes
+    return 0
+  fi
+  return 1
+}
+
+_ppx_search_size() {
+  local -a sizes
+  sizes=(
+    'low:Low search size'
+    'medium:Medium search size'
+    'high:High search size (default)'
+  )
+  if [[ ${words[$CURRENT-1]} == "-ss" || ${words[$CURRENT-1]} == "--search-size" || ${words[$CURRENT]} == --search-size=* ]]; then
+    _describe -t sizes 'Search size' sizes
+    return 0
+  fi
+  return 1
+}
+
+_ppx_date_completion() {
+  if [[ -n ${words[$CURRENT]} ]] ; then
+    _message "Date, e.g. '3/1/2025', 'March 1, 2025'"
+    return 0
+  fi
+  case ${words[$CURRENT-1]} in
+    (--after) compadd "1/1/1900" ;;
+    (--before) compadd "$(date +%m/%d/%Y)" ;;
+  esac
+  return 0
+}
+
+# Main completion function for .ppx
+_ppx() {
+  _arguments -C \
+    '(-m --model)'{-m,--model,--model=}'[Model to use]:model:_ppx_model_names' \
+    '(-re --reasoning-effort)'{-re,--reasoning-effort,--reasoning-effort=}'[Reasoning effort]:effort:_ppx_reasoning_effort' \
+    '(-sm --search-mode)'{-sm,--search-mode,--search-mode=}'[Search mode]:mode:_ppx_search_mode' \
+    '(-ss --search-size)'{-ss,--search-size,--search-size=}'[Search size]:size:_ppx_search_size' \
+    '--after[Date after which to search]:date:_ppx_date_completion' \
+    '--before[Date before which to search]:date:_ppx_date_completion' \
+    '--no-md[Disable markdown rendering]' \
+    '1: :->positional_arg' && return 0
+  case $state in
+    (positional_arg)
+      _insert_double_quote
+      return 0
+  esac
+}
+
+compdef _ppx ppx ppx+ ppx++ .ppx
+# endregion [-------- Extras --------]

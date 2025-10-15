@@ -1,0 +1,219 @@
+#!/usr/bin/env zunit
+
+@setup {
+	set -e
+	load $SCRIPTS/log.sh
+	load $SCRIPTS/util.sh
+	load $SCRIPTS/inspect.sh
+  inspect_test_functions_in_file_lines=(
+'function root_function_kw(){ : ; }'
+'function root_function_kw_spaces () { : ; }'
+'root_no_function_kw(){ : ; }'
+'root_no_function_kw_spaces () { : ; }'
+'{'
+'  function nested_function_kw(){ : ; }'
+'  function nested_function_kw_spaces () { : ; }'
+'  nested_no_function_kw(){ : ; }'
+'  nested_no_function_kw_spaces () { : ; }'
+'}')
+  print -l "${inspect_test_functions_in_file_lines[@]}" > /tmp/inspect_test_functions_in_file
+
+  inspect_test_docstring_lines=(
+'function root_function_no_docstring(){'
+'  :'
+'}'
+'# # root_function_simple_docstring_no_args'
+'function root_function_simple_docstring_no_args(){'
+'  :'
+'}'
+'# # root_function_simple_docstring_with_args <ARG> [OPT]'
+'function root_function_simple_docstring_with_args(){'
+'  :'
+'}'
+'# # root_function_docstring <ARG> [OPT]'
+'# Bla bla bla.'
+'function root_function_docstring(){'
+'  :'
+'}'
+'# # root_function_docstring_with_examples <ARG> [--OPT]'
+'# Bla bla bla.'
+'# Examples:'
+'#   root_function_docstring_with_examples foo'
+'#   root_function_docstring_with_examples --bar'
+'#   root_function_docstring_with_examples foo --bar'
+'function root_function_docstring_with_examples(){'
+'  :'
+'}'
+'true && {'
+'  # # nested_function_simple_docstring_no_args'
+'  function nested_function_simple_docstring_no_args(){'
+'    :'
+'  }'
+'  # # nested_function_simple_docstring_with_args <ARG> [OPT]'
+'  function nested_function_simple_docstring_with_args(){'
+'    :'
+'  }'
+'  # # nested_function_docstring_with_examples <ARG> [OPT]'
+'  # Bla bla bla.'
+'  # Examples:'
+'  #   nested_function_docstring_with_examples foo'
+'  #   nested_function_docstring_with_examples --bar'
+'  #   nested_function_docstring_with_examples foo --bar'
+'  function nested_function_docstring_with_examples(){'
+'    :'
+'  }'
+'}'
+
+)
+  print -l "${inspect_test_docstring_lines[@]}" > /tmp/inspect_test_docstring
+
+  inspect_test_docstring_getopts_vex_lines=(
+'# # vex CMD [CMD_OPTS...] [VEX_OPTS...]'
+'# Verbose execution. Runs the given command, prints its output, prints whether the given command succeeded or not, and returns its exitcode.'
+'# vex [---log-only-before-running=false] [---just-run=false] [---notify=false]'
+'# vex [---log-before-running=false] [---log-only-errors=false] [---just-run=false] [---notify=false]'
+'# ## Pre-execution logging'
+'# `---log-before-running` Logs the command before running it. Can be combined with `---log-only-errors`.'
+'# `---log-only-before-running` Altogether turns off post-run success and failure logs. Implies `---log-before-running`, and incompatible with `---log-only-errors`.'
+'# ## Execution control'
+'# `---just-run` means not using `eval "$@"` but simply `"$@"`.'
+'# ## Post-execution logging'
+'# `---log-only-errors` Skips logging a success message if the command succeeded. Incompatible with `---log-only-before-running`.'
+'# ## Environment Variables'
+'# The following environment variables are supported:'
+'# - `VEX_LOG_ONLY_BEFORE_RUNNING` (default false)'
+'# - `VEX_LOG_BEFORE_RUNNING` (default false)'
+'# - `VEX_LOG_ONLY_ERRORS` (default false)'
+'# - `VEX_JUST_RUN` (default false)'
+'# - `VEX_NOTIFY` (default false)'
+  )
+  print -l "${inspect_test_docstring_getopts_vex_lines[@]}" > /tmp/inspect_test_docstring_getopts_vex
+}
+
+@test 'functions_in_file' {
+  run functions_in_file /tmp/inspect_test_functions_in_file
+  assert $state equals 0
+  assert "$output" is_not_empty
+  assert "${lines[1]}" same_as 'root_function_kw'
+  assert "${lines[2]}" same_as 'root_function_kw_spaces'
+  assert "${lines[3]}" same_as 'root_no_function_kw'
+  assert "${lines[4]}" same_as 'root_no_function_kw_spaces'
+  assert "${lines[5]}" same_as 'nested_function_kw'
+  assert "${lines[6]}" same_as 'nested_function_kw_spaces'
+  assert "${lines[7]}" same_as 'nested_no_function_kw'
+  assert "${lines[8]}" same_as 'nested_no_function_kw_spaces'
+}
+
+@test 'functions_in_file --no-nested' {
+  run functions_in_file /tmp/inspect_test_functions_in_file --no-nested
+  assert $state equals 0
+  assert "$output" is_not_empty
+  assert "${lines[1]}" same_as 'root_function_kw'
+  assert "${lines[2]}" same_as 'root_function_kw_spaces'
+  assert "${lines[3]}" same_as 'root_no_function_kw'
+  assert "${lines[4]}" same_as 'root_no_function_kw_spaces'
+  assert "${lines[5]}" is_empty
+  assert "${lines[6]}" is_empty
+  assert "${lines[7]}" is_empty
+  assert "${lines[8]}" is_empty
+}
+
+@test 'functions_in_file --only-function-keyword' {
+  run functions_in_file /tmp/inspect_test_functions_in_file --only-function-keyword
+  assert $state equals 0
+  assert "$output" is_not_empty
+  assert "${lines[1]}" same_as 'root_function_kw'
+  assert "${lines[2]}" same_as 'root_function_kw_spaces'
+  assert "${lines[3]}" same_as 'nested_function_kw'
+  assert "${lines[4]}" same_as 'nested_function_kw_spaces'
+  assert "${lines[5]}" is_empty
+  assert "${lines[6]}" is_empty
+  assert "${lines[7]}" is_empty
+  assert "${lines[8]}" is_empty
+}
+
+@test 'functions_in_file --only-function-keyword --no-nested' {
+  run functions_in_file /tmp/inspect_test_functions_in_file --only-function-keyword --no-nested
+  assert $state equals 0
+  assert "$output" is_not_empty
+  assert "${lines[1]}" same_as 'root_function_kw'
+  assert "${lines[2]}" same_as 'root_function_kw_spaces'
+  assert "${lines[3]}" is_empty
+  assert "${lines[4]}" is_empty
+  assert "${lines[5]}" is_empty
+  assert "${lines[6]}" is_empty
+  assert "${lines[7]}" is_empty
+  assert "${lines[8]}" is_empty
+}
+
+@test 'docstring root_function_no_docstring' {
+  load /tmp/inspect_test_docstring
+  run docstring root_function_no_docstring /tmp/inspect_test_docstring
+  assert $state equals 1
+}
+
+@test 'docstring root_function_simple_docstring_no_args' {
+  load /tmp/inspect_test_docstring
+  run docstring root_function_simple_docstring_no_args /tmp/inspect_test_docstring
+  assert $state equals 0
+  assert "$output" is_not_empty
+  assert "${lines[1]}" same_as '# root_function_simple_docstring_no_args'
+}
+
+@test 'docstring root_function_simple_docstring_with_args' {
+  load /tmp/inspect_test_docstring
+  run docstring root_function_simple_docstring_with_args /tmp/inspect_test_docstring
+  assert $state equals 0
+  assert "$output" is_not_empty
+  assert "${lines[1]}" same_as '# root_function_simple_docstring_with_args <ARG> [OPT]'
+}
+
+@test 'docstring root_function_docstring_with_examples' {
+  load /tmp/inspect_test_docstring
+  run docstring root_function_docstring_with_examples /tmp/inspect_test_docstring
+  assert $state equals 0
+  assert "${lines[1]}" same_as '# root_function_docstring_with_examples <ARG> [--OPT]'
+  assert "${lines[2]}" same_as 'Bla bla bla.'
+  assert "${lines[3]}" same_as 'Examples:'
+  assert "${lines[4]}" same_as '  root_function_docstring_with_examples foo'
+  assert "${lines[5]}" same_as '  root_function_docstring_with_examples --bar'
+  assert "${lines[6]}" same_as '  root_function_docstring_with_examples foo --bar'
+}
+
+@test 'nested_function_simple_docstring_no_args' {
+  load /tmp/inspect_test_docstring
+  run docstring nested_function_simple_docstring_no_args /tmp/inspect_test_docstring
+  assert $state equals 0
+  assert "$output" is_not_empty
+  assert "${lines[1]}" same_as '# nested_function_simple_docstring_no_args'
+}
+
+@test 'docstring.getopts $positional simple' {
+  local doc_string="$(print -l "# noos.eslint [eslint_opt...] [--fix-dry-run] [--with-tests] [-v, --verbose]" "# eslints modified .ts files and .ts files that aren't in the main branch.")"
+  run docstring.getopts "$doc_string"
+  assert $state equals 0
+  assert "$output" is_not_empty
+  assert "${lines[1]}" same_as '--fix-dry-run'
+  assert "${lines[2]}" same_as '--verbose'
+  assert "${lines[3]}" same_as '--with-tests'
+  assert "${lines[4]}" same_as '-v'
+}
+
+@test 'docstring.getopts isort --help' {
+  local doc_string="$(cat "$SCRIPTS"/tests/data/isort-help)"
+  run docstring.getopts "$doc_string"
+  assert $state equals 0
+  assert "$output" is_not_empty
+}
+
+@test 'docstring.getopts vex' {
+  local doc_string="$(cat /tmp/inspect_test_docstring_getopts_vex)"
+  run docstring.getopts "$doc_string"
+  assert $state equals 0
+  assert "$output" is_not_empty
+  assert "${lines[1]}" same_as '---just-run'
+  assert "${lines[2]}" same_as '---log-before-running'
+  assert "${lines[3]}" same_as '---log-only-before-running'
+  assert "${lines[4]}" same_as '---log-only-errors'
+  assert "${lines[5]}" same_as '---notify'
+}

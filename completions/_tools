@@ -1,0 +1,185 @@
+#compdef tools
+
+
+# ------------[ Ruff ]------------
+
+# ------------[ fd ]------------
+
+_fdrg(){
+  zstyle ':completion::complete:fdrg:*:descriptions' format "$(docstring fdrg ~/dev/bashscripts/tools.sh)"
+  _alternative \
+    'files:filepath:_fd' \
+    'files:filepath:_rg -/'
+
+  _arguments \
+    ":: :( $(docstring.getopts fdrg ~/dev/bashscripts/tools.sh) )"
+}
+compdef _fdrg fdrg
+
+_fdbf(){
+  zstyle ':completion::complete:fdbf:*:descriptions' format "$(docstring fdbf ~/dev/bashscripts/tools.sh)"
+  _alternative 'files:filepath:_fd'
+
+  _arguments \
+    ":: :( $(docstring.getopts fdbf ~/dev/bashscripts/tools.sh) )"
+}
+compdef _fdbf fdbf
+
+# ------------[ rg ]------------
+
+# _rgsed_(){
+#   local seen_double_dash=false
+#   [[ "${words[(r)--]}" ]] && seen_double_dash=true
+#
+#   _arguments -C \
+#     '1: :->query' \
+#     '*::options:->options' && return 0
+#
+#   case $state in
+#   (options)
+#     if [[ $seen_double_dash = true ]]; then
+#       _arguments \
+#         '"[string]' \
+#         '-f[file]:file:_files' \
+#         '--no-backup[do not create backup files]' && return 0
+#     else
+#       _alternative \
+#         'files:filepath:_rg -/'
+#     fi
+#     ;;
+#   esac
+# }
+
+_rgsed() {
+  zstyle ':completion::complete:rgsed:*:descriptions' format "$(docstring rgsed ~/dev/bashscripts/tools.sh)"
+  _insert_double_quote(){
+    compadd -Q -S '"' ''
+  }
+  local curcontext="$curcontext" state line
+  typeset -A opt_args
+
+  _arguments -S -C \
+      '1: :->query' \
+      '*: :->args' \
+      && return 0
+
+  case $state in
+      query)
+          _message 'Enter search query'
+          if [[ -z "${words[CURRENT]}" ]]; then
+              _insert_double_quote
+          fi
+          ;;
+      args)
+          if (( ${words[(I)--]} )); then
+              # After --
+              if (( CURRENT == ${words[(I)--]} + 1 )); then
+                  _message 'Enter sed replace expression'
+                  if [[ -z "${words[CURRENT]}" ]]; then
+                      _insert_double_quote
+                  fi
+              else
+                  local -a opts
+                  opts=(
+                      '-f:file:_files'
+                      '--no-backup:do not create backup files'
+                  )
+                  _describe -t options "options" opts
+              fi
+          else
+              # Before --
+              _arguments -S \
+                  '*:ripgrep options:_rg' \
+                  '--:separator:_nothing'
+          fi
+          ;;
+  esac
+}
+
+compdef _rgsed rgsed
+
+
+# ------------[ ls / eza ]------------
+compdef ls=eza
+
+# ------------[ pyenv ]------------
+
+# ------------[ conda ]------------
+
+# ------------[ cat ]------------
+# compdef 'compadd -x "$(docstring evalcat -p ~/dev/bashscripts/tools.sh)"; _alternative "files:filepath:_cat -/"' evalcat
+_evalcat(){
+  zstyle ':completion::complete:evalcat:*:descriptions' format "$(docstring evalcat ~/dev/bashscripts/tools.sh)"
+  _alternative "files:filepath:_cat -/"
+}
+compdef _evalcat evalcat
+
+_catrange(){
+  zstyle ':completion::complete:catrange:*:descriptions' format "$(docstring catrange ~/dev/bashscripts/tools.sh)"
+  _alternative "files:filepath:_cat -/"
+}
+compdef _catrange catrange
+
+_catjumps(){
+  zstyle ':completion::complete:catjumps:*:descriptions' format "$(docstring catjumps ~/dev/bashscripts/tools.sh)"
+  _alternative "files:filepath:_cat -/"
+}
+compdef _catjumps catjumps
+
+# ------------[ sort ]------------
+_sort_by_length(){
+  zstyle ':completion::complete:sort-by-length:*:descriptions' format "$(docstring sort-by-length ~/dev/bashscripts/tools.sh)"
+  _alternative "files:filepath:_sort -/"
+}
+compdef _sort_by_length sort-by-length
+
+# ------------[ kitty ]------------
+
+# ----------[ uv ] ---------------
+compdef '_uv sync' uv.syncall=uv-sync
+compdef _gnu_generic uvr
+compdef _gnu_generic uvpy
+compdef _gnu_generic uvpt
+
+# -----------------------------
+
+_wget_recursive(){
+  zstyle ':completion::complete:wget.recursive:*:descriptions' format "$(docstring wget.recursive ~/dev/bashscripts/tools.sh)"
+  _alternative "files:filepath:_wget -/"
+}
+compdef _wget_recursive wget.recursive
+
+# ------------[ to ]------------
+
+_to() {
+  # If any of the arguments are exactly 'diff', then I haven't implemented it yet -- just invoke generic completion and return
+  if [[ "$words" == *'diff'* ]]; then
+    _gnu_generic
+    return 0
+  fi
+
+  local supported_formats='json json5 toml yaml'
+  local output_format_definition="[Output format. Supported: ${supported_formats}.]:output format:(${supported_formats})"
+  local output_dest_definition="[Output destination. A file path or 'stdout' (Default 'stdout')]:output destination:_files"
+  local pretty_print_definition="[Pretty print (Only available when outputing to stdout)]"
+  local width_definition="[Max line width of the output. Defaults to 120.]"
+  _arguments \
+    '1:COMMAND_NAME:(convert diff)' \
+    '2:INPUT_PATH_OR_STRING:_files' \
+    "-f${output_format_definition}" \
+    "--format=${output_format_definition}" \
+    "-o${output_dest_definition}" \
+    "--output=${output_dest_definition}" \
+    "--clean[Recursively remove any keys with None or empty string.]" \
+    "-p${pretty_print_definition}" \
+    "--pretty${pretty_print_definition}" \
+    "-w${width_definition}" \
+    "--width=${width_definition}" \
+    "--sort-keys[Sort keys in the output. This is the default.]" \
+    "--no-sort-keys[Do not sort keys in the output.]"
+
+  case $CURRENT in
+  3) compadd -x "ℹ️ First positional argument expects a string, a file path, or '-' for stdin. Defaults to '-' if piped." "" ;;
+  esac
+}
+compdef _to to

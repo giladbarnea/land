@@ -1,0 +1,82 @@
+#compdef _docker
+function _docker(){
+	_docker_services_names(){
+		_describe 'command' "($(docker.services.names))"
+	}
+	_docker_containers_names(){
+		_describe 'command' "($(docker.containers.names))"
+	}
+	_docker_compose_services(){
+		_describe 'command' "($(docker.compose.services))"
+	}
+	_docker_build(){
+		# _arguments '-s[sort output]' '--l[long output]' '-l[long output]'
+		# local -a docker_build_options=(
+		# 	"--add-host=[Add a custom host-to-IP mapping]:host\:ip mapping: "
+		# 	"--build-arg=[Build-time variables]:<varname>=<value>: "
+		# )
+			_docker_services_names
+		local -a docker_build_options=(
+					--add-host
+					--build-arg
+					--cache-from
+					--cgroup-parent
+					--compress
+					--cpu-period
+					--cpu-quota
+					--cpu-shares
+					--cpuset-cpus
+					--cpuset-mems
+					--disable-content-trust
+					--force-rm
+					--iidfile
+					--isolation
+					--label
+					--memory
+					--memory-swap
+					--network
+					--no-cache
+					--pull
+					--quiet
+					--rm
+					--security-opt
+					--shm-size
+					--target
+					--ulimit
+				)
+		_arguments "${docker_build_options[@]}"
+	}
+	_docker_network_ls(){
+	# osascript -e "display notification \"words $words BUFFER $BUFFER\""
+	compadd -x "$(docstring "${name}" 2>/dev/null)"
+		local -a docker_network_ls_options=(
+			"-f=[Provide filter values]:filter"
+			"--filter=[Provide filter values]:filter"
+			"--format=[Pretty-print networks using a Go template]:template: "
+			"--no-trunc[Do not truncate the output]"
+			"-q[Only display network IDs]"
+			"--quiet[Only display network IDs]"
+		)
+		_arguments "${docker_network_ls_options[@]}"
+	}
+
+	compdef _docker_services_names \
+			docker.images.remove docker.down_build_up docker.services.get_Dockerfile
+
+	compdef _docker_build \
+			docker.images.build_by_service docker.images.build_by_services
+
+	compdef "_describe command \"('--active')\"" \
+					docker.services.names docker.services.restart
+
+
+	compdef _docker_network_ls \
+					docker.networks.ids docker.networks.names
+
+	compdef _docker_containers_names \
+					de.psql de.bash
+
+	compdef _docker_compose_services \
+					docker.compose.deps docker.compose.up
+}
+alias redocker="${aliases[redocker]}; _docker"

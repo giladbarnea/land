@@ -1,0 +1,50 @@
+#compdef pretty
+
+# ------------[ bat ]------------
+complete -A function batw
+
+# # region ------------[ Rich ]------------
+
+# Auto parse printed opts when calling richsyntax --help
+# compdef '_arguments --' richsyntax
+
+_richsyntax() {
+	zstyle ':completion::complete:richsyntax:*:descriptions' format "$(docstring richsyntax ~/dev/bashscripts/pretty.sh)"
+	zstyle ':completion::complete:richjson:*:descriptions' format "$(docstring richjson ~/dev/bashscripts/pretty.sh)"
+	local themes='abap algol algol_nu arduino autumn bw borland coffee colorful default dracula emacs friendly_grayscale friendly fruity github-dark gruvbox-dark gruvbox-light igor inkpot lightbulb lilypond lovelace manni material monokai murphy native nord-darker nord one-dark paraiso-dark paraiso-light pastie perldoc rainbow_dash rrt sas solarized-dark solarized-light staroffice stata-dark stata-light tango trac vim vs xcode zenburn'
+	_arguments \
+		{-h,--help}'[Show help message]' \
+		{-c,--force-color}'[Force color for non-terminals]' \
+		{-i,--indent-guides}'[Display indent guides]' \
+		{-l,--line-numbers}'[Render line numbers]' \
+		{-w,--width}'[Width of output (default: half of COLUMNS)]:width:' \
+		{-s,--soft-wrap}'[Enable soft wrapping mode]' \
+		{-t,--theme}"[Pygments theme (default: monokai)]:theme:($themes)" \
+		{-b,--background-color}'[Override background color (default: black)]:background color:' \
+		{-x,--lexer}'[Specify Pygments-supported lexer. If unspecified, is inferred from the file extension or shebang]:lexer:' \
+		{-p,--padding}'[Padding (default: 0)]:padding:' \
+		'--highlight-line[The line number (not index) to highlight]:line number:' \
+		'1:path to file:_files'
+}
+compdef _richsyntax richsyntax richjson
+
+_richmd() {
+	zstyle ':completion::complete:richmd:*:descriptions' format "$(docstring richmd ~/dev/bashscripts/pretty.sh)"
+	local themes='abap algol algol_nu arduino autumn bw borland coffee colorful default dracula emacs friendly_grayscale friendly fruity github-dark gruvbox-dark gruvbox-light igor inkpot lightbulb lilypond lovelace manni material monokai murphy native nord-darker nord one-dark paraiso-dark paraiso-light pastie perldoc rainbow_dash rrt sas solarized-dark solarized-light staroffice stata-dark stata-light tango trac vim vs xcode zenburn'
+	_arguments \
+		{-t,--code-theme}"[Specify Pygments code theme (default: monokai)]:theme:($themes)" \
+		{-i,--inline-code-lexer}'[Specify Pygments-supported lexer for inline code]:lexer:' \
+		{-w,--width}'[Width of output (default: half of COLUMNS)]:width:' \
+		{-j,--justify}'[Enable full text justify]' \
+		{-p,--page}'[Use pager to scroll output]' \
+		'1:markdown file:_files'
+}
+
+compdef _richmd richmd
+#endregion ------------[ Rich ]------------
+
+#region ------------[ HTML converters and Scraping ]------------
+
+
+
+#endregion HTML converters and Scraping

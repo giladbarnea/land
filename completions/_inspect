@@ -1,0 +1,76 @@
+#compdef _inspect
+
+
+# ---[ Completion functions ]---
+
+_fileof(){
+	compadd -x "$(docstring fileof ~/dev/bashscripts/inspect.sh)"
+	# _describe command "( $(_get_functions_names) $(_get_alias_names) )"
+	_functions
+	_aliases
+}
+compdef _fileof fileof
+
+_linenumof(){
+	compadd -x "$(docstring linenumof ~/dev/bashscripts/inspect.sh)"
+	# _describe command "( $(_get_functions_names) $(_get_alias_names) )"
+	_functions
+	_aliases
+}
+compdef _linenumof linenumof
+
+_linecount(){
+	compadd -x "$(docstring linecount ~/dev/bashscripts/inspect.sh)"
+}
+compdef _linecount linecount
+
+
+_docstring(){
+	compadd -x "$(docstring docstring ~/dev/bashscripts/inspect.sh)"
+	# _describe command "( $(_get_functions_names) )"
+	_functions
+}
+compdef _docstring docstring
+
+_docstring.getopts(){
+	compadd -x "$(docstring docstring.getopts ~/dev/bashscripts/inspect.sh)"
+	# _describe command "( $(_get_functions_names) )"
+	_functions
+}
+compdef _docstring.getopts docstring.getopts
+
+_isfunction(){
+	compadd -x "$(docstring isfunction ~/dev/bashscripts/inspect.sh)"
+	# _describe command "( $(_get_functions_names) )"
+	_functions
+}
+compdef _isfunction isfunction
+
+_isalias(){
+	compadd -x "$(docstring isalias ~/dev/bashscripts/inspect.sh)"
+	# _describe command "( $(_get_alias_names) )"
+	_aliases
+}
+compdef _isalias isalias
+
+_valueof(){
+	compadd -x "$(docstring valueof ~/dev/bashscripts/inspect.sh)"
+	# _describe command "( $(_get_functions_names) $(_get_alias_names) $(_get_variable_names) )"
+	_functions
+	_aliases
+	_vars
+}
+compdef _valueof valueof
+
+_functions_in_file(){
+	compadd -x "$(docstring functions_in_file ~/dev/bashscripts/inspect.sh)"
+	_arguments "1:file:_files"
+}
+compdef _functions_in_file functions_in_file
+
+_shebang_executable(){
+	compadd -x "$(docstring shebang_executable ~/dev/bashscripts/inspect.sh)"
+	_arguments "1:file:_files"
+}
+compdef _shebang_executable shebang_executable
+

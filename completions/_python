@@ -1,0 +1,15 @@
+#compdef python
+function _py_print_completion {
+	compadd -x "$(docstring py.print)"
+	local -a commands=(
+		'--readlines:Makes stdin=sys.stdin instead of stdin=sys.stdin.read() and no ‘words’ variable.'
+		'--file:Defaults to sys.stdout.'
+		'--end:Defaults to empty string.'
+		'-s:SETUP_SMT — Execute before the program. Useful for imports and so on. Can be specified multiple times.'
+		'+S:Honor user site packages, current virtualenv, PYTHON_ env vars.'
+		'--user-site-packages=true:Honor user site packages, current virtualenv, PYTHON_ env vars.'
+		)
+	_describe "command" commands
+}
+
+compdef _py_print_completion py.print

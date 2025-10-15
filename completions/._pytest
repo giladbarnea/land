@@ -1,0 +1,15 @@
+#compdef pytest
+
+_pytest(){
+  type pytest &> /dev/null || return 1
+  # if [[ ! -e /tmp/_pytest_completions ]]; then
+  #   pytest --help | command grep -Po --color=never '(-[a-zA-Z0-9_]{1}|-{2}[a-zA-Z0-9-_]{2,})' | sort -u > /tmp/_pytest_completions
+  # fi
+	# _describe command "(
+  #   $(cat /tmp/_pytest_completions)
+	# )"
+	# _arguments '*:directory:_files'
+  _arguments -- pytest
+}
+
+compdef _pytest pytest

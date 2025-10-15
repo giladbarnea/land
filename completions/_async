@@ -1,0 +1,77 @@
+#compdef async
+
+_realasync(){
+	zstyle ':completion::complete:realasync:*:descriptions' format "$(docstring -o realasync "$SCRIPTS/async.zsh")"
+	_describe command "(
+		--:''
+		--notify:''
+	)"
+}
+
+_renametopathlike(){
+	_files
+	compadd -x "$(docstring renametopathlike "$SCRIPTS/fs.sh")"
+	_describe command "(
+		-{f,-file}:'Disallow forward slashes when renaming'
+		-{l,-lower}:'Lowercase new name'
+		-{y,-yes}:'Do not confirm before renaming'
+		-{d,-with-date}:'New name starts with YYYY-mm-dd'
+	)"
+	
+}
+
+compdef _renametopathlike renametopathlike
+
+
+compdef _realasync realasync
+
+_background() { 
+	zstyle ':completion::complete:background:*:descriptions' format "$(docstring background "$SCRIPTS/async.zsh")"
+}
+compdef _background background
+
+
+_after() {
+	zstyle ':completion::complete:after:*:descriptions' format "$(docstring after "$SCRIPTS/async.zsh")"
+	_pgrep
+}
+compdef _after after
+
+
+_xargseach() {
+	zstyle ':completion::complete:xargseach:*:descriptions' format "$(docstring xargseach "$SCRIPTS/async.zsh")"
+	_xargs
+}
+compdef _xargseach xargseach
+
+
+
+_xargparallel() {
+	zstyle ':completion::complete:xargparallel:*:descriptions' format "$(docstring xargparallel "$SCRIPTS/async.zsh")"
+	_xargs
+}
+compdef _xargparallel xargparallel
+
+
+_wait_until_exists() {
+	compadd -x "$(docstring wait_until_exists "$SCRIPTS/async.zsh")"
+	_describe command "(
+			-{i,-interval}:'INTERVAL_SECONDS. Default 0.005'
+			-{t,-timeout}:'TIMEOUT_SECONDS. Default 0.5'
+			-{v,-verbose}:''
+		)"
+}
+compdef _wait_until_exists wait_until_exists
+
+_wget.bg() { compadd -x "$(docstring wget "$SCRIPTS/async.zsh".bg)"; }
+compdef _wget.bg wget.bg
+
+_whiletrue() {
+	compadd -x "$(docstring whiletrue "$SCRIPTS/async.zsh")"
+	# regex to parse opts from docstring: '(?<=\[)(-[a-z]+)?[, ]*(--[a-z\-_]+)?( [A-Z_]+)?(?=])'
+	_describe "command" "(
+        -{i,-interval}:'INTERVAL_SECONDS. Default 1'
+        -{n,-no-exit-on-error}:'Keep running even if a command fails'
+		)"
+}
+compdef _whiletrue whiletrue

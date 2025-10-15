@@ -1,0 +1,12 @@
+[submodule "llm"]
+	path = llm
+	url = https://github.com/giladbarnea/llm.git
+[submodule "histclean"]
+	path = histclean
+	url = ./histclean
+[submodule "printfiles"]
+	path = printfiles
+	url = https://github.com/giladbarnea/printfiles.git
+[submodule "prin"]
+	path = prin
+	url = https://github.com/giladbarnea/prin.git

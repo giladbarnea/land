@@ -1,0 +1,58 @@
+#!/usr/bin/env zunit
+
+# zunit '/Users/gilad/dev/bashscripts/tests/zsh_advanced_history.zunit' --verbose --tap --fail-fast
+
+@setup {
+  set -e
+  load $SCRIPTS/log.sh
+  load $SCRIPTS/util.sh
+  load $SCRIPTS/zsh_advanced_history.zsh
+}
+
+@test '_zah.has_unescaped_exmark positives' {
+  run _zah.has_unescaped_exmark 'hello!'
+  assert "$state" equals 0
+  run _zah.has_unescaped_exmark '!world'
+  assert "$state" equals 0
+  run _zah.has_unescaped_exmark 'hello!world'
+  assert "$state" equals 0
+  run _zah.has_unescaped_exmark 'hello!world\!'
+  assert "$state" equals 0
+}
+
+@test '_zah.has_unescaped_exmark negatives' {
+  run _zah.has_unescaped_exmark 'hello'
+  assert "$state" equals 1
+  run _zah.has_unescaped_exmark 'hello\!'
+  assert "$state" equals 1
+  run _zah.has_unescaped_exmark '\!world'
+  assert "$state" equals 1
+  run _zah.has_unescaped_exmark 'hello\!world'
+  assert "$state" equals 1
+  run _zah.has_unescaped_exmark 'hello\!world\!'
+  assert "$state" equals 1
+}
+
+@test '_zah.has_escaped_exmark positives' {
+  run _zah.has_escaped_exmark 'hello\!'
+  assert "$state" equals 0
+  run _zah.has_escaped_exmark '\!world'
+  assert "$state" equals 0
+  run _zah.has_escaped_exmark 'hello\!world'
+  assert "$state" equals 0
+  run _zah.has_escaped_exmark 'hello!world\!'
+  assert "$state" equals 0
+}
+
+@test '_zah.has_escaped_exmark negatives' {
+  run _zah.has_escaped_exmark 'hello'
+  assert "$state" equals 1
+  run _zah.has_escaped_exmark 'hello!'
+  assert "$state" equals 1
+  run _zah.has_escaped_exmark '!world'
+  assert "$state" equals 1
+  run _zah.has_escaped_exmark 'hello!world'
+  assert "$state" equals 1
+  run _zah.has_escaped_exmark 'hello!world!'
+  assert "$state" equals 1
+}

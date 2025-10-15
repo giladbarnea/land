@@ -1,0 +1,69 @@
+#compdef ghcli.sh 
+
+# gh completion -s zsh > ~/dev/bashscripts/completions/_gh
+
+
+
+function _ghg-dl(){
+  function set_compreply(){
+    COMPREPLY=($(compgen -W "${@}" -- "${current}"))
+  }
+  current="${COMP_WORDS[COMP_CWORD]}"
+  prev="${COMP_WORDS[$COMP_CWORD - 1]}"
+  #echo "current: ${current} | prev: ${prev} | COMP_CWORD: ${COMP_CWORD} | COMP_WORDS[@]: ${COMP_WORDS[@]} | COMP_LINE: ${COMP_LINE}" >> /tmp/LOG.log
+
+  if [[ $prev == -o || $prev == --outpath ]]; then
+    set_compreply "*"
+    return 0
+  fi
+
+  if [[ "$COMP_CWORD" == 1 ]]; then
+    set_compreply $(ghg-ids)
+    return 0
+  fi
+
+  if [[ "${COMP_LINE[(r)--overwrite]}" || "${COMP_LINE[(r)-w]}" ]]; then
+    contains_overwrite=true
+  else
+    contains_overwrite=false
+  fi
+
+  if [[ "${COMP_LINE[(r)--outpath]}" || "${COMP_LINE[(r)-o]}" ]]; then
+    contains_outpath=true
+  else
+    contains_outpath=false
+  fi
+
+  $contains_overwrite && $contains_outpath && return 0
+  if $contains_overwrite; then
+    available_completions='-o --outpath'
+  elif $contains_outpath; then
+    available_completions='-w --overwrite'
+  else
+    available_completions='-w --overwrite -o --outpath'
+  fi
+
+  set_compreply "$available_completions"
+}
+
+
+complete -o bashdefault -o default -o filenames -F _ghg-dl ghg-dl
+complete -o bashdefault -o default -o filenames -W "-f -l" ghg-update
+
+_ghg-diff(){
+  zstyle ':completion::complete:ghg-diff:*:descriptions' format "$(docstring ghg-diff ~/dev/bashscripts/ghcli.sh)"
+
+  _arguments \
+    {-t,--difftool}'[Knows pycharm and code, otherwise evals literally. If unspecified: pycharm > vscode > delta > builtin diff]' \
+    {-c,--ignore-comments}'[Ignore lines matching ^\s*# when diffing]' \
+    {-f,--gist-filename}'[The name of the target gist file]' \
+    {-l,--local-filepath}'[The path to the local file to diff against]' \
+    "1: :($(ghg-descriptions) $(ghg-ids))"
+}
+compdef _ghg-diff ghg-diff
+
+_ghg-clone(){
+  zstyle ':completion::complete:ghg-clone:*:descriptions' format "$(docstring ghg-clone ~/dev/bashscripts/ghcli.sh)"
+  _arguments "1: :($(ghg-descriptions) $(ghg-ids))"
+}
+compdef _ghg-clone ghg-clone

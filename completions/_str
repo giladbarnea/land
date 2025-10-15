@@ -1,0 +1,4 @@
+#compdef str
+
+_isnum(){ compadd -x "$(docstring isnum)" ; } ;
+compdef _isnum isnum

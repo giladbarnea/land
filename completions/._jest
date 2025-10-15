@@ -1,0 +1,8 @@
+#compdef jest
+
+_jest(){
+  type jest &> /dev/null || return 1
+  _arguments -- jest
+}
+
+compdef _jest jest

@@ -1,0 +1,444 @@
+#!/usr/bin/env zunit
+@setup {
+	load $SCRIPTS/util.sh
+	load $SCRIPTS/str.sh
+	set -e
+}
+
+
+@test 'upper' {
+	assert "$(upper hello)" same_as HELLO
+}
+
+@test 'upper piped' {
+	assert "$(echo hello | upper)" same_as HELLO
+	assert "$(upper <<< hello)" same_as HELLO
+}
+
+@test 'lower' {
+	assert "$(lower HELLO)" same_as hello
+}
+
+@test 'lower piped' {
+	assert "$(echo HELLO | lower)" same_as hello
+	assert "$(lower <<< HELLO)" same_as hello
+}
+
+@test 'str.has_newline' {
+  run str.has_newline "hello"
+  assert $state equals 1
+
+  run str.has_newline "hello world"
+  assert $state equals 1
+  local with_newline
+  with_newline="$(echo -e "hello\nworld")"  # actual line break
+  run str.has_newline "$with_newline"
+  assert $state equals 0
+
+  with_newline="$(printf "hello\nworld")"
+  run str.has_newline "$with_newline"
+  assert $state equals 0
+
+  with_newline="$(printf %b "hello\nworld")"
+  run str.has_newline "$with_newline"
+  assert $state equals 0
+
+  literal_tab="$(printf %q "hello\tworld")"
+  run str.has_newline "$literal_tab"
+  assert $state equals 1
+
+  with_newline='hello\nworld'
+  run str.has_newline "$with_newline"
+  assert $state equals 0
+
+  run str.has_newline "$(echo "$with_newline")"
+  assert $state equals 0
+
+  run str.has_newline "$(printf "$with_newline")"
+  assert $state equals 0
+
+  run str.has_newline "$(printf %b "$with_newline")"
+  assert $state equals 0
+
+  run str.has_newline "$(printf %q "$with_newline")"
+  assert $state equals 0
+
+  run str.has_newline "$(printf %q "$with_newline foo")"
+  assert $state equals 0
+}
+
+@test 'isnum truthy examples' {
+	run isnum 1
+	assert "$state" equals 0
+
+	run isnum -1
+	assert "$state" equals 0
+
+	run isnum "1"
+	assert "$state" equals 0
+
+	run isnum "-1"
+	assert "$state" equals 0
+
+	run isnum '1'
+	assert "$state" equals 0
+
+	run isnum '-1'
+	assert "$state" equals 0
+
+}
+
+@test 'isnum falsy examples' {
+	run isnum 1hi
+	assert "$state" equals 1
+
+	run isnum -1hi
+	assert "$state" equals 1
+
+	run isnum hi1
+	assert "$state" equals 1
+
+	run isnum -hi1
+	assert "$state" equals 1
+
+
+
+}
+
+@test 'is_regex_pattern positives' {
+  set -x
+  run is_regex_pattern '^hello'
+  assert "$state" equals 0
+  run is_regex_pattern 'world$'
+  assert "$state" equals 0
+  run is_regex_pattern 'hel+o'
+  assert "$state" equals 0
+  run is_regex_pattern 'helll?o'
+  assert "$state" equals 0
+  run is_regex_pattern 'hel*o'
+  assert "$state" equals 0
+  run is_regex_pattern '.*match'
+  assert "$state" equals 0
+  run is_regex_pattern '.+oneormore'
+  assert "$state" equals 0
+  run is_regex_pattern '.?zeroorone'
+  assert "$state" equals 0
+  run is_regex_pattern '{2}'
+  assert "$state" equals 0
+  run is_regex_pattern '{2,}'
+  assert "$state" equals 0
+  run is_regex_pattern '{2,5}'
+  assert "$state" equals 0
+  run is_regex_pattern '{,5}'
+  assert "$state" equals 0
+  run is_regex_pattern '[a-z]'
+  assert "$state" equals 0
+  run is_regex_pattern '[0-9]'
+  assert "$state" equals 0
+  run is_regex_pattern '[A-Z]'
+  assert "$state" equals 0
+  run is_regex_pattern '[^)a-z0-9]'
+  assert "$state" equals 0
+  run is_regex_pattern '[[:digit:]]'
+  assert "$state" equals 0
+  run is_regex_pattern '[[:space:]]'
+  assert "$state" equals 0
+  run is_regex_pattern '[[:alnum:]]'
+  assert "$state" equals 0
+  run is_regex_pattern '[[:punct:]]'
+  assert "$state" equals 0
+  run is_regex_pattern '[[:print:]]'
+  assert "$state" equals 0
+  run is_regex_pattern '[[:graph:]]'
+  assert "$state" equals 0
+  run is_regex_pattern '[[:lower:]]'
+  assert "$state" equals 0
+  run is_regex_pattern '[[:upper:]]'
+  assert "$state" equals 0
+  run is_regex_pattern '[[:alpha:]]'
+  assert "$state" equals 0
+  run is_regex_pattern '[[:ascii:]]'
+  assert "$state" equals 0
+  run is_regex_pattern '[[:cntrl:]]'
+  assert "$state" equals 0
+  run is_regex_pattern '[[:xdigit:]]'
+  assert "$state" equals 0
+  run is_regex_pattern '[[:blank:]]'
+  assert "$state" equals 0
+  run is_regex_pattern '[[:blank:]]+'
+  assert "$state" equals 0
+  run is_regex_pattern '^.*$'
+  assert "$state" equals 0
+  run is_regex_pattern '[a-zA-Z0-9]'
+  assert "$state" equals 0
+  run is_regex_pattern '[A-Z0-9]'
+  assert "$state" equals 0
+  run is_regex_pattern '[0-9a-z]'
+  assert "$state" equals 0
+  run is_regex_pattern '[[:digit:]]{2,5}'
+  assert "$state" equals 0
+  run is_regex_pattern 'a (fake)?[[:digit:]]{2,5} pattern* with 1 number and an 2+2 equation, *some bold*.'
+  assert "$state" equals 0
+  run is_regex_pattern 'he\w world'
+  assert "$state" equals 0
+  run is_regex_pattern 'he\W world'
+  assert "$state" equals 0
+  run is_regex_pattern 'he\d world'
+  assert "$state" equals 0
+  run is_regex_pattern 'he\D world'
+  assert "$state" equals 0
+  run is_regex_pattern 'he\s world'
+  assert "$state" equals 0
+  run is_regex_pattern 'he\S world'
+  assert "$state" equals 0
+  run is_regex_pattern '\w{4}'
+  assert "$state" equals 0
+}
+
+@test 'is_regex_pattern negatives' {
+  run is_regex_pattern 'hello'
+  assert "$state" equals 1
+  run is_regex_pattern '*'  # Has to be preceded by something.
+  assert "$state" equals 1
+  run is_regex_pattern '+'  # Has to be preceded by something.
+  assert "$state" equals 1
+  run is_regex_pattern '?'  # Has to be preceded by something.
+  assert "$state" equals 1
+  run is_regex_pattern 'cite^'
+  assert "$state" equals 1
+  run is_regex_pattern 'cite^1'
+  assert "$state" equals 1
+  run is_regex_pattern '$var'
+  assert "$state" equals 1
+  run is_regex_pattern 'cost $USD'
+  assert "$state" equals 1
+  run is_regex_pattern 'hello[]world'
+  assert "$state" equals 1
+  run is_regex_pattern 'hello()world'
+  assert "$state" equals 1
+}
+
+# shellcheck disable=SC2116,SC2028
+@test 'str.has_space' {
+  run str.has_space "hello"
+  assert $state equals 1
+
+  run str.has_space "hello world"
+  assert $state equals 0
+
+  with_tab="$(echo -e "hello\tworld")"
+  run str.has_space "$with_tab"
+  assert $state equals 0
+
+  with_tab="$(printf "hello\tworld")"
+  run str.has_space "$with_tab"
+  assert $state equals 0
+
+  with_tab="$(printf %b "hello\tworld")"
+  run str.has_space "$with_tab"
+  assert $state equals 0
+
+  literal_tab="$(printf %q "hello\tworld")"
+  run str.has_space "$literal_tab"
+  assert $state equals 1
+
+  local with_newline='hello\nworld'
+  run str.has_space "$with_newline"
+  assert $state equals 1
+
+  run str.has_space "$(echo "$with_newline")"
+  assert $state equals 1
+
+  run str.has_space "$(printf "$with_newline")"
+  assert $state equals 1
+
+  run str.has_space "$(printf %b "$with_newline")"
+  assert $state equals 1
+
+  run str.has_space "$(printf %q "$with_newline")"
+  assert $state equals 1
+
+  run str.has_space "$(printf %q "$with_newline foo")"
+  assert $state equals 0
+}
+
+@test 'str.has_any' {
+  run str.has_any "hello" h
+  assert $state equals 0
+
+  run str.has_any "hello" x h
+  assert $state equals 0
+
+  run str.has_any "hello" x
+  assert $state equals 1
+
+  run str.has_any "hello" x z
+  assert $state equals 1
+
+  run str.has_any "*hello" '*'
+  assert $state equals 0
+
+  run str.has_any "*hello" x '*'
+  assert $state equals 0
+
+  run str.has_any "hello" '*'
+  assert $state equals 1
+
+  run str.has_any "hel*lo" '*'
+  assert $state equals 0
+
+  run str.has_any "hel*lo" x '*'
+  assert $state equals 0
+
+  run str.has_any "hello*" '*'
+  assert $state equals 0
+
+  run str.has_any "hello*" x '*'
+  assert $state equals 0
+
+  run str.has_any '$hello' '*'
+  assert $state equals 1
+
+  run str.has_any '$hello' '$'
+  assert $state equals 0
+
+  run str.has_any '$hello' '*' '$'
+  assert $state equals 0
+
+  run str.has_any 'hel$lo' '$'
+  assert $state equals 0
+
+  run str.has_any 'hello$' '$'
+  assert $state equals 0
+
+  run str.has_any 'hello' 'll'
+  assert $state equals 0
+
+  run str.has_any 'hello world' 'world'
+  assert $state equals 0
+
+  run str.has_any 'hello world' 'o w'
+  assert $state equals 0
+
+  run str.has_any 'hello world' 'o x'
+  assert $state equals 1
+
+  run str.has_any 'hello world' 'o' 'x'
+  assert $state equals 0
+
+  run str.has_any 'hello world' ' '
+  assert $state equals 0
+
+  with_newline="$(echo -e "hello\nworld")"
+  run str.has_any "$with_newline" $'\n'
+  assert $state equals 0
+
+  with_newline="$(printf "hello\nworld")"
+  run str.has_any "$with_newline" $'\n'
+  assert $state equals 0
+
+  with_newline="$(printf %b "hello\nworld")"
+  run str.has_any "$with_newline" $'\n'
+  assert $state equals 0
+
+  literal_newline="$(printf %q "hello\nworld")"
+  run str.has_any "$literal_newline" $'\n'
+  assert $state equals 1
+
+}
+
+@test 'str.unquote' {
+  assert "$(str.unquote hello)" same_as hello
+  assert "$(str.unquote "'hello'")" same_as hello
+  assert "$(str.unquote "\"hello\"")" same_as hello
+  assert "$(str.unquote "he'llo")" same_as "he'llo"
+	assert "$(str.unquote "he\"llo")" same_as "he\"llo"
+  assert "$(str.unquote "'he'llo'")" same_as "he'llo"
+  assert "$(str.unquote "\"he'llo\"")" same_as "he'llo"
+  assert "$(str.unquote "\"he\"llo\"")" same_as "he\"llo"
+}
+
+@test 'str.singlequote' {
+  assert "$(str.singlequote hello)" same_as "'hello'"
+  assert "$(str.singlequote "'hello'")" same_as "'hello'"
+  assert "$(str.singlequote "\"hello\"")" same_as "'hello'"
+  assert "$(str.singlequote "he'llo")" same_as "'he'llo'"
+	assert "$(str.singlequote "he\"llo")" same_as "'he\"llo'"
+  assert "$(str.singlequote "'he'llo'")" same_as "'he'llo'"
+  assert "$(str.singlequote "\"he'llo\"")" same_as "'he'llo'"
+  assert "$(str.singlequote "\"he\"llo\"")" same_as "'he\"llo'"
+}
+
+@test 'str.doublequote' {
+	assert "$(str.doublequote hello)" same_as '"hello"'
+	assert "$(str.doublequote "'hello'")" same_as '"hello"'
+	assert "$(str.doublequote "\"hello\"")" same_as '"hello"'
+	assert "$(str.doublequote "he'llo")" same_as "\"he'llo\""
+	assert "$(str.doublequote "he\"llo")" same_as '"he"llo"'
+	assert "$(str.doublequote "'he'llo'")" same_as "\"he'llo\""
+	assert "$(str.doublequote "\"he'llo\"")" same_as "\"he'llo\""
+	assert "$(str.doublequote "\"he\"llo\"")" same_as '"he"llo"'
+}
+
+@test 'strip' {
+  assert "$(strip "hello")" same_as "hello"
+  assert "$(strip " hello")" same_as "hello"
+  assert "$(strip "hello ")" same_as "hello"
+  assert "$(strip " hello ")" same_as "hello"
+  assert "$(strip " hello world ")" same_as "hello world"
+  assert "$(strip "hello world ")" same_as "hello world"
+  assert "$(strip "hello world")" same_as "hello world"
+  assert "$(strip '  h  e  l  o   o ')" same_as "h e l o o"  # zah precmd fc
+  assert "$(strip 'hello\n')" same_as "hello"
+  run strip 'hello\n'
+  run str.has_newline "$output"
+  assert "$state" equals 1
+
+  assert "$(strip <<< "hello")" same_as "hello"
+  assert "$(strip <<< " hello")" same_as "hello"
+  assert "$(strip <<< "hello ")" same_as "hello"
+  assert "$(strip <<< " hello ")" same_as "hello"
+  assert "$(strip <<< " hello world ")" same_as "hello world"
+  assert "$(strip <<< "hello world ")" same_as "hello world"
+  assert "$(strip <<< "hello world")" same_as "hello world"
+  assert "$(strip <<< '  h  e  l  l   o ')" same_as "h e l l o"  # zah precmd fc
+  run strip <<< '  h  e  l  l   o '
+  run eval '[[ "$output" == "o " ]]'
+  assert "$state" equals 1
+  run strip <<< '  h  e  l  l   o '
+  run str.has_newline "$output"
+  assert "$state" equals 1
+  run strip <<< 'hello\n'
+  run str.has_newline "$output"
+  assert "$state" equals 1
+
+
+}
+
+@test 'stomp' {
+  assert "$(stomp "hello")" same_as "hello"
+  assert "$(stomp "\nhello")" same_as "hello"
+  assert "$(stomp "hello\n")" same_as "hello"
+  assert "$(stomp "\nhello\n")" same_as "hello"
+  assert "$(stomp "\nhello\nworld\n")" same_as "hello world"
+
+  assert "$(stomp "  hello")" same_as "hello"
+  assert "$(stomp "hello  world")" same_as "hello world"
+  assert "$(stomp "hello  world  today")" same_as "hello world today"
+
+  assert "$(stomp "\nhello\n  world \ntoday\n")" same_as "hello world today"
+}
+
+@test 'str.unspace' {
+  assert "$(str.unspace "hello")" same_as "hello"
+  assert "$(str.unspace " hello")" same_as "_hello"
+  assert "$(str.unspace "hello ")" same_as "hello_"
+  assert "$(str.unspace " hello ")" same_as "_hello_"
+  assert "$(str.unspace " hello world ")" same_as "_hello_world_"
+
+  assert "$(str.unspace "  hello")" same_as "__hello"
+  assert "$(str.unspace "hello  world")" same_as "hello__world"
+  assert "$(str.unspace "hello  world  today")" same_as "hello__world__today"
+
+  assert "$(str.unspace hello world today)" same_as "hello_world_today"
+}
