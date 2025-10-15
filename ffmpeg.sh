@@ -77,7 +77,7 @@ function ffmpeg._calc_dur(){
   local start="$1"
   local stop="$2"
   shift 2
-  ! type py.eval &>/dev/null && source <(wget -qO- https://raw.githubusercontent.com/giladbarnea/bashscripts/master/pyfns.sh --no-check-certificate)
+  ! type py.eval &>/dev/null && source <(wget -qO- https://raw.githubusercontent.com/giladbarnea/land/master/pyfns.sh --no-check-certificate)
   echo -n "$start" "$stop" | py.eval 'start, stop = words
     start_h, start_m, start_s = map(int, start.split(":"))
     stop_h, stop_m, stop_s = map(int, stop.split(":"))

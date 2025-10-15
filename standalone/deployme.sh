@@ -18,8 +18,8 @@ fi
 
 { ! type isdefined \
 	&& ! { source "$THIS_SCRIPT_DIR"/util.sh && source "$THIS_SCRIPT_DIR"/log.sh && source "$THIS_SCRIPT_DIR"/str.sh ; } \
-	&& source <(curl --silent --parallel https://raw.githubusercontent.com/giladbarnea/bashscripts/master/{log,util,str}.sh) ;
-	# && source <(wget -qO- https://raw.githubusercontent.com/giladbarnea/bashscripts/master/{util,log,str}.sh --no-check-certificate) ;
+	&& source <(curl --silent --parallel https://raw.githubusercontent.com/giladbarnea/land/master/{log,util,str}.sh) ;
+	# && source <(wget -qO- https://raw.githubusercontent.com/giladbarnea/land/master/{util,log,str}.sh --no-check-certificate) ;
 } &>/dev/null
 
 

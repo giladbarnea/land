@@ -1,5 +1,5 @@
 #!/bin/bash
-# wget https://raw.githubusercontent.com/giladbarnea/bashscripts/master/standalone/alpine.sh --no-check-certificate
+# wget https://raw.githubusercontent.com/giladbarnea/land/master/standalone/alpine.sh --no-check-certificate
 # source ./alpine.sh --no-c --no-zsh --no-pip --no-upgrade
 # source ./alpine.sh --pylibs --systools --no-zsh
 
@@ -26,10 +26,10 @@ declare HAS_INTERNET_CONNECTION=true
 	# source "$THIS_SCRIPT_DIR"/util.sh &>/dev/null && return 0
 	if nc -vz -w 1 www.google.com 443 &>/dev/null; then
 		# ! type wget &>/dev/null && apk add --no-cache wget && sleep 0.5
-		# source <(wget --quiet -T 5 --retry-connrefused=off -O- https://raw.githubusercontent.com/giladbarnea/bashscripts/master/{util,log}.sh --no-check-certificate)
+		# source <(wget --quiet -T 5 --retry-connrefused=off -O- https://raw.githubusercontent.com/giladbarnea/land/master/{util,log}.sh --no-check-certificate)
 		! type curl &> /dev/null && apk add --no-cache curl
 		echo "Fetching and sourcing log.sh and util.sh..." 1>&2
-		source <(curl --silent https://raw.githubusercontent.com/giladbarnea/bashscripts/master/{log,util}.sh)
+		source <(curl --silent https://raw.githubusercontent.com/giladbarnea/land/master/{log,util}.sh)
 	else
 		echo "nc www.google.com failed!" 1>&2
 		HAS_INTERNET_CONNECTION=false

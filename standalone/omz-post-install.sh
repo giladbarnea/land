@@ -30,7 +30,7 @@ function set_macos_settings(){
 function main(){
   # set -o errexit
   { ! type isdefined \
-    && source <(wget -qO- https://raw.githubusercontent.com/giladbarnea/bashscripts/master/{util,log}.sh --no-check-certificate) ;
+    && source <(wget -qO- https://raw.githubusercontent.com/giladbarnea/land/master/{util,log}.sh --no-check-certificate) ;
   } &>/dev/null
 
   [[ "${BASH_SOURCE[0]}" == "${0}" ]] && {

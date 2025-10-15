@@ -294,6 +294,6 @@ if type micro &>/dev/null; then
 fi
 
 #{ ! type isdefined \
-#  && source <(wget -qO- https://raw.githubusercontent.com/giladbarnea/bashscripts/master/util.sh) ;
+#  && source <(wget -qO- https://raw.githubusercontent.com/giladbarnea/land/master/util.sh) ;
 
 #} &>/dev/null

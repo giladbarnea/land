@@ -387,7 +387,7 @@ function wait_until_exists() {
   # Todo: this is cool (use in e.g pip.sh)
   # terminal 1:
   # for script in $(/bin/ls $SCRIPTS/*.sh | xargs -n1 basename); do
-  #   background fetchfile https://raw.githubusercontent.com/giladbarnea/bashscripts/master/$script
+  #   background fetchfile https://raw.githubusercontent.com/giladbarnea/land/master/$script
   # done
   # terminal 2:
   # for script in $(/bin/ls $SCRIPTS/*.sh | xargs -n1 basename); do
@@ -444,7 +444,7 @@ function wait_until_exists() {
 }
 
 # # import [-t, --timeout TIMEOUT_SEC=2] [--if-undefined CMD] [-v, --verbose] [--no-local-import] <FILE...> [--] [source args...]
-# Tries to source FILE(s) locally, and if it fails, fetches asynchronously from giladbarnea/bashscripts/master and tries again.
+# Tries to source FILE(s) locally, and if it fails, fetches asynchronously from giladbarnea/land/master and tries again.
 # `import -v pip.sh deployme.sh`
 function import() {
   function _fatal() { printf "\033[91m%s\033[0m\n" "[import] ! FATAL: $*" 1>&2; }
@@ -552,7 +552,7 @@ function import() {
   if isdefined curl; then
     local curl_args=(
       --create-dirs
-      "https://raw.githubusercontent.com/giladbarnea/bashscripts/master/{$comma_sep_files}"
+      "https://raw.githubusercontent.com/giladbarnea/land/master/{$comma_sep_files}"
       -o "$fetched_files_location/#1"
     )
     $verbose || curl_args+=(--silent)
@@ -569,7 +569,7 @@ function import() {
   elif isdefined wget; then
     for file_to_fetch in ${files_to_fetch[@]}; do
       wget.bg \
-        "https://raw.githubusercontent.com/giladbarnea/bashscripts/master/$file_to_fetch" \
+        "https://raw.githubusercontent.com/giladbarnea/land/master/$file_to_fetch" \
         "$fetched_files_location/$file_to_fetch"
     done
     sleep 0.01 # wget downloads partial files
@@ -656,7 +656,7 @@ function import() {
   local targets=(
     #    "$target"
     # "https://raw.githubusercontent.com/$target"
-    "https://raw.githubusercontent.com/giladbarnea/bashscripts/master/$target"
+    "https://raw.githubusercontent.com/giladbarnea/land/master/$target"
     # "https://gist.github.com/${target}/raw"
     # "https://gist.github.com/giladbarnea/${target}/raw"
   )
@@ -673,12 +673,12 @@ function import() {
 
   #####
 
-  if wget.bg "$outfilepath" "https://raw.githubusercontent.com/giladbarnea/bashscripts/master/$target"; then
+  if wget.bg "$outfilepath" "https://raw.githubusercontent.com/giladbarnea/land/master/$target"; then
     source "$outfilepath"
     return $?
   fi
 
-  # Valid URL, e.g https://raw.githubusercontent.com/giladbarnea/bashscripts/master/log.sh
+  # Valid URL, e.g https://raw.githubusercontent.com/giladbarnea/land/master/log.sh
   if wget.bg "$outfilepath" "$target"; then
     source "$outfilepath"
     return $?

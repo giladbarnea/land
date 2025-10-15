@@ -12,7 +12,7 @@
 function dlsub(){
   set -o pipefail # -o errexit
   { ! type isdefined \
-    && source <(wget -qO- https://raw.githubusercontent.com/giladbarnea/bashscripts/master/{util,log}.sh --no-check-certificate) ;
+    && source <(wget -qO- https://raw.githubusercontent.com/giladbarnea/land/master/{util,log}.sh --no-check-certificate) ;
   } &>/dev/null
   log.title "dlsub $*"
   local name movieid subid url lang=eng
