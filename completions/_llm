@@ -170,7 +170,7 @@ typeset -a MERGE_OPTIONS=(
 
 # Handles cases from specific and high-level to general and low-level. 
 _llm() {
-  zstyle ':completion::complete:llm:*:descriptions' format "$(docstring llm "$HOME"/dev/bashscripts/llm.zsh)"
+  zstyle ':completion::complete:llm:*:descriptions' format "$(docstring llm "$HOME"/dev/land/llm.zsh)"
   local curcontext="$curcontext" state line
   typeset -A opt_args
   # shellcheck disable=SC2154

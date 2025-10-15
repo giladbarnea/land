@@ -1,6 +1,6 @@
 #compdef ghcli.sh 
 
-# gh completion -s zsh > ~/dev/bashscripts/completions/_gh
+# gh completion -s zsh > ~/dev/land/completions/_gh
 
 
 
@@ -51,7 +51,7 @@ complete -o bashdefault -o default -o filenames -F _ghg-dl ghg-dl
 complete -o bashdefault -o default -o filenames -W "-f -l" ghg-update
 
 _ghg-diff(){
-  zstyle ':completion::complete:ghg-diff:*:descriptions' format "$(docstring ghg-diff ~/dev/bashscripts/ghcli.sh)"
+  zstyle ':completion::complete:ghg-diff:*:descriptions' format "$(docstring ghg-diff ~/dev/land/ghcli.sh)"
 
   _arguments \
     {-t,--difftool}'[Knows pycharm and code, otherwise evals literally. If unspecified: pycharm > vscode > delta > builtin diff]' \
@@ -63,7 +63,7 @@ _ghg-diff(){
 compdef _ghg-diff ghg-diff
 
 _ghg-clone(){
-  zstyle ':completion::complete:ghg-clone:*:descriptions' format "$(docstring ghg-clone ~/dev/bashscripts/ghcli.sh)"
+  zstyle ':completion::complete:ghg-clone:*:descriptions' format "$(docstring ghg-clone ~/dev/land/ghcli.sh)"
   _arguments "1: :($(ghg-descriptions) $(ghg-ids))"
 }
 compdef _ghg-clone ghg-clone

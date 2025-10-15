@@ -71,7 +71,7 @@ if [[ "$PLATFORM" == UNIX ]]; then
         export PROGFILES86='/mnt/c/Program Files (x86)'
         export WINHOME=/mnt/c/Users/$WHOIAM
         export WINDEV=/mnt/c/Users/$WHOIAM/dev
-        export WINSCRIPTS=/mnt/c/Users/$WHOIAM/dev/bashscripts
+        export WINSCRIPTS=/mnt/c/Users/$WHOIAM/dev/land
         [[ -d "$WINHOME" ]] && export PATH="$PATH:$WINHOME/.local/bin"
       fi
     # export DISPLAY="$(cat /etc/resolv.conf | grep -Po '(?<=nameserver )[\d.]+'):0.0"
@@ -100,7 +100,7 @@ export DEV="$HOME/dev"
 
 # $SCRIPTS
 # typeset PATH
-export SCRIPTS="$DEV/bashscripts"
+export SCRIPTS="$DEV/land"
 export PATH="$PATH:$SCRIPTS"
 export COMP="$SCRIPTS/completions"
 

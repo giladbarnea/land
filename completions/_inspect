@@ -4,7 +4,7 @@
 # ---[ Completion functions ]---
 
 _fileof(){
-	compadd -x "$(docstring fileof ~/dev/bashscripts/inspect.sh)"
+	compadd -x "$(docstring fileof ~/dev/land/inspect.sh)"
 	# _describe command "( $(_get_functions_names) $(_get_alias_names) )"
 	_functions
 	_aliases
@@ -12,7 +12,7 @@ _fileof(){
 compdef _fileof fileof
 
 _linenumof(){
-	compadd -x "$(docstring linenumof ~/dev/bashscripts/inspect.sh)"
+	compadd -x "$(docstring linenumof ~/dev/land/inspect.sh)"
 	# _describe command "( $(_get_functions_names) $(_get_alias_names) )"
 	_functions
 	_aliases
@@ -20,41 +20,41 @@ _linenumof(){
 compdef _linenumof linenumof
 
 _linecount(){
-	compadd -x "$(docstring linecount ~/dev/bashscripts/inspect.sh)"
+	compadd -x "$(docstring linecount ~/dev/land/inspect.sh)"
 }
 compdef _linecount linecount
 
 
 _docstring(){
-	compadd -x "$(docstring docstring ~/dev/bashscripts/inspect.sh)"
+	compadd -x "$(docstring docstring ~/dev/land/inspect.sh)"
 	# _describe command "( $(_get_functions_names) )"
 	_functions
 }
 compdef _docstring docstring
 
 _docstring.getopts(){
-	compadd -x "$(docstring docstring.getopts ~/dev/bashscripts/inspect.sh)"
+	compadd -x "$(docstring docstring.getopts ~/dev/land/inspect.sh)"
 	# _describe command "( $(_get_functions_names) )"
 	_functions
 }
 compdef _docstring.getopts docstring.getopts
 
 _isfunction(){
-	compadd -x "$(docstring isfunction ~/dev/bashscripts/inspect.sh)"
+	compadd -x "$(docstring isfunction ~/dev/land/inspect.sh)"
 	# _describe command "( $(_get_functions_names) )"
 	_functions
 }
 compdef _isfunction isfunction
 
 _isalias(){
-	compadd -x "$(docstring isalias ~/dev/bashscripts/inspect.sh)"
+	compadd -x "$(docstring isalias ~/dev/land/inspect.sh)"
 	# _describe command "( $(_get_alias_names) )"
 	_aliases
 }
 compdef _isalias isalias
 
 _valueof(){
-	compadd -x "$(docstring valueof ~/dev/bashscripts/inspect.sh)"
+	compadd -x "$(docstring valueof ~/dev/land/inspect.sh)"
 	# _describe command "( $(_get_functions_names) $(_get_alias_names) $(_get_variable_names) )"
 	_functions
 	_aliases
@@ -63,13 +63,13 @@ _valueof(){
 compdef _valueof valueof
 
 _functions_in_file(){
-	compadd -x "$(docstring functions_in_file ~/dev/bashscripts/inspect.sh)"
+	compadd -x "$(docstring functions_in_file ~/dev/land/inspect.sh)"
 	_arguments "1:file:_files"
 }
 compdef _functions_in_file functions_in_file
 
 _shebang_executable(){
-	compadd -x "$(docstring shebang_executable ~/dev/bashscripts/inspect.sh)"
+	compadd -x "$(docstring shebang_executable ~/dev/land/inspect.sh)"
 	_arguments "1:file:_files"
 }
 compdef _shebang_executable shebang_executable

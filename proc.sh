@@ -9,10 +9,10 @@ else
   source proc.mac.sh
 fi
 
-source "/Users/gilad/dev/bashscripts/environment.sh"  # 30ms
-source "/Users/gilad/dev/bashscripts/log.sh"          # 14ms
-source "/Users/gilad/dev/bashscripts/util.sh"         # 14ms
-source "/Users/gilad/dev/bashscripts/str.sh"
+source "/Users/gilad/dev/land/environment.sh"  # 30ms
+source "/Users/gilad/dev/land/log.sh"          # 14ms
+source "/Users/gilad/dev/land/util.sh"         # 14ms
+source "/Users/gilad/dev/land/str.sh"
 
 # # proc.kill <PID_OR_QUERY> [OPTIONS]
 # ### Options

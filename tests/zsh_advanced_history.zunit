@@ -1,6 +1,6 @@
 #!/usr/bin/env zunit
 
-# zunit '/Users/gilad/dev/bashscripts/tests/zsh_advanced_history.zunit' --verbose --tap --fail-fast
+# zunit '/Users/gilad/dev/land/tests/zsh_advanced_history.zunit' --verbose --tap --fail-fast
 
 @setup {
   set -e

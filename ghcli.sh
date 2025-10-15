@@ -1,5 +1,5 @@
 #!/usr/bin/env zsh
-# gh completion -s zsh > ~/dev/bashscripts/completions/_gh
+# gh completion -s zsh > ~/dev/land/completions/_gh
 
 # https://docs.github.com/en/rest/reference/gists#get-a-gist
 
@@ -21,7 +21,7 @@ alias ghgdel='ghg del'
 alias ghgcr='command gh gist create'  # because -d 'foo bar' escaping
 alias ghgcl='ghg clone'
 
-export _GHG_IDS_PATH=/tmp/bashscripts/cache/ghg-ids.txt
+export _GHG_IDS_PATH=/tmp/land/cache/ghg-ids.txt
 
 function .is_gid() {
   [[ $1 =~ ^[a-f0-9]{32}$ ]]

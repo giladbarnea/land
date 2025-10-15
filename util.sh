@@ -86,9 +86,9 @@ function loadenvfile(){
     # [[ "$current_value" && "$current_value" != "$value" ]] && {
     # 	statement+="   #${C0} changed from $current_value"
     # }
-    # vex export "$line" ---just-run
+    # vex export "$line" ---just-run\
     if [[ "$verbose" ]]; then
-      vex export "$line" || return $?
+      vex export "$line" ---just-run || return $?
     else
       eval export "$line" || return $?
     fi
@@ -816,7 +816,7 @@ function silence(){
 }
 
 # # cached FUNCTION_NAME [FUNCTION_ARGS...]
-# Hashes the function name and its arguments, and stores the result and the exit code in a cache directory (default: /tmp/bashscripts/cached). Prints the output of the function.
+# Hashes the function name and its arguments, and stores the result and the exit code in a cache directory (default: /tmp/land/cached). Prints the output of the function.
 # Can be disabled by setting `DISABLE_CACHE` to `true` or `1`.
 function cached() {
   [[ "$DISABLE_CACHE" = true || "$DISABLE_CACHE" = 1 ]] && {
@@ -826,7 +826,7 @@ function cached() {
   local func_name=$1
   shift || { log.error "no function name provided. Usage:\n$(docstring "$0")"; return 2; }
   local -a func_args=("$@")
-  local cache_dir="/tmp/bashscripts/cached"
+  local cache_dir="/tmp/land/cached"
   mkdir -p "$cache_dir"
   local combined_hash="$(cachekey "$func_name" "${func_args[@]}")"
   local cached_output_file="${cache_dir}/${combined_hash}.output"
@@ -845,7 +845,7 @@ function cached() {
   return "$func_exitcode"
 }
 
-typeset -g CACHE_DIR="/tmp/bashscripts/cached"
+typeset -g CACHE_DIR="/tmp/land/cached"
 
 function cachekey(){
   local func_name=$1

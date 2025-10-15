@@ -123,6 +123,6 @@ _clearcached() {
 	zstyle ':completion::complete:clearcached:*:descriptions' format "$(docstring clearcached "$SCRIPTS/util.sh")"
 	_arguments \
 		":: :( $(docstring.getopts clearcached "$SCRIPTS/util.sh") )" \
-		{-s,--subpath}'[Subpath of /tmp/bashscripts/cached/]::'
+		{-s,--subpath}'[Subpath of /tmp/land/cached/]::'
 }
 compdef _clearcached clearcached

@@ -59,7 +59,7 @@ def main(repo):
 
 
 def disk_cache(func):
-    cache_dir = (Path.home() / ".cache/bashscripts")
+    cache_dir = (Path.home() / ".cache/land")
     os.makedirs(cache_dir, exist_ok=True)
     cache_path = os.path.join(cache_dir, "getforks.json")
 

@@ -130,7 +130,7 @@ function docker.images.build_by_service() {
 # docker.images.build_by_services accounts customconfig -- --no-cache    # builds images of accounts and customconfig, aborts if something fails
 function docker.images.build_by_services() {
   # for service in "$SERVICES[@]"; do
-  # 	kitty --hold . /home/gilad/dev/bashscripts/init.sh && builtin cd /home/gilad/dev/allotsecure && docker.images.build_by_service "$service"
+  # 	kitty --hold . /home/gilad/dev/land/init.sh && builtin cd /home/gilad/dev/allotsecure && docker.images.build_by_service "$service"
   # done
   set -o pipefail
   log.title "docker.images.build_by_services($*)"
@@ -182,7 +182,7 @@ function docker.images.build_by_services() {
   # pkill --newest 'python'
   log.success "All done"
  #   export docker.services.get_Dockerfile
- # ##  echo "${services[*]}" | xargs -P8 zsh -c 'source ~/dev/bashscripts/docker.sh; sudo docker build --build-arg name="$1" -t artifactory.rdlab.local/microservices-docker-sandbox-local/"$1":latest -f "$(docker.services.get_Dockerfile "$1")" ./backend/services' {}
+ # ##  echo "${services[*]}" | xargs -P8 zsh -c 'source ~/dev/land/docker.sh; sudo docker build --build-arg name="$1" -t artifactory.rdlab.local/microservices-docker-sandbox-local/"$1":latest -f "$(docker.services.get_Dockerfile "$1")" ./backend/services' {}
  #   echo "${services[*]}" | xargs -P8 bash -c 'sudo docker build --build-arg name="$1" -t artifactory.rdlab.local/microservices-docker-sandbox-local/"$1":latest -f "$(docker.services.get_Dockerfile "$1")" ./backend/services' {}
  #   return $?
 

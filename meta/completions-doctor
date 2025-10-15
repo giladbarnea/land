@@ -35,7 +35,7 @@ function call_doctor(){
   local full_completion_path
   local stringified_llm_prompt="${(pj:\n:)llm_prompt}"
   local final_prompt
-  local responses_cache_dir="${HOME}/.cache/bashscripts/completions-doctor"
+  local responses_cache_dir="${HOME}/.cache/land/completions-doctor"
   mkdir -p "$responses_cache_dir"
   local -A dedicated_prompt_files=(
     [llm]="${SCRIPTS}/meta/llm-completions-design.md"
