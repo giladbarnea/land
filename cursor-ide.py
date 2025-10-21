@@ -1,4 +1,4 @@
-#!uv run
+#!/usr/bin/env -S uv run --script
 # /// script
 # dependencies = [
 #   "pandas",
@@ -236,7 +236,7 @@ def safe_decode(value: Any) -> str:
     return str(value) if value is not None else ""
 
 
-def extract_plain_text_from_bubble(bubble_obj: Dict[str, Any]) -> str:
+def extract_plain_text_from_bubble(bubble_obj: Dict[str, Any], shorten: bool = True) -> str:
     text = bubble_obj.get("text")
     if isinstance(text, str) and text.strip():
         return text.strip()
@@ -244,7 +244,7 @@ def extract_plain_text_from_bubble(bubble_obj: Dict[str, Any]) -> str:
     if isinstance(rich, str) and rich.strip():
         # Rich text is often a JSON string; avoid heavy parsing, return a short marker
         snippet = rich.strip().replace("\n", " ")
-        return snippet[:200]
+        return snippet[:200] if shorten else snippet
     return ""
 
 
@@ -328,7 +328,52 @@ def extract_paths_from_context(obj: Dict[str, Any]) -> List[str]:
     return unique[:5]
 
 
-def thread_explorer(keyword: str, max_threads: int, max_bubbles: int, debug: bool = False) -> None:
+def print_thread(conn: apsw.Connection, thread_id: str, max_bubbles: Optional[int] = None, shorten_text: bool = True) -> None:
+    """Print a single thread's messages with optional limits and text shortening."""
+    bubble_limit = max_bubbles if max_bubbles is not None else 999999
+    
+    # Load composerData (optional)
+    comp = None
+    try:
+        row = next(conn.cursor().execute(
+            "SELECT value FROM cursorDiskKV WHERE key = ?",
+            (f"composerData:{thread_id}",),
+        ))
+        comp_s = safe_decode(row[0])
+        if comp_s.strip().startswith("{") and comp_s.strip().endswith("}"):
+            try:
+                comp = json.loads(comp_s)
+            except Exception:
+                comp = None
+    except StopIteration:
+        pass
+    
+    # Load bubbles ordered by rowid
+    bubbles = load_thread_bubbles(conn, thread_id, bubble_limit)
+    for _, bubble_key, bubble_obj in bubbles:
+        bubble_id = parse_bubble_id_from_bubble_key(bubble_key) or "?"
+        role_type = bubble_obj.get("type")
+        role = "U" if role_type == 1 else ("A" if role_type == 2 else "?")
+        text = extract_plain_text_from_bubble(bubble_obj, shorten=shorten_text)
+        if text:
+            if shorten_text:
+                text_line = text.replace("\n", " ")
+                print(f"[{role}] {text_line[:300]}")
+            else:
+                print(f"[{role}] {text}")
+        else:
+            print(f"[{role}] (no text)")
+        # Context (files referenced)
+        ctx = load_message_request_context(conn, thread_id, bubble_id)
+        if ctx:
+            paths = extract_paths_from_context(ctx)
+            if paths:
+                print("    files:")
+                for p in paths:
+                    print(f"     - {p}")
+
+
+def thread_explorer(keyword: str, max_threads: int, max_bubbles: int, debug: bool = False, shorten_text: bool = True) -> None:
     threads_to_db: Dict[str, str] = {}
     threads_to_hits: Dict[str, int] = defaultdict(int)
     # First, find matching bubbles across DBs
@@ -375,41 +420,7 @@ def thread_explorer(keyword: str, max_threads: int, max_bubbles: int, debug: boo
             print("  (Cannot open DB)")
             continue
         try:
-            # Load composerData (optional)
-            comp = None
-            try:
-                row = next(conn.cursor().execute(
-                    "SELECT value FROM cursorDiskKV WHERE key = ?",
-                    (f"composerData:{thread_id}",),
-                ))
-                comp_s = safe_decode(row[0])
-                if comp_s.strip().startswith("{") and comp_s.strip().endswith("}"):
-                    try:
-                        comp = json.loads(comp_s)
-                    except Exception:
-                        comp = None
-            except StopIteration:
-                pass
-            # Load bubbles ordered by rowid
-            bubbles = load_thread_bubbles(conn, thread_id, max_bubbles)
-            for _, bubble_key, bubble_obj in bubbles:
-                bubble_id = parse_bubble_id_from_bubble_key(bubble_key) or "?"
-                role_type = bubble_obj.get("type")
-                role = "U" if role_type == 1 else ("A" if role_type == 2 else "?")
-                text = extract_plain_text_from_bubble(bubble_obj)
-                if text:
-                    text_line = text.replace("\n", " ")
-                    print(f"[{role}] {text_line[:300]}")
-                else:
-                    print(f"[{role}] (no text)")
-                # Context (files referenced)
-                ctx = load_message_request_context(conn, thread_id, bubble_id)
-                if ctx:
-                    paths = extract_paths_from_context(ctx)
-                    if paths:
-                        print("    files:")
-                        for p in paths:
-                            print(f"     - {p}")
+            print_thread(conn, thread_id, max_bubbles=max_bubbles, shorten_text=shorten_text)
         finally:
             try:
                 conn.close()
@@ -417,13 +428,61 @@ def thread_explorer(keyword: str, max_threads: int, max_bubbles: int, debug: boo
                 pass
 
 
+def print_thread_by_id(thread_id: str) -> None:
+    """Print a complete thread by its ID, searching across both databases."""
+    found = False
+    for db_path in (STATE_SQLITE_PATH, STATE_VSCDB_PATH):
+        try:
+            conn = apsw.Connection(str(db_path))
+        except Exception:
+            continue
+        try:
+            # Check if cursorDiskKV table exists
+            tables = list_tables(conn)
+            if "cursorDiskKV" not in tables:
+                continue
+            
+            # Check if thread exists in this DB
+            cur = conn.cursor()
+            try:
+                row = next(cur.execute(
+                    "SELECT key FROM cursorDiskKV WHERE key LIKE ? LIMIT 1",
+                    (f"bubbleId:{thread_id}:%",)
+                ))
+            except StopIteration:
+                continue
+            except apsw.SQLError:
+                continue
+            
+            # Thread found in this DB
+            found = True
+            print(f"=== Thread: {thread_id} [DB: {db_path.name}] ===\n")
+            print_thread(conn, thread_id, max_bubbles=None, shorten_text=False)
+            break
+        finally:
+            try:
+                conn.close()
+            except Exception:
+                pass
+    
+    if not found:
+        print(f"Thread ID '{thread_id}' not found in any database.")
+
+
+def is_thread_id(query: str) -> bool:
+    """Check if query looks like a thread ID (UUID format)."""
+    pattern = r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+    return bool(re.match(pattern, query, re.IGNORECASE))
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description="Search Cursor state DBs for conversations by keyword"
+        description="Search Cursor state DBs for conversations by keyword or print a specific thread by ID",
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter
     )
     parser.add_argument(
-        "keyword",
-        help="Keyword to search for (SQLite LIKE; case-insensitive for ASCII)",
+        "query",
+        help="Thread ID (UUID format) to print in full, or keyword to search for (SQLite LIKE; case-insensitive for ASCII)",
     )
     parser.add_argument(
         "--limit",
@@ -462,13 +521,23 @@ def main() -> None:
         default=200,
         help="Max messages per thread to render",
     )
+    parser.add_argument(
+        "--no-shorten",
+        action="store_true",
+        help="Don't shorten/truncate message text",
+    )
     args = parser.parse_args()
 
-    if args.explore:
-        thread_explorer(args.keyword, args.max_threads, args.max_bubbles, debug=args.debug)
+    # Check if query is a thread ID first
+    if is_thread_id(args.query):
+        print_thread_by_id(args.query)
         return
 
-    names = collect_matches(args.keyword, args.limit, args.per_table_limit, debug=args.debug)
+    if args.explore:
+        thread_explorer(args.query, args.max_threads, args.max_bubbles, debug=args.debug, shorten_text=not args.no_shorten)
+        return
+
+    names = collect_matches(args.query, args.limit, args.per_table_limit, debug=args.debug)
     if names:
         print_results(names)
         if not args.snippets:
@@ -493,7 +562,7 @@ def main() -> None:
                 try:
                     for key, value in cur.execute(
                         "SELECT key, value FROM ItemTable WHERE typeof(value) IN ('text','blob') AND value LIKE ? LIMIT ?",
-                        (f"%{args.keyword}%", min(100, args.limit)),
+                        (f"%{args.query}%", min(100, args.limit)),
                     ):
                         text = (
                             value.decode("utf-8", "ignore")
@@ -514,7 +583,7 @@ def main() -> None:
                 try:
                     for key, value in cur.execute(
                         "SELECT key, value FROM cursorDiskKV WHERE typeof(value) IN ('text','blob') AND value LIKE ? LIMIT ?",
-                        (f"%{args.keyword}%", min(100, args.per_table_limit)),
+                        (f"%{args.query}%", min(100, args.per_table_limit)),
                     ):
                         text = (
                             value.decode("utf-8", "ignore")
@@ -538,7 +607,7 @@ def main() -> None:
                 for col in text_cols[:2]:
                     try:
                         query = f"SELECT {col} FROM {table} WHERE typeof({col}) IN ('text','blob') AND {col} LIKE ? LIMIT ?"
-                        for (value,) in cur.execute(query, (f"%{args.keyword}%", 5)):
+                        for (value,) in cur.execute(query, (f"%{args.query}%", 5)):
                             text = (
                                 value.decode("utf-8", "ignore")
                                 if isinstance(value, (bytes, bytearray))
