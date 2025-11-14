@@ -20,7 +20,9 @@ aliases[gl]='git log --oneline --decorate --graph --all'
 
 # * push
 unalias gp
-alias gpsh='git push'
+
+# Assumes `git config --global alias.psh '!git fetch --all && git push --force-with-lease --force-with-includes'`
+alias gpsh='git psh'
 alias gpsho='git push origin'
 
 # * stash
@@ -326,9 +328,10 @@ function git.modifiedranges(){
   git diff --unified=0 "$@" | grep -e "^@@" | awk -F'[^0-9]+' '{print $4"-"($4+$5-1)}'
 }
 
-# # git.untracked [EXPRESSION] (Good evaluation example)
+# # git.untracked [EXPRESSION]
 # If no `EXPRESSION` is given, prints untracked files.
-# Executes `EXPRESSION` with literal `{}` for each untracked file.
+# eval's `EXPRESSION`, substituting literal '{}' with the file path.
+# If '{}' is not found in `EXPRESSION`, the file path is appended to the end.
 # Example: git.untracked 'git restore'
 # Example 2: git.untracked 'git update-index {} --assume-unchanged'
 function git.untracked(){
@@ -337,25 +340,18 @@ function git.untracked(){
   [[ ! "$untracked_files" ]] && return 1
 	if [[ ! "$1" ]]; then
 		printf "%s\n" "$untracked_files"
-	  return
+	  return 0
 	fi
 	local untracked_file
 	declare -i fail_count=0
-	local cmd="$1"
-	shift
-  local -a command_args=("$@")
-  # shellcheck disable=SC2157,SC1083
-  if [[ ! ${command_args[(r)$~{}]} ]]; then
-    command_args+=("'{}'")
+  local expression="$*"
+  if [[ ! "$expression" =~ {} ]]; then
+    expression="${expression} '{}'"
   fi
-  # shellcheck disable=SC1083
-  local -i placeholder_index=${command_args[(I)$~{}]}
-  log.debug "$(typeset placeholder_index)"
-  for untracked_file in ${(f)untracked_files}; do
-    command_args["$placeholder_index"]="$untracked_file"
-    $cmd "${command_args[@]}" || ((fail_count++))
-  done
-  return $fail_count
+  while read -r untracked_file; do
+    eval "${expression//"{}"/${untracked_file}}" || ((fail_count++))
+  done <<< "$untracked_files"
+  return "$fail_count"
 }
 
 # # git.staged [EXPRESSION]
@@ -515,7 +511,7 @@ function gexcluded(){
 # Prints args for deeper git diff with ignoring whitespace and added context.
 function gdargs+(){
   print -- \
-    --unified=20 \
+    --unified=10 \
     --inter-hunk-context=10 \
     --ignore-all-space \
     --ignore-blank-lines \
@@ -528,7 +524,8 @@ function gdargs+(){
     --ignore-submodules \
     --break-rewrites \
     --find-renames \
-    --find-copies
+    --find-copies \
+    --function-context
 }
 
 # # gd [-t] [git diff ARGS...]
@@ -831,315 +828,333 @@ function git-diff-xml-wrap(){
   #   <added|deleted|modified patch start: line N|lines N-M>
   #   ...changed lines without +/- prefixes...
   #   </added|deleted|modified patch end: line N|lines N-M>
-  if ! is_piped && ! is_piping && is_interactive; then
+  
+  if ! is_piped && [[ -z "$1" ]]; then
+    if is_piping || ! is_interactive; then
+      log.info "No data provided and can’t ask user interactively. Defaulting to 'git --no-pager diff $(gdargs+) | $0'."
+      command git --no-pager diff $(gdargs+) | $0
+      return $?
+    fi
     confirm "No data in stdin. Run 'git --no-pager diff $(gdargs+) | $0'?" || return 0
     command git --no-pager diff $(gdargs+) | $0
     return $?
   fi
   
-  awk '
-  BEGIN {
-    # Block accumulators (current patch)
-    line_count = 0; add_count = 0; del_count = 0;
-    delete change_lines;
+  function .parse-diff(){
+    awk '
+    BEGIN {
+      # Block accumulators (current patch)
+      line_count = 0; add_count = 0; del_count = 0;
+      delete change_lines;
 
-    # File state
-    file_open = 0; file_path = ""; file_status = "";
-    file_binary = 0; file_dissim = "";
-    file_lines = 0;
+      # File state
+      file_open = 0; file_path = ""; file_status = "";
+      file_binary = 0; file_dissim = "";
+      file_lines = 0;
 
-    # Hunk line counters
-    old_line = 0; new_line = 0; block_after_start = 0; block_before_start = 0; in_block = 0;
+      # Hunk line counters
+      old_line = 0; new_line = 0; block_after_start = 0; block_before_start = 0; in_block = 0;
 
-    # File-level buffering and counters for summaries and patch numbering
-    fl_n = 0; delete fl; delete fl_ln; delete fl_is_content;
-    patches_total = 0; added_blocks = 0; deleted_blocks = 0; modified_blocks = 0;
-    delete p_start_idx; delete p_end_idx; delete p_tag; delete p_label; delete p_type_idx;
-    seq_added = 0; seq_deleted = 0; seq_modified = 0;
-  }
-
-  function out(s) { fl[++fl_n] = s; fl_ln[fl_n] = 0; fl_is_content[fl_n] = 0; }
-  function out_line(s, ln, is_content) { fl[++fl_n] = s; fl_ln[fl_n] = ln; fl_is_content[fl_n] = is_content; }
-
-  function flush_block() {
-    if (line_count == 0) return;
-
-    # Determine tag and line span based on additions/deletions
-    tag = (add_count>0 && del_count>0) ? "modified" : (add_count>0 ? "added" : "deleted");
-    start = block_after_start;
-    end   = (add_count>0 ? start + add_count - 1 : start);
-    label = (start==end) ? sprintf("line %d", start) : sprintf("lines %d-%d", start, end);
-    # For pure deletions, keep new-side anchor but include count if multi-line
-    if (tag == "deleted" && del_count > 1) {
-      label = sprintf("line %d, removed %d lines", start, del_count);
+      # File-level buffering and counters for summaries and patch numbering
+      fl_n = 0; delete fl; delete fl_ln; delete fl_is_content;
+      patches_total = 0; added_blocks = 0; deleted_blocks = 0; modified_blocks = 0;
+      delete p_start_idx; delete p_end_idx; delete p_tag; delete p_label; delete p_type_idx;
+      seq_added = 0; seq_deleted = 0; seq_modified = 0;
     }
 
-    # Detect whitespace-only patches (all changed lines empty/whitespace after stripping +/-)
-    has_nonws = 0;
-    for (i = 1; i <= line_count; i++) {
-      s = substr(change_lines[i], 2);
-      gsub(/[ \t\r\n]/, "", s);
-      if (length(s) > 0) { has_nonws = 1; break; }
-    }
+    function out(s) { fl[++fl_n] = s; fl_ln[fl_n] = 0; fl_is_content[fl_n] = 0; }
+    function out_line(s, ln, is_content) { fl[++fl_n] = s; fl_ln[fl_n] = ln; fl_is_content[fl_n] = is_content; }
 
-    if (has_nonws == 0) {
-      # Emit raw lines, no patch tags, do not count towards per-file patch stats
-      for (i = 1; i <= line_count; i++) {
-        c = substr(change_lines[i], 1, 1);
-        if (c == "+" || c == "-") {
-          out(substr(change_lines[i], 2));
-        } else if (c == " ") {
-          out(substr(change_lines[i], 2));
-        } else {
-          out(change_lines[i]);
-        }
+    function flush_block() {
+      if (line_count == 0) return;
+
+      # Determine tag and line span based on additions/deletions
+      tag = (add_count>0 && del_count>0) ? "modified" : (add_count>0 ? "added" : "deleted");
+      start = block_after_start;
+      end   = (add_count>0 ? start + add_count - 1 : start);
+      label = (start==end) ? sprintf("line %d", start) : sprintf("lines %d-%d", start, end);
+      # For pure deletions, keep new-side anchor but include count if multi-line
+      if (tag == "deleted" && del_count > 1) {
+        label = sprintf("line %d, removed %d lines", start, del_count);
       }
-      delete change_lines; line_count = 0; add_count = 0; del_count = 0; in_block = 0;
-      return;
-    }
 
-    # Track per-file counts
-    if (tag == "added") { added_blocks++; seq_added++; seq_idx = seq_added; }
-    else if (tag == "deleted") { deleted_blocks++; seq_deleted++; seq_idx = seq_deleted; }
-    else { modified_blocks++; seq_modified++; seq_idx = seq_modified; }
-
-    # Buffer start tag (numbering will be injected on close_file)
-    out(sprintf("<%s patch start of block: %s>", tag, label));
-    patches_total++;
-    p_start_idx[patches_total] = fl_n;
-    p_tag[patches_total] = tag;
-    p_label[patches_total] = label;
-    p_type_idx[patches_total] = seq_idx;
-
-    if (tag == "modified") {
-      # Split into removed/new sub-sections with side-appropriate numbering
-      rm_count = 0; add_count_local = 0;
+      # Detect whitespace-only patches (all changed lines empty/whitespace after stripping +/-)
+      has_nonws = 0;
       for (i = 1; i <= line_count; i++) {
-        c = substr(change_lines[i], 1, 1);
-        if (c == "-") rm_count++;
-        else if (c == "+") add_count_local++;
+        s = substr(change_lines[i], 2);
+        gsub(/[ \t\r\n]/, "", s);
+        if (length(s) > 0) { has_nonws = 1; break; }
       }
-      rm_ln = block_before_start; add_ln = block_after_start;
 
-      # Removed block (render with fixed gutter and no old-side numbering)
-      out("<removed: start of block>");
-      for (i = 1; i <= line_count; i++) {
-        if (substr(change_lines[i], 1, 1) == "-") {
-          s = substr(change_lines[i], 2);
-          out(sprintf(" -  │%s", s));
-        }
-      }
-      out("</removed: end of block>");
-
-      # New block
-      out("<new: start of block>");
-      for (i = 1; i <= line_count; i++) {
-        if (substr(change_lines[i], 1, 1) == "+") {
-          s = substr(change_lines[i], 2);
-          out(sprintf("%d │%s", add_ln, s));
-          add_ln++;
-        }
-      }
-      out("</new: end of block>");
-    } else {
-      if (tag == "added") {
-        # Added-only block: number lines using new-side positions
-        add_ln = block_after_start;
+      if (has_nonws == 0) {
+        # Emit raw lines, no patch tags, do not count towards per-file patch stats
         for (i = 1; i <= line_count; i++) {
-          if (substr(change_lines[i], 1, 1) == "+") {
-            s = substr(change_lines[i], 2);
-            out(sprintf("%d │%s", add_ln, s));
-            add_ln++;
-          } else if (substr(change_lines[i], 1, 1) == " ") {
+          c = substr(change_lines[i], 1, 1);
+          if (c == "+" || c == "-") {
+            out(substr(change_lines[i], 2));
+          } else if (c == " ") {
             out(substr(change_lines[i], 2));
           } else {
             out(change_lines[i]);
           }
         }
-      } else {
-        # Deleted-only block: emit lines with a fixed gutter:  -  │  and no numbers
+        delete change_lines; line_count = 0; add_count = 0; del_count = 0; in_block = 0;
+        return;
+      }
+
+      # Track per-file counts
+      if (tag == "added") { added_blocks++; seq_added++; seq_idx = seq_added; }
+      else if (tag == "deleted") { deleted_blocks++; seq_deleted++; seq_idx = seq_deleted; }
+      else { modified_blocks++; seq_modified++; seq_idx = seq_modified; }
+
+      # Buffer start tag (numbering will be injected on close_file)
+      out(sprintf("<%s patch start of block: %s>", tag, label));
+      patches_total++;
+      p_start_idx[patches_total] = fl_n;
+      p_tag[patches_total] = tag;
+      p_label[patches_total] = label;
+      p_type_idx[patches_total] = seq_idx;
+
+      if (tag == "modified") {
+        # Split into removed/new sub-sections with side-appropriate numbering
+        rm_count = 0; add_count_local = 0;
         for (i = 1; i <= line_count; i++) {
           c = substr(change_lines[i], 1, 1);
-          s = (c == "+" || c == "-" || c == " ") ? substr(change_lines[i], 2) : change_lines[i];
-          out(sprintf(" -  │%s", s));
+          if (c == "-") rm_count++;
+          else if (c == "+") add_count_local++;
+        }
+        rm_ln = block_before_start; add_ln = block_after_start;
+
+        # Removed block (render with fixed gutter and no old-side numbering)
+        out("<removed: start of block>");
+        for (i = 1; i <= line_count; i++) {
+          if (substr(change_lines[i], 1, 1) == "-") {
+            s = substr(change_lines[i], 2);
+            out(sprintf(" -  │%s", s));
+          }
+        }
+        out("</removed: end of block>");
+
+        # New block
+        out("<new: start of block>");
+        for (i = 1; i <= line_count; i++) {
+          if (substr(change_lines[i], 1, 1) == "+") {
+            s = substr(change_lines[i], 2);
+            out(sprintf("%d │%s", add_ln, s));
+            add_ln++;
+          }
+        }
+        out("</new: end of block>");
+      } else {
+        if (tag == "added") {
+          # Added-only block: number lines using new-side positions
+          add_ln = block_after_start;
+          for (i = 1; i <= line_count; i++) {
+            if (substr(change_lines[i], 1, 1) == "+") {
+              s = substr(change_lines[i], 2);
+              out(sprintf("%d │%s", add_ln, s));
+              add_ln++;
+            } else if (substr(change_lines[i], 1, 1) == " ") {
+              out(substr(change_lines[i], 2));
+            } else {
+              out(change_lines[i]);
+            }
+          }
+        } else {
+          # Deleted-only block: emit lines with a fixed gutter:  -  │  and no numbers
+          for (i = 1; i <= line_count; i++) {
+            c = substr(change_lines[i], 1, 1);
+            s = (c == "+" || c == "-" || c == " ") ? substr(change_lines[i], 2) : change_lines[i];
+            out(sprintf(" -  │%s", s));
+          }
         }
       }
+      out(sprintf("</%s patch end of block>", tag));
+      p_end_idx[patches_total] = fl_n;
+
+      # Reset block
+      delete change_lines; line_count = 0; add_count = 0; del_count = 0; in_block = 0;
     }
-    out(sprintf("</%s patch end of block>", tag));
-    p_end_idx[patches_total] = fl_n;
 
-    # Reset block
-    delete change_lines; line_count = 0; add_count = 0; del_count = 0; in_block = 0;
-  }
-
-  function open_file(path) {
-    if (file_open) close_file();
-    # Reset per-file state
-    file_path = path; file_open = 1; file_binary = 0; file_dissim = "";
-    file_lines = 0;
-    fl_n = 0; delete fl; delete fl_ln; delete fl_is_content;
-    patches_total = 0; added_blocks = 0; deleted_blocks = 0; modified_blocks = 0;
-    delete p_start_idx; delete p_end_idx; delete p_tag; delete p_label; delete p_type_idx;
-    seq_added = 0; seq_deleted = 0; seq_modified = 0;
-  }
-
-  function close_file() {
-    if (!file_open) return;
-    flush_block();
-    # If binary, ignore buffered content and emit a single self-closing line
-    if (file_binary) {
-      fl_n = 0; delete fl;
-      out("<binary difference/>");
+    function open_file(path) {
+      if (file_open) close_file();
+      # Reset per-file state
+      file_path = path; file_open = 1; file_binary = 0; file_dissim = "";
+      file_lines = 0;
+      fl_n = 0; delete fl; delete fl_ln; delete fl_is_content;
       patches_total = 0; added_blocks = 0; deleted_blocks = 0; modified_blocks = 0;
+      delete p_start_idx; delete p_end_idx; delete p_tag; delete p_label; delete p_type_idx;
+      seq_added = 0; seq_deleted = 0; seq_modified = 0;
     }
 
-    # Inject patch numbering (and optional file path for large diffs) now that total is known
-    file_is_large = (file_lines >= 100) ? 1 : 0;
-    for (pi = 1; pi <= patches_total; pi++) {
-      label_fmt = p_label[pi];
-      if (file_is_large) label_fmt = sprintf("%s %s", file_path, p_label[pi]);
-      # Determine denominator per patch type
-      denom = (p_tag[pi] == "added") ? added_blocks : ((p_tag[pi] == "deleted") ? deleted_blocks : modified_blocks);
-      num = p_type_idx[pi] + 0;
-      fl[p_start_idx[pi]] = sprintf("<%s patch %d/%d start of block: %s>", p_tag[pi], num, denom, label_fmt);
-      fl[p_end_idx[pi]]   = sprintf("</%s patch %d/%d end of block>", p_tag[pi], num, denom);
-    }
-
-    # Emit per-file header and opening tag with summary (and dissimilarity if present)
-    print "---";
-    if (file_dissim != "") {
-      printf("<%s added=%d modified=%d deleted=%d dissimilarity=%s>\n", file_path, added_blocks, modified_blocks, deleted_blocks, file_dissim);
-    } else {
-      printf("<%s added=%d modified=%d deleted=%d>\n", file_path, added_blocks, modified_blocks, deleted_blocks);
-    }
-    # Wrap unchanged regions between patches
-    fl_out_n = 0; delete fl_out;
-    inside_patch = 0; uc_open = 0;
-    i = 1;
-    while (i <= fl_n) {
-      line = fl[i];
-      if (line ~ /^<(added|deleted|modified) patch [0-9]+\/[0-9]+ start of block:/ || line ~ /^<(added|deleted|modified) patch start of block:/) {
-        if (uc_open == 1) { fl_out[++fl_out_n] = "</unchanged: end of unchanged block>"; uc_open = 0; }
-        fl_out[++fl_out_n] = line; inside_patch = 1; i++; continue;
-      }
-      if (line ~ /^<\/(added|deleted|modified) patch [0-9]+\/[0-9]+ end of block>/ || line ~ /^<\/(added|deleted|modified) patch end of block>/) {
-        fl_out[++fl_out_n] = line; inside_patch = 0; i++; continue;
-      }
-      if (inside_patch == 0 && fl_is_content[i] == 1) {
-        # Start an unchanged run, always number each line using new-side numbers
-        start_i = i; start_ln = fl_ln[i]; end_i = i; end_ln = start_ln;
-        j = i + 1;
-        while (j <= fl_n && fl_is_content[j] == 1) { end_i = j; end_ln = fl_ln[j]; j++; }
-        if (start_ln == end_ln) label = sprintf("line %d", start_ln); else label = sprintf("lines %d-%d", start_ln, end_ln);
-        if (file_is_large) fl_out[++fl_out_n] = sprintf("<unchanged: start of unchanged block %s %s>", file_path, label); else fl_out[++fl_out_n] = sprintf("<unchanged: start of unchanged block %s>", label);
-        for (k = start_i; k <= end_i; k++) fl_out[++fl_out_n] = sprintf("%d │%s", fl_ln[k], fl[k]);
-        fl_out[++fl_out_n] = "</unchanged: end of unchanged block>";
-        i = end_i + 1; continue;
-      }
-      fl_out[++fl_out_n] = line; i++;
-    }
-    for (i = 1; i <= fl_out_n; i++) print fl_out[i];
-    printf("</%s>\n", file_path);
-    file_open = 0; file_path = "";
-  }
-
-  function start_block_if_needed() {
-    if (!in_block) {
-      in_block = 1;
-      block_after_start = new_line; # position in the after file where additions appear
-      block_before_start = old_line; # position in the before file where deletions originate
-    }
-  }
-
-  {
-    # diff start for a file
-    if ($0 ~ /^diff --git /) {
+    function close_file() {
+      if (!file_open) return;
       flush_block();
+      # If binary, ignore buffered content and emit a single self-closing line
+      if (file_binary) {
+        fl_n = 0; delete fl;
+        out("<binary difference/>");
+        patches_total = 0; added_blocks = 0; deleted_blocks = 0; modified_blocks = 0;
+      }
+
+      # Inject patch numbering (and optional file path for large diffs) now that total is known
+      file_is_large = (file_lines >= 100) ? 1 : 0;
+      for (pi = 1; pi <= patches_total; pi++) {
+        label_fmt = p_label[pi];
+        if (file_is_large) label_fmt = sprintf("%s %s", file_path, p_label[pi]);
+        # Determine denominator per patch type
+        denom = (p_tag[pi] == "added") ? added_blocks : ((p_tag[pi] == "deleted") ? deleted_blocks : modified_blocks);
+        num = p_type_idx[pi] + 0;
+        fl[p_start_idx[pi]] = sprintf("<%s patch %d/%d start of block: %s>", p_tag[pi], num, denom, label_fmt);
+        fl[p_end_idx[pi]]   = sprintf("</%s patch %d/%d end of block>", p_tag[pi], num, denom);
+      }
+
+      # Emit per-file header and opening tag with summary (and dissimilarity if present)
+      print "---";
+      if (file_dissim != "") {
+        printf("<%s added=%d modified=%d deleted=%d dissimilarity=%s>\n", file_path, added_blocks, modified_blocks, deleted_blocks, file_dissim);
+      } else {
+        printf("<%s added=%d modified=%d deleted=%d>\n", file_path, added_blocks, modified_blocks, deleted_blocks);
+      }
+      # Wrap unchanged regions between patches
+      fl_out_n = 0; delete fl_out;
+      inside_patch = 0; uc_open = 0;
+      i = 1;
+      while (i <= fl_n) {
+        line = fl[i];
+        if (line ~ /^<(added|deleted|modified) patch [0-9]+\/[0-9]+ start of block:/ || line ~ /^<(added|deleted|modified) patch start of block:/) {
+          if (uc_open == 1) { fl_out[++fl_out_n] = "</unchanged for context: end of unchanged block>"; uc_open = 0; }
+          fl_out[++fl_out_n] = line; inside_patch = 1; i++; continue;
+        }
+        if (line ~ /^<\/(added|deleted|modified) patch [0-9]+\/[0-9]+ end of block>/ || line ~ /^<\/(added|deleted|modified) patch end of block>/) {
+          fl_out[++fl_out_n] = line; inside_patch = 0; i++; continue;
+        }
+        if (inside_patch == 0 && fl_is_content[i] == 1) {
+          # Start an unchanged run, always number each line using new-side numbers
+          start_i = i; start_ln = fl_ln[i]; end_i = i; end_ln = start_ln;
+          j = i + 1;
+          while (j <= fl_n && fl_is_content[j] == 1) { end_i = j; end_ln = fl_ln[j]; j++; }
+          if (start_ln == end_ln) label = sprintf("line %d", start_ln); else label = sprintf("lines %d-%d", start_ln, end_ln);
+          if (file_is_large) fl_out[++fl_out_n] = sprintf("<unchanged for context: start of unchanged block %s %s>", file_path, label); else fl_out[++fl_out_n] = sprintf("<unchanged for context: start of unchanged block %s>", label);
+          for (k = start_i; k <= end_i; k++) fl_out[++fl_out_n] = sprintf("%d │%s", fl_ln[k], fl[k]);
+          fl_out[++fl_out_n] = "</unchanged: end of unchanged block>";
+          i = end_i + 1; continue;
+        }
+        fl_out[++fl_out_n] = line; i++;
+      }
+      for (i = 1; i <= fl_out_n; i++) print fl_out[i];
+      printf("</%s>\n", file_path);
+      file_open = 0; file_path = "";
+    }
+
+    function start_block_if_needed() {
+      if (!in_block) {
+        in_block = 1;
+        block_after_start = new_line; # position in the after file where additions appear
+        block_before_start = old_line; # position in the before file where deletions originate
+      }
+    }
+
+    {
+      # diff start for a file
+      if ($0 ~ /^diff --git /) {
+        flush_block();
+        close_file();
+        # Extract a/ and b/ paths via fields to avoid regex portability issues
+        n = split($0, f, " ");
+        a_path = f[3]; b_path = f[4];
+        sub(/^a\//, "", a_path);
+        sub(/^b\//, "", b_path);
+        path = (b_path != "" && b_path != "/dev/null") ? b_path : a_path;
+        if (path != "") open_file(path);
+        file_status = "M";
+        next;
+      }
+
+      # Count per-file input lines for large-file breadcrumb threshold
+      if (file_open) file_lines++;
+
+      # New / deleted file markers influence coarse status but are not printed
+      if ($0 ~ /^new file mode/) { file_status = "A"; next; }
+      if ($0 ~ /^deleted file mode/) { file_status = "D"; next; }
+      if ($0 ~ /^rename (from|to)/ || $0 ~ /^copy (from|to)/ || $0 ~ /^index /) { next; }
+
+      # Similarity/dissimilarity: capture and keep in content
+      if ($0 ~ /^dissimilarity index /) {
+        n = split($0, parts, " "); file_dissim = parts[n];
+        out($0); next;
+      }
+      if ($0 ~ /^similarity index /) { out($0); next; }
+
+      # File headers (--- a/..., +++ b/...) suppressed
+      if ($0 ~ /^--- / || $0 ~ /^\+\+\+ /) { next; }
+      # Suppress git’s marker about missing newline at EOF (allow trailing spaces)
+      if ($0 ~ /^\\ No newline at end of file( *$|$)/) { next; }
+      # Mode changes and submodule summaries suppressed
+      if ($0 ~ /^(old mode|new mode) [0-9]+/) { next; }
+      if ($0 ~ /^Submodule /) { next; }
+      # Binary markers: flag and suppress
+      if ($0 ~ /^GIT binary patch$/) { file_binary = 1; next; }
+      if ($0 ~ /^Binary files /) { file_binary = 1; next; }
+
+      # Hunk header: set counters (portable, no submatch arrays)
+      if ($0 ~ /^@@ /) {
+        flush_block();
+        # Parse old start after '-'
+        old_line = 0; new_line = 0;
+        s = $0;
+        if (match(s, /-([0-9]+)/)) {
+          old_line = substr(s, RSTART+1, RLENGTH-1) + 0;
+        }
+        # Parse new start after '+'
+        if (match(s, /\+([0-9]+)/)) {
+          new_line = substr(s, RSTART+1, RLENGTH-1) + 0;
+        }
+        next;
+      }
+
+      # Within hunk: context/add/del lines
+      first = substr($0, 1, 1);
+      if (first == " ") {
+        # Context line ends any pending change block
+        flush_block();
+        out_line(substr($0, 2), new_line + 1, 1);
+        old_line++; new_line++;
+        next;
+      }
+
+      if (first == "+") {
+        start_block_if_needed();
+        line_count++; change_lines[line_count] = $0; add_count++; new_line++;
+        next;
+      }
+
+      if (first == "-") {
+        start_block_if_needed();
+        line_count++; change_lines[line_count] = $0; del_count++; old_line++;
+        next;
+      }
+
+      # Any other line: not part of diff body. Flush and buffer as-is.
+      flush_block();
+      out($0);
+    }
+
+    END {
       close_file();
-      # Extract a/ and b/ paths via fields to avoid regex portability issues
-      n = split($0, f, " ");
-      a_path = f[3]; b_path = f[4];
-      sub(/^a\//, "", a_path);
-      sub(/^b\//, "", b_path);
-      path = (b_path != "" && b_path != "/dev/null") ? b_path : a_path;
-      if (path != "") open_file(path);
-      file_status = "M";
-      next;
     }
-
-    # Count per-file input lines for large-file breadcrumb threshold
-    if (file_open) file_lines++;
-
-    # New / deleted file markers influence coarse status but are not printed
-    if ($0 ~ /^new file mode/) { file_status = "A"; next; }
-    if ($0 ~ /^deleted file mode/) { file_status = "D"; next; }
-    if ($0 ~ /^rename (from|to)/ || $0 ~ /^copy (from|to)/ || $0 ~ /^index /) { next; }
-
-    # Similarity/dissimilarity: capture and keep in content
-    if ($0 ~ /^dissimilarity index /) {
-      n = split($0, parts, " "); file_dissim = parts[n];
-      out($0); next;
-    }
-    if ($0 ~ /^similarity index /) { out($0); next; }
-
-    # File headers (--- a/..., +++ b/...) suppressed
-    if ($0 ~ /^--- / || $0 ~ /^\+\+\+ /) { next; }
-    # Suppress git’s marker about missing newline at EOF (allow trailing spaces)
-    if ($0 ~ /^\\ No newline at end of file( *$|$)/) { next; }
-    # Mode changes and submodule summaries suppressed
-    if ($0 ~ /^(old mode|new mode) [0-9]+/) { next; }
-    if ($0 ~ /^Submodule /) { next; }
-    # Binary markers: flag and suppress
-    if ($0 ~ /^GIT binary patch$/) { file_binary = 1; next; }
-    if ($0 ~ /^Binary files /) { file_binary = 1; next; }
-
-    # Hunk header: set counters (portable, no submatch arrays)
-    if ($0 ~ /^@@ /) {
-      flush_block();
-      # Parse old start after '-'
-      old_line = 0; new_line = 0;
-      s = $0;
-      if (match(s, /-([0-9]+)/)) {
-        old_line = substr(s, RSTART+1, RLENGTH-1) + 0;
-      }
-      # Parse new start after '+'
-      if (match(s, /\+([0-9]+)/)) {
-        new_line = substr(s, RSTART+1, RLENGTH-1) + 0;
-      }
-      next;
-    }
-
-    # Within hunk: context/add/del lines
-    first = substr($0, 1, 1);
-    if (first == " ") {
-      # Context line ends any pending change block
-      flush_block();
-      out_line(substr($0, 2), new_line + 1, 1);
-      old_line++; new_line++;
-      next;
-    }
-
-    if (first == "+") {
-      start_block_if_needed();
-      line_count++; change_lines[line_count] = $0; add_count++; new_line++;
-      next;
-    }
-
-    if (first == "-") {
-      start_block_if_needed();
-      line_count++; change_lines[line_count] = $0; del_count++; old_line++;
-      next;
-    }
-
-    # Any other line: not part of diff body. Flush and buffer as-is.
-    flush_block();
-    out($0);
+    '
   }
+  
+  local -a git_diff_args
 
-  END {
-    close_file();
-  }
-  '
+  if [[ -n "$1" ]]; then
+    is_piped && log.warn "Received data from both stdin and cli args. Ignoring stdin."
+    command git --no-pager diff $(gdargs+) "$@" | .parse-diff
+    return $?
+  fi
+  
+  .parse-diff
 }
 
 # # git.detective --paths <PATH1,PATH2,...> --keywords <KEYWORD1,KEYWORD2,...> [--follow <PATH1,PATH2,...> (defaults to specified PATHS)] [--since <DATE> (default "1 day ago")]
