@@ -1,7 +1,7 @@
 #!/usr/bin/env bats
 function setup() {
-	load $SCRIPTS/log.sh
-	load $SCRIPTS/args.sh
+	load ${LAND}/log.sh
+	load ${LAND}/args.sh
 }
 @test 'args.parse test1' {
   # shellcheck disable=SC2054

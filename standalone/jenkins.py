@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-# py39 $SCRIPTS/standalone/jenkins.py 5456 -b 3
+# py39 ${LAND}/standalone/jenkins.py 5456 -b 3
 import json
 from dataclasses import dataclass
 from typing import Any, Optional

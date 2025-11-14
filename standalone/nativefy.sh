@@ -310,41 +310,41 @@ print(match.group(), end="")
 		execpath="$apppath/$appname"
 		if [[ -f "$execpath" ]]; then
 			log.success "installed successfully with exec file: $execpath"
-			if ! confirm "try to add alias to $SCRIPTS/init.sh? (with basic checks beforehand)"; then
+			if ! confirm "try to add alias to ${LAND}/init.sh? (with basic checks beforehand)"; then
 				log.info "ok, done. returning 0"
 				return 0
 			fi
 			alias_str="alias $appname='launch $execpath'"
 			log.info "alias_str: $alias_str. doing checks before adding alias to init.sh..."
 
-			if existing_alias=$(grep -P "^alias $appname" "$SCRIPTS"/init.sh); then
-				if grep -P "$alias_str" "$SCRIPTS"/init.sh; then
-					log.success "correct alias already found in $SCRIPTS/init.sh, script finished"
+			if existing_alias=$(grep -P "^alias $appname" "${LAND}"/init.sh); then
+				if grep -P "$alias_str" "${LAND}"/init.sh; then
+					log.success "correct alias already found in ${LAND}/init.sh, script finished"
 					return 0
 				else
-					log.warn "an alias to $appname was found in $SCRIPTS/init.sh, but it's a bad path. existing alias:\n$existing_alias\n"
+					log.warn "an alias to $appname was found in ${LAND}/init.sh, but it's a bad path. existing alias:\n$existing_alias\n"
 					return 1
 				fi
 			else
 				# no existing alias
-				log.info "no existing alias found in $SCRIPTS/init.sh; adding new"
+				log.info "no existing alias found in ${LAND}/init.sh; adding new"
 				py_alias_code="
 import os
-with open('$SCRIPTS/init.sh') as f:
+with open('${LAND}/init.sh') as f:
     lines = f.readlines()
 execs_aliases_i = lines.index(next(l for l in lines if '# execs aliases' in l))
 first_empty_line_after_i = lines[execs_aliases_i:].index(next(l for l in lines if not l)) + execs_aliases_i
 alias_str=\"$alias_str\"
 lines_with_alias = lines[:first_empty_line_after_i] + [alias_str] + lines[first_empty_line_after_i:]
-os.system('cp $SCRIPTS/init.sh $SCRIPTS/init.sh.backup')
-with open('$SCRIPTS/init.sh.test', mode='w') as f:
+os.system('cp ${LAND}/init.sh ${LAND}/init.sh.backup')
+with open('${LAND}/init.sh.test', mode='w') as f:
     f.writelines(lines_with_alias)
         "
 				if python3 -c "$py_alias_code"; then
-					log.success "added '$alias_str' to $SCRIPTS/init.sh successfully"
+					log.success "added '$alias_str' to ${LAND}/init.sh successfully"
 					return 0
 				else
-					log.warn "failed adding alias str to $SCRIPTS/init.sh, returning 1"
+					log.warn "failed adding alias str to ${LAND}/init.sh, returning 1"
 					return 1
 				fi
 			fi

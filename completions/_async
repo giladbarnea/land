@@ -1,7 +1,7 @@
 #compdef async
 
 _realasync(){
-	zstyle ':completion::complete:realasync:*:descriptions' format "$(docstring -o realasync "$SCRIPTS/async.zsh")"
+	zstyle ':completion::complete:realasync:*:descriptions' format "$(docstring -o realasync "${LAND}/async.zsh")"
 	_describe command "(
 		--:''
 		--notify:''
@@ -10,7 +10,7 @@ _realasync(){
 
 _renametopathlike(){
 	_files
-	compadd -x "$(docstring renametopathlike "$SCRIPTS/fs.sh")"
+	compadd -x "$(docstring renametopathlike "${LAND}/fs.sh")"
 	_describe command "(
 		-{f,-file}:'Disallow forward slashes when renaming'
 		-{l,-lower}:'Lowercase new name'
@@ -26,20 +26,20 @@ compdef _renametopathlike renametopathlike
 compdef _realasync realasync
 
 _background() { 
-	zstyle ':completion::complete:background:*:descriptions' format "$(docstring background "$SCRIPTS/async.zsh")"
+	zstyle ':completion::complete:background:*:descriptions' format "$(docstring background "${LAND}/async.zsh")"
 }
 compdef _background background
 
 
 _after() {
-	zstyle ':completion::complete:after:*:descriptions' format "$(docstring after "$SCRIPTS/async.zsh")"
+	zstyle ':completion::complete:after:*:descriptions' format "$(docstring after "${LAND}/async.zsh")"
 	_pgrep
 }
 compdef _after after
 
 
 _xargseach() {
-	zstyle ':completion::complete:xargseach:*:descriptions' format "$(docstring xargseach "$SCRIPTS/async.zsh")"
+	zstyle ':completion::complete:xargseach:*:descriptions' format "$(docstring xargseach "${LAND}/async.zsh")"
 	_xargs
 }
 compdef _xargseach xargseach
@@ -47,14 +47,14 @@ compdef _xargseach xargseach
 
 
 _xargparallel() {
-	zstyle ':completion::complete:xargparallel:*:descriptions' format "$(docstring xargparallel "$SCRIPTS/async.zsh")"
+	zstyle ':completion::complete:xargparallel:*:descriptions' format "$(docstring xargparallel "${LAND}/async.zsh")"
 	_xargs
 }
 compdef _xargparallel xargparallel
 
 
 _wait_until_exists() {
-	compadd -x "$(docstring wait_until_exists "$SCRIPTS/async.zsh")"
+	compadd -x "$(docstring wait_until_exists "${LAND}/async.zsh")"
 	_describe command "(
 			-{i,-interval}:'INTERVAL_SECONDS. Default 0.005'
 			-{t,-timeout}:'TIMEOUT_SECONDS. Default 0.5'
@@ -63,11 +63,11 @@ _wait_until_exists() {
 }
 compdef _wait_until_exists wait_until_exists
 
-_wget.bg() { compadd -x "$(docstring wget "$SCRIPTS/async.zsh".bg)"; }
+_wget.bg() { compadd -x "$(docstring wget "${LAND}/async.zsh".bg)"; }
 compdef _wget.bg wget.bg
 
 _whiletrue() {
-	compadd -x "$(docstring whiletrue "$SCRIPTS/async.zsh")"
+	compadd -x "$(docstring whiletrue "${LAND}/async.zsh")"
 	# regex to parse opts from docstring: '(?<=\[)(-[a-z]+)?[, ]*(--[a-z\-_]+)?( [A-Z_]+)?(?=])'
 	_describe "command" "(
         -{i,-interval}:'INTERVAL_SECONDS. Default 1'

@@ -1,12 +1,12 @@
 # # dlsub
 # 	dlsub [-m,--movieid <movieid>] [-s,--subtitleid <subtitleid>] [-l,--lang <lang=eng>] [-q,--quiet] <NAME>
 # ```bash
-# source $SCRIPTS/standalone/dlsub.sh [-q]
-# source $SCRIPTS/standalone/dlsub.sh [-q] 'Game of Thrones S04E04 Oathkeeper.mp4'
-# source $SCRIPTS/standalone/dlsub.sh [-q] -l heb 'House of Cards S02E01'
-# source $SCRIPTS/standalone/dlsub.sh [-q] -s, --subid <SUBTITLE_ID[,SUBTITLE_ID,...]>
-# source $SCRIPTS/standalone/dlsub.sh [-q] -m, --movieid <MOVIE_ID[,MOVIE_ID,...]>
-# source $SCRIPTS/standalone/dlsub.sh -s 8587940,8587941,8587942,8587943
+# source ${LAND}/standalone/dlsub.sh [-q]
+# source ${LAND}/standalone/dlsub.sh [-q] 'Game of Thrones S04E04 Oathkeeper.mp4'
+# source ${LAND}/standalone/dlsub.sh [-q] -l heb 'House of Cards S02E01'
+# source ${LAND}/standalone/dlsub.sh [-q] -s, --subid <SUBTITLE_ID[,SUBTITLE_ID,...]>
+# source ${LAND}/standalone/dlsub.sh [-q] -m, --movieid <MOVIE_ID[,MOVIE_ID,...]>
+# source ${LAND}/standalone/dlsub.sh -s 8587940,8587941,8587942,8587943
 # while read -r episode; do dlsub "$episode" &; done <<< $(command ls)
 # ```
 function dlsub(){

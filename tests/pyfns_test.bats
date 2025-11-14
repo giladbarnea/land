@@ -2,8 +2,8 @@
 
 THIS_SCRIPT_DIR="$(realpath "$(dirname "${BASH_SOURCE[0]:-$0}")")"
 function setup() {
-	load $SCRIPTS/util.sh
-	load $SCRIPTS/pyfns.sh
+	load ${LAND}/util.sh
+	load ${LAND}/pyfns.sh
 	set -e
 }
 

@@ -4,18 +4,18 @@ setopt errreturn pipefail
 function find_discrepancies() {
   local -a skip_scripts=(docker git pecan)
   local script_name
-  local -a script_names=( $(for __file in $(command ls -1 "$SCRIPTS"); do echo ${__file%%.*}; done | sort -u) )  # Without extension.
+  local -a script_names=( $(for __file in $(command ls -1 "${LAND}"); do echo ${__file%%.*}; done | sort -u) )  # Without extension.
   typeset -p script_names
   local -a scripts_with_completions
   for script_name in ${script_names}; do
-    if [[ -f "${SCRIPTS}/completions/_${script_name}" && ! ${skip_scripts[(r)$script_name]} ]]; then
+    if [[ -f "${LAND}/completions/_${script_name}" && ! ${skip_scripts[(r)$script_name]} ]]; then
       scripts_with_completions+=("$script_name")
     fi
   done
   typeset -p scripts_with_completions
   for script_name in ${scripts_with_completions[@]}; do
     confirm "Call doctor for ${script_name}?" || continue;
-    call_doctor "${SCRIPTS}/${script_name}".*;
+    call_doctor "${LAND}/${script_name}".*;
   done
 }
 
@@ -23,11 +23,11 @@ function find_discrepancies() {
 function call_doctor(){
   local -a llm_prompt=(
     "Above are the contents of a shell script and its corresponding completions script. The completion script may contain faulty completions related to functions in the script file, defined as:"
-    "$(awk -v RS='#' '/Mismatch/ { print; exit }' "${SCRIPTS}/meta/llm-completions-design.md" | strip)"
+    "$(awk -v RS='#' '/Mismatch/ { print; exit }' "${LAND}/meta/llm-completions-design.md" | strip)"
     "Your task:"
     "Find such discrepancies."
     "Do not suggest fixes. Do not output implementations of the given code."
-    'Assume that dynamic inspection of function signatures with utilities similar to `docstring`, `docstring.getopts`, `_get_functions_names`, etc., works as expected.'
+    'Assume that dynamic inspection of function signatures with utilities similar to `docstring`, `docstring.getopts`, `_get_functions_names`, etc., works as expected. Think harder.'
   )
   local -a full_script_paths=("$@")
   local script_name_no_extension
@@ -38,16 +38,16 @@ function call_doctor(){
   local responses_cache_dir="${HOME}/.cache/land/completions-doctor"
   mkdir -p "$responses_cache_dir"
   local -A dedicated_prompt_files=(
-    [llm]="${SCRIPTS}/meta/llm-completions-design.md"
+    [llm]="${LAND}/meta/llm-completions-design.md"
   )
   for full_script_path in ${full_script_paths[@]}; do
     script_name_no_extension="${full_script_path:t:r}"
     log.megatitle "$script_name_no_extension"
-    full_completion_path="${SCRIPTS}/completions/_${script_name_no_extension}"
+    full_completion_path="${LAND}/completions/_${script_name_no_extension}"
     # shellcheck disable=SC2299
     final_prompt="${${dedicated_prompt_files[${script_name_no_extension}]}:-$stringified_llm_prompt}"
     [[ "$final_prompt" ]] || { log.error "Building the final prompt failed. Bug." ; return 1 ; }
-    printfiles -y "${full_script_path}" "${full_completion_path}" | llm "${final_prompt}" --stdin-tag="Script And Completion File" --no-clear --no-md --write="${responses_cache_dir}/${script_name_no_extension}.diagnosis.md"
+    bat --style=header,numbers,rule,header-filesize --color=never --paging=never "${full_script_path}" "${full_completion_path}" | llm "${final_prompt}" --stdin-tag="Script And Completion File" --no-clear --no-md --write="${responses_cache_dir}/${script_name_no_extension}.diagnosis.md"
   done
 }
 

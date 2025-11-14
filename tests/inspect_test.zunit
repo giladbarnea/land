@@ -2,9 +2,9 @@
 
 @setup {
 	set -e
-	load $SCRIPTS/log.sh
-	load $SCRIPTS/util.sh
-	load $SCRIPTS/inspect.sh
+	load ${LAND}/log.sh
+	load ${LAND}/util.sh
+	load ${LAND}/inspect.sh
   inspect_test_functions_in_file_lines=(
 'function root_function_kw(){ : ; }'
 'function root_function_kw_spaces () { : ; }'
@@ -200,7 +200,7 @@
 }
 
 @test 'docstring.getopts isort --help' {
-  local doc_string="$(cat "$SCRIPTS"/tests/data/isort-help)"
+  local doc_string="$(cat "${LAND}"/tests/data/isort-help)"
   run docstring.getopts "$doc_string"
   assert $state equals 0
   assert "$output" is_not_empty

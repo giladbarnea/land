@@ -26,7 +26,7 @@
   # hstr plugin
 
   alias h='history'
-  # alias hpy="$SCRIPTS/history.py"
+  # alias hpy="${LAND}/history.py"
   
   function .smart-grep() {
     local results

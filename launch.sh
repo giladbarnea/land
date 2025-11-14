@@ -263,10 +263,10 @@ function launch() {
   log.warn "${Cc}alias_value ${1}${Cc0} returned empty or invalid"
 
   # ** try get function
-  log.debug "Checking whether it's a function in $SCRIPTS..."
+  log.debug "Checking whether it's a function in ${LAND}..."
   # todo: use helper from inspect.sh
   local file_of_function
-  if file_of_function="$(fileof "function $1" "$SCRIPTS")"; then
+  if file_of_function="$(fileof "function $1" "${LAND}")"; then
     log.success "Found function ${Cc}$1${Cc0} in '$file_of_function'. sourcing..."
     if ! source "$file_of_function"; then
       log.fatal "Failed sourcing $file_of_function, returning 1"

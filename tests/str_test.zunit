@@ -1,7 +1,7 @@
 #!/usr/bin/env zunit
 @setup {
-	load $SCRIPTS/util.sh
-	load $SCRIPTS/str.sh
+	load ${LAND}/util.sh
+	load ${LAND}/str.sh
 	set -e
 }
 

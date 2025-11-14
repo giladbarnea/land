@@ -1,22 +1,22 @@
 #compdef util
 
-_fetchfile() { compadd -x "$(docstring fetchfile "$SCRIPTS/util.sh")"; }
+_fetchfile() { compadd -x "$(docstring fetchfile "${LAND}/util.sh")"; }
 compdef _fetchfile fetchfile
 
 _fetchhtml() {
-	compadd -x "$(docstring fetchhtml "$SCRIPTS/util.sh")"
+	compadd -x "$(docstring fetchhtml "${LAND}/util.sh")"
 }
 compdef _fetchhtml fetchhtml
 
 _zprofc() {
-	compadd -x "$(docstring zprofc "$SCRIPTS/util.sh")"
+	compadd -x "$(docstring zprofc "${LAND}/util.sh")"
 	_arguments \
-		":: :( $(docstring.getopts zprofc "$SCRIPTS/util.sh") )"
+		":: :( $(docstring.getopts zprofc "${LAND}/util.sh") )"
 }
 compdef _zprofc zprofc
 
 _timeit() {
-	compadd -x "$(docstring timeit "$SCRIPTS/util.sh")"
+	compadd -x "$(docstring timeit "${LAND}/util.sh")"
 	_describe command "(
 				--show-cmd-output:'By default, the output of the command is not shown. Use this flag to show it.'
 				''
@@ -25,30 +25,30 @@ _timeit() {
 compdef _timeit timeit
 
 _idletime() {
-	compadd -x "$(docstring idletime "$SCRIPTS/util.sh")"
+	compadd -x "$(docstring idletime "${LAND}/util.sh")"
 	_arguments "1: :(s ms us ns)"
 }
 compdef _idletime idletime
 
 _unixtime() {
-	compadd -x "$(docstring unixtime "$SCRIPTS/util.sh")"
+	compadd -x "$(docstring unixtime "${LAND}/util.sh")"
 	_arguments "1: :(s ms us ns)"
 }
 compdef _unixtime unixtime
 
 _humantime() {
-	compadd -x "$(docstring humantime "$SCRIPTS/util.sh")"
+	compadd -x "$(docstring humantime "${LAND}/util.sh")"
 }
 compdef _humantime humantime
 
-_filter() { compadd -x "$(docstring filter "$SCRIPTS/util.sh")"; }
+_filter() { compadd -x "$(docstring filter "${LAND}/util.sh")"; }
 compdef _filter filter
 
-_filterwords() { compadd -x "$(docstring filterwords "$SCRIPTS/util.sh")"; }
+_filterwords() { compadd -x "$(docstring filterwords "${LAND}/util.sh")"; }
 compdef _filterwords filterwords
 
 _import() {
-	compadd -x "$(docstring import "$SCRIPTS/util.sh")"
+	compadd -x "$(docstring import "${LAND}/util.sh")"
 	_describe command "(
         -{t,-timeout}:'TIMEOUT_SEC. Default 2'
         --if-undefined:'CMD. Do the import only if CMD is not defined'
@@ -59,22 +59,22 @@ _import() {
 compdef _import import
 
 _isdefined() {
-	compadd -x "$(docstring isdefined "$SCRIPTS/util.sh")"
+	compadd -x "$(docstring isdefined "${LAND}/util.sh")"
 	_arguments "1:command:_command_names"
 }
 compdef _isdefined isdefined
 
 _loadenvfile() {
-	compadd -x "$(docstring loadenvfile "$SCRIPTS/util.sh")"
+	compadd -x "$(docstring loadenvfile "${LAND}/util.sh")"
 	_arguments "1:file:_files"
 }
 compdef _loadenvfile loadenvfile
 
-_map() { compadd -x "$(docstring map "$SCRIPTS/util.sh")"; }
+_map() { compadd -x "$(docstring map "${LAND}/util.sh")"; }
 compdef _map map
 
 _onmodified() {
-	compadd -x "$(docstring onmodified "$SCRIPTS/util.sh")"
+	compadd -x "$(docstring onmodified "${LAND}/util.sh")"
 	_arguments "1:file:_files"
 	_describe command "(
 				-{c,-command}:'COMMAND to run. Incompatible with SCRIPT.'
@@ -84,7 +84,7 @@ _onmodified() {
 }
 compdef _onmodified onmodified
 
-_randstr() { compadd -x "$(docstring randstr "$SCRIPTS/util.sh")"; }
+_randstr() { compadd -x "$(docstring randstr "${LAND}/util.sh")"; }
 compdef _randstr randstr
 
 typeset -a _vex_opts=(
@@ -96,13 +96,13 @@ typeset -a _vex_opts=(
 )
 
 _vex() {
-	zstyle ':completion::complete:vex:*:descriptions' format "$(docstring vex "$SCRIPTS/util.sh" | richsyntax -x markdown)"
+	zstyle ':completion::complete:vex:*:descriptions' format "$(docstring vex "${LAND}/util.sh" | richsyntax -x markdown)"
 	_describe command _vex_opts
 }
 compdef _vex vex
 
 _runcmds() {
-	compadd -x "$(docstring runcmds "$SCRIPTS/util.sh")"
+	compadd -x "$(docstring runcmds "${LAND}/util.sh")"
 	_describe command _vex_opts -- "(
 		'---no-vex:Dont use vex'
 		'---confirm-each:Ask for confirmation before running each command'
@@ -113,16 +113,16 @@ _runcmds() {
 compdef _runcmds runcmds
 
 _cached() {
-	zstyle ':completion::complete:cached:*:descriptions' format "$(docstring cached "$SCRIPTS/util.sh")"
+	zstyle ':completion::complete:cached:*:descriptions' format "$(docstring cached "${LAND}/util.sh")"
 	_describe command "( $(fnnames) )"
 }
 
 compdef _cached cached
 
 _clearcached() {
-	zstyle ':completion::complete:clearcached:*:descriptions' format "$(docstring clearcached "$SCRIPTS/util.sh")"
+	zstyle ':completion::complete:clearcached:*:descriptions' format "$(docstring clearcached "${LAND}/util.sh")"
 	_arguments \
-		":: :( $(docstring.getopts clearcached "$SCRIPTS/util.sh") )" \
+		":: :( $(docstring.getopts clearcached "${LAND}/util.sh") )" \
 		{-s,--subpath}'[Subpath of /tmp/land/cached/]::'
 }
 compdef _clearcached clearcached

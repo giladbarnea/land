@@ -4,9 +4,9 @@
 
 @setup {
   set -e
-  load $SCRIPTS/log.sh
-  load $SCRIPTS/util.sh
-  load $SCRIPTS/zsh_advanced_history.zsh
+  load ${LAND}/log.sh
+  load ${LAND}/util.sh
+  load ${LAND}/zsh_advanced_history.zsh
 }
 
 @test '_zah.has_unescaped_exmark positives' {
