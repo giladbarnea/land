@@ -892,3 +892,30 @@ function gh-pr-merge-soon(){
   done
 
 }
+
+# region ---[ gh api ]---
+# # ghls <REPO_OWNER> [SUBPATH] [-r,--recursive]
+function ghls(){
+  local owner_repo
+  local subpath
+  local recursive=false
+  
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      -r|--recursive) recursive=true ;;
+      *) if [[ -n "$owner_repo" ]]; then
+        subpath="$1"
+      else
+        owner_repo="$1"
+      fi
+      ;;
+    esac
+    shift
+  done
+  
+  if [[ -n "$subpath" ]]; then
+    gh api "repos/$owner_repo/git/trees/main?recursive=1" --jq ".tree[] | select(.path | startswith(\"$subpath\")) | select(.type == \"blob\") | .path"
+  else
+    gh api "repos/$owner_repo/git/trees/main?recursive=1" --jq ".tree[] | select(.type == \"blob\") | .path"
+  fi
+}
