@@ -13,8 +13,9 @@ fi
 
 #region ------------[ ruff ]------------
 
-# # rufff <FILE> [OPTIONS] [FILES]...
-function rufff(){
+# # .ruff <FILE> [OPTIONS] [FILES]...
+# Internal base helper for ruffc and rufff
+function .ruff(){
 	local -a ruff_shared_args=()
 	local -a ruff_format_args=()
 	local -a ruff_check_args=()
@@ -72,10 +73,22 @@ function rufff(){
 	[[ $format_exitcode = 2 ]] && format_exitcode_is_true_problem=true  # 2 is no such file (not sure if it's the only case)
 
 	# `check` exitcode is useless. Check out --exit-non-zero-on-fix or --exit-non-zero-on-format
-	log.notice "Running ruff check --unsafe-fixes --preview --fix ${ruff_shared_args[*]} ${ruff_check_args[*]}"
-	uv run ruff check --unsafe-fixes --preview --fix "${ruff_shared_args[@]}" "${ruff_check_args[@]}"
+	log.notice "Running ruff check --unsafe-fixes --preview ${ruff_shared_args[*]} ${ruff_check_args[*]}"
+	uv run ruff check --unsafe-fixes --preview "${ruff_shared_args[@]}" "${ruff_check_args[@]}"
 	[[ "$print_result" = true ]] && cat "$temp_file"
 	[[ "$format_exitcode_is_true_problem" = false ]]
+}
+
+# # ruffc <FILE> [OPTIONS] [FILES]...
+# Only checks for errors, no fixes.
+function ruffc(){
+	.ruff "$@" --check
+}
+
+# # rufff <FILE> [OPTIONS] [FILES]...
+# Fixes errors.
+function rufff(){
+	.ruff "$@" --fix
 }
 #endregion ruff
 
@@ -931,18 +944,18 @@ function uvpt() { uv run pytest "$@"; }
 # function __to(){
 # 	# If the first argument is either 'convert' or 'diff', invoke to.py with unmodified arguments:
 # 	if [[ "$1" == convert || "$1" == diff ]]; then
-# 		python3.10 "${SCRIPTS}"/to.py "$@"
+# 		python3.10 "${LAND}"/to.py "$@"
 # 		return $?
 # 	fi
 #
 # 	# If there are not arguments at all, or any of the arguments (no matter its position) is '-h' or '--help', invoke to.py with unmodified arguments:
 # 	if [[ ! "$1" || "$*" == *-h* || "$*" == *--help* ]]; then
-# 		python3.10 "${SCRIPTS}"/to.py "$@"
+# 		python3.10 "${LAND}"/to.py "$@"
 # 		return $?
 # 	fi
 #
 # 	# Arguments were specificied but not 'convert' or 'diff', so we implicitly call 'convert':
-# 	python3.10 "${SCRIPTS}"/to.py convert "$@"
+# 	python3.10 "${LAND}"/to.py convert "$@"
 # 	return $?
 # }
 
