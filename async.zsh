@@ -296,7 +296,9 @@ function onidle() {
 # Examples:
 # ```bash
 # head -5 pdfs.txt | xargsparallel zsh -ic 'pdf2md {}'
+# cat ./docs-map.txt | xargsparallel /usr/bin/env zsh -ic 'cached firecrawl {}'
 # ```
+# Note: doesn't work when stdin is nuldelim’ed.
 function xargsparallel() {
   # Read stdin into a variable
   local stdin
@@ -322,7 +324,7 @@ function xargsparallel() {
       return 1
     fi
     if [[ "$word_count" = 1 ]]; then
-      log.error "Input is a single line containing a single word. Just run ${Cc}$*${Cc0}."
+      log.error "Input is a single line containing a single word. Just run ${Cc}$*${Cc0} (is stdin nuldelim’ed?)"
       return 1
     fi
     confirm "Input is a single line containing multiple words. Run ${Cc}$*${Cc0} on each word? ${(j.\n.)${(s. .)stdin}}" || return 1
@@ -386,11 +388,11 @@ function wget.bg() {
 function wait_until_exists() {
   # Todo: this is cool (use in e.g pip.sh)
   # terminal 1:
-  # for script in $(/bin/ls $SCRIPTS/*.sh | xargs -n1 basename); do
+  # for script in $(/bin/ls ${LAND}/*.sh | xargs -n1 basename); do
   #   background fetchfile https://raw.githubusercontent.com/giladbarnea/land/master/$script
   # done
   # terminal 2:
-  # for script in $(/bin/ls $SCRIPTS/*.sh | xargs -n1 basename); do
+  # for script in $(/bin/ls ${LAND}/*.sh | xargs -n1 basename); do
   #   wait_until_exists $script -t 30 && source $script
   # done
   local start_ts="$(unixtime)"
@@ -524,7 +526,7 @@ function import() {
     for file_to_import in ${files_to_import[@]}; do
       if { source "$file_to_import" ||
         source "$THIS_SCRIPT_DIR"/"$file_to_import" ||
-        source "$SCRIPTS"/"$file_to_import" "${source_args[@]}"; } 2>/dev/null; then
+        source "${LAND}"/"$file_to_import" "${source_args[@]}"; } 2>/dev/null; then
         _debug "Sourced $file_to_import locally"
         continue
       fi
