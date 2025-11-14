@@ -3,7 +3,7 @@
 # # html2md <HTML_FILE / STDIN>
 # Wrapper for html2text.
 function html2md(){
-	command html2text --no-wrap-links --ignore-images --asterisk-emphasis --unicode-snob --single-line-break --dash-unordered-list --mark-code --ignore-links "$@"
+	uv run --with=html2text html2text --no-wrap-links --ignore-images --asterisk-emphasis --unicode-snob --single-line-break --dash-unordered-list --mark-code --ignore-links "$@"
 }
 
 
