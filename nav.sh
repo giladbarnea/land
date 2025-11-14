@@ -7,7 +7,7 @@
   # ## OPTIONS:
   #  - --ls[=true]
   #  - --show-git-status[=true]
-  #  - --{fzf-on-fail[=false],shallow-search-on-fail[=true]}
+  #  - --{fzf-on-fail[=true],shallow-search-on-fail[=false]}
   #        # Mutually exclusive; --fzf-on-fail overrides --shallow-search-on-fail.
   #  - -q,--quiet[=false]                  Equivalent to passing all params as false.
   # shellcheck disable=SC2154,SC2028
@@ -16,8 +16,8 @@
     local -i builtin_cd_exitcode
     local do_ls=true
     local show_git_status=true
-    local fzf_on_fail=false
-    local shallow_search_on_fail=true
+    local fzf_on_fail=true
+    local shallow_search_on_fail=false
     local targetdir
     declare -a implicit_path_prefixes=(
       "$HOME"/dev
@@ -134,7 +134,8 @@
     print_hr
     log.warn "Failed ${Cc}builtin cd \"$targetdir\"${Cc0}. Trying to fzfd it..."
     local fzfd_result fzfd_exitcode
-    fzfd_result="$(fzfd "${targetdir##*/}")" # Search only the last part of the path.
+    # fzfd_result="$(fzfd "${targetdir##*/}")" # Search only the last part of the path.
+    fzfd_result="$(fd -t d | fzy -s -q "${targetdir##*/}")" # Search only the last part of the path.
     fzfd_exitcode=$?
     if [[ $fzfd_exitcode == 0 ]]; then
       log.success "fzfd_result: $fzfd_result"
@@ -298,10 +299,6 @@ function uncd() {
   export OLDPWD="$oldpwd"
   return "$custom_cd_exitcode"
 
-}
-
-function recd() {
-  cd "$PWD" "$@"
 }
 
 # # cdwhere <THING>
