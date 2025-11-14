@@ -100,7 +100,7 @@ compdef _rgsed rgsed
 
 
 # ------------[ ls / eza ]------------
-compdef ls=eza
+compdef _evalcat=ls
 
 # ------------[ pyenv ]------------
 
