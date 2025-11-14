@@ -1,13 +1,2 @@
 #compdef _proc
-# 23.09.2023: this is almost perfect. it's lazy (\$), `func` doesn't bleed. Only `compadd` needed another arg otherwise it wouldn't show.
-unset func
-declare -a proc_funcs
-proc_funcs=($(functions_in_file "$SCRIPTS/proc.sh" --no-nested))
-# shellcheck disable=SC1036,1062,1061,1073,1072
-for func in "${proc_funcs[@]}"; do
-_${func} () {
-  compadd -x "\$(docstring "$func" "$SCRIPTS/proc.sh")" "";
-  _describe command "( \$(docstring.getopts "$func" "$SCRIPTS/proc.sh") )";
-}
-compdef _${func} ${func}
-done
+compdef _kill killverify
