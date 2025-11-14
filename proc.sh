@@ -9,147 +9,110 @@ else
   source proc.mac.sh
 fi
 
-source "/Users/gilad/dev/land/environment.sh"  # 30ms
-source "/Users/gilad/dev/land/log.sh"          # 14ms
-source "/Users/gilad/dev/land/util.sh"         # 14ms
-source "/Users/gilad/dev/land/str.sh"
-
-# # proc.kill <PID_OR_QUERY> [OPTIONS]
-# ### Options
-# `--verify` will check at most 10 times, 100ms apart, if the processes are still running.
-# `--aggressive` will try to kill the processes again each verification interval.
-# `-l, --loops LOOPS` sets the number of times to check if the processes are still running, default 10.
-# `-v` for some log.debug output.
-# ### proc.kill <PID...> [--verify, --verify=QUERY [--aggressive]] [-SIG] [-i] [-l, --loops LOOPS]
-# PID(s) can be numbers, or a full process lines, in which case non-numbers are filtered-out.
-# In `--verify=QUERY` form, verification is done with `pgrep -fa [-i] QUERY`, not `ps -p PID`.
-# ### proc.kill <QUERY> [--verify [--aggressive]] [-SIG] [-i] [-l, --loops LOOPS]
-# Kill all pids that `pgrep -fa [-i] QUERY` returns.
-function proc.kill() {
-  function kill_quietly() {
-    local _signal
-    local _pids=()
-    local _exitcode
-    while [[ $# -gt 0 ]]; do
-      case "$1" in
-      -[[:digit:]]* | -[[:upper:]]*) _signal="$1" ;;
-      *) _pids+=("$1") ;;
-      esac
-      shift
-    done
-    kill "$_signal" "${_pids[@]}" 2>/tmp/"${0}.stderr"
-    _exitcode=$?
-    if [[ "$_exitcode" != 0 ]]; then
-      log.warn "$0 exited: ${_exitcode} with error: $(</tmp/"${0}.stderr")"
-    fi
-    return $_exitcode
-  }
-  log.title "\$*: $*"
-  local pids=()
-  local pgrep_args=(-fa)
-  local verify=false
-  local aggressive=false
-  local signal query
-  local loops=10
-  local verbose=false
+# # killverify [-s SIGNAL_NAME_OR_NUMBER=TERM] [-m,--max-attempts MAX_ATTEMPTS=10] PID_OR_PATTERN ...
+# # killverify [-SIGNAL_NAME_OR_NUMBER=TERM] [-m,--max-attempts MAX_ATTEMPTS=10] PID_OR_PATTERN ...
+killverify() {
+  local signal="TERM"
+  local -i max_attempts=10
+  local -a targets=()
+  
+  # Parse arguments using while-case for flexible ordering
   while [[ $# -gt 0 ]]; do
     case "$1" in
-    --verify=*)
-      query="${1#*=}" # Don't modify pids here, because query will only be used to verify
-      verify=true
-      ;;
-    --verify) verify=true ;;
-    --aggressive) aggressive=true ;;
-    -l | --loops*)
-      if [[ "$1" = *=* ]]; then
-        loops=${1#*=}
-      else
-        loops="$2"
+      (-s)
+        # -s signal_name format
         shift
-      fi
-      ;;
-    -i) pgrep_args+=(-i) ;;
-    -v) verbose=true ;;
-    -[[:digit:]]* | -[[:upper:]]*)
-      if [[ "$signal" ]]; then
-        log.warn "signal already set to $signal; ignoring given '$1'"
-      else
+        if [[ $# -eq 0 ]]; then
+          log.error "killverify: option requires an argument -- s"
+          return 1
+        fi
         signal="$1"
-      fi
-      ;;
-    [[:digit:]]*) pids+=("$1") ;;
-    *) # Alphabetical, or 1 line of process info
-      if [[ "$1" = *" "* ]]; then
-        # Full process line, e.g '542 /Applications/App.app --foo --bar' -> '542'
-        pids+=("${1%% *}")
-      else
-        if [[ "$query" ]]; then
-          log.fatal "$0 $(inspect.signature "$0"): only one query allowed, already got '$query'"
+        ;;
+      (-m=*|--max-attempts=*)
+        max_attempts="${1#*=}"
+        ;;
+      (-m|--max-attempts)
+        # -m or --max-attempts format
+        shift
+        if [[ $# -eq 0 ]]; then
+          log.error "killverify: option requires an argument -- ${1}"
           return 1
         fi
-        if [[ "${#pids[@]}" -gt 0 ]]; then
-          log.fatal "$0 $(inspect.signature "$0"): positional arguments can be either query or pids, not both"
-          return 1
-        fi
-        query="$1"
-        # shellcheck disable=SC2207
-        pids=($(pgrep "${pgrep_args[@]}" "$query"))
-      fi ;;
+        max_attempts="$1"
+        ;;
+      (-[0-9]*)
+        # -signal_number format (e.g., -9, -15)
+        signal="${1#-}"
+        ;;
+      (-*)
+        # -signal_name format (e.g., -TERM, -KILL)
+        signal="${1#-}"
+        ;;
+      (*)
+        # It's a pid or pattern
+        targets+=("$1")
+        ;;
     esac
     shift
   done
-  $verbose && log.debug "query: ${query} | loops: ${loops} | pgrep_args=(${pgrep_args[*]})"
-  [[ ! "${pids}" ]] && {
-    log.error "No pids given or matched"
+  
+  # Validate we have at least one target
+  if [[ ${#targets[@]} -eq 0 ]]; then
+    log.error "killverify: no targets specified"
     return 1
-  }
-  [[ ! "$signal" ]] && signal="-SIGKILL"
-  $verbose && log.debug "signal: ${signal} | pids=(${pids[*]})"
-  ps -p "${pids// /,}" &>/dev/null 2>&1 || log.warn "No processes existed even before killing, for pids=(${pids[*]})"
-  local exitcode
-  kill_quietly "$signal" "${pids[@]}"
-  exitcode=$?
-  ! "$verify" && return "$exitcode"
-  local pid
-  local unkilled_pids=()
-  local pgrep_matches=()
-  local i=0
-  for ((i = 0; i < loops; i++)); do
-    sleep 0.1
-    unkilled_pids=()
-    for pid in "${pids[@]}"; do
-      if ps -p "$pid" &>/dev/null 2>&1; then
-        unkilled_pids+=("$pid")
-      fi
-    done
-    if [[ "$query" ]]; then
-      # shellcheck disable=SC2207
-      pgrep_matches=($(pgrep "${pgrep_args[@]}" "$query"))
-      if [[ ! "${pgrep_matches}" ]]; then
-        local success_message="No processes matching '$query' found"
-        if [[ "${unkilled_pids}" ]]; then
-          success_message+=", although some pids are still alive: ${unkilled_pids[*]}"
-        else
-          success_message+=", and no pids remain alive either"
+  fi
+  
+  # Process each target
+  local -i overall_success=0
+  for target in "${targets[@]}"; do
+    local -i attempt=0
+    local current_signal="$signal"
+    
+    # Check if target is a number (PID) or a pattern
+    if [[ "$target" =~ ^[0-9]+$ ]]; then
+      # It's a PID
+      while kill -0 "$target" 2>/dev/null && (( attempt++ < max_attempts )); do
+        log.debug "Attempt ${attempt}/${max_attempts}: ${current_signal}'ing PID $target"
+        kill -"${current_signal}" "$target" 2>/dev/null
+        sleep 0.2
+        
+        # Escalate to KILL after 3 failed attempts
+        if (( attempt >= 3 )) && [[ $current_signal != "KILL" ]] && [[ $current_signal != "9" ]]; then
+          current_signal=KILL
+          log.notice "Escalating to SIGKILL for PID $target"
         fi
-        log.success "$success_message"
-        return 0
+      done
+      
+      if kill -0 "$target" 2>/dev/null; then
+        log.warn "Warning: PID $target still running"
+        overall_success=1
+      else
+        log.success "PID $target terminated"
       fi
-      $verbose && log.debug "unkilled_pids=(${unkilled_pids[*]}) | pgrep_matches=(${pgrep_matches[*]})"
     else
-      [[ ! "${unkilled_pids}" ]] && {
-        log.success "Killed all pids"
-        return 0
-      }
-      $verbose && log.debug "unkilled_pids=(${unkilled_pids[*]})"
+      # It's a pattern
+      while pgrep -q "$target" && (( attempt++ < max_attempts )); do
+        log.debug "Attempt ${attempt}/${max_attempts}: ${current_signal}'ing processes matching '$target'"
+        pkill -"${current_signal}" "$target"
+        sleep 0.2
+        
+        # Escalate to KILL after 3 failed attempts
+        if (( attempt >= 3 )) && [[ $current_signal != "KILL" ]] && [[ $current_signal != "9" ]]; then
+          current_signal=KILL
+          log.notice "Escalating to SIGKILL for pattern '$target'"
+        fi
+      done
+      
+      if pgrep -q "$target"; then
+        log.warn "Warning: Some processes matching '$target' still running"
+        overall_success=1
+      else
+        log.success "All processes matching '$target' terminated"
+      fi
     fi
-    "$aggressive" && kill_quietly "$signal" "${pids[@]}"
   done
-  log.fatal "Failed to kill some processes. unkilled_pids=(${unkilled_pids[*]}); pgrep_matches=(${pgrep_matches[*]})"
-  local -i unkilled_pids_count="${#unkilled_pids[@]}"
-  local -i pgrep_matches_count="${#pgrep_matches[@]}"
-  return $((unkilled_pids_count + pgrep_matches_count))
-
+  
+  return $overall_success
 }
 
 # # proc.pgrep [OPTION...] <PATTERN_OR_PID>
