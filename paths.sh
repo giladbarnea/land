@@ -87,7 +87,7 @@ function tree() {
     --tree \
     --git-ignore \
     --all \
-    --ignore-glob "$(tr $'\n' \| < ~/.gitignore.global)" \
+    --ignore-glob "$(tr $'\n' \| < ~/.gitignore_global)" \
     "$@"
 }
 
