@@ -465,7 +465,7 @@ function firecrawl2speech(){
 }
 
 function jina(){
-	cached http POST "https://r.jina.ai/$1" \
+	http POST "https://r.jina.ai/$1" \
 		--body \
 		--ignore-stdin \
 		--check-status \
