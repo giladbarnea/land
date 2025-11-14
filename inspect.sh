@@ -37,7 +37,7 @@ typeset -a RG_QUICK_SCAN_ARGS=(
       search_query="${positional_args[1]}"
       # We don't just return ${functions_source[$search_query]} because we want to support rg extra opts.
       # shellcheck disable=SC2299
-      search_location="${${functions_source[$search_query]}:-${SCRIPTS}}" 
+      search_location="${${functions_source[$search_query]}:-${LAND}}" 
       ;;
     2)
       search_query="${positional_args[1]}"
@@ -47,7 +47,7 @@ typeset -a RG_QUICK_SCAN_ARGS=(
   local -a rg_args=( "${RG_QUICK_SCAN_ARGS[@]}" "${extra_rg_opts[@]}" )
   # We allow optional quotes around the search query.
   if isalias "$search_query"; then
-    search_query="alias ('|\")?${search_query}('|\")?="
+    search_query="alias ('|\")?${search_query}('|\")?\="
   elif isvariable "${search_query}"; then
     search_query="('\")?${search_query}('\")?="
   # TODO: handle functions
@@ -61,29 +61,29 @@ typeset -a RG_QUICK_SCAN_ARGS=(
     is_regex_pattern "$search_query" || rg_args+=(-F)
   fi
   # If using regex mode (not -F), anchor to non-comment lines to reduce false positives
-  if [[ -z "${rg_args[(r)-F]}" ]]; then
+  if [[ -n "${rg_args[(r)-F]}" ]]; then
     search_query="^[[:space:]]*[^#].*${search_query}"
   fi
   rg "${rg_args[@]}" "$search_query" "$search_location"
 }
 
 
-# # fileof <FUNCTION/ALIAS/STRING> [DIR_OR_FILE=$SCRIPTS] [RG_ARGS...]
+# # fileof <FUNCTION/ALIAS/STRING> [DIR_OR_FILE=${LAND}] [RG_ARGS...]
 # Returns the file name containing STRING, if STRING is contained
-# in DIR_OR_FILE (defaults to $SCRIPTS).
+# in DIR_OR_FILE (defaults to ${LAND}).
 # ## Examples
 # ```bash
 # $ fileof "def pandas" $MAN
 # $HOME/dev/manuals/manuals/manuals.py
 # $ fileof batwhere
-# $SCRIPTS/tools.sh
+# ${LAND}/tools.sh
 # ```
 function fileof() {
   .search --files-with-matches "$@"
 }
 
-# # linenumof <FUNCTION/ALIAS/STRING> [DIR_OR_FILE=$SCRIPTS] [RG_ARGS...]
-# Returns the line name of STRING, if STRING exists in DIR_OR_FILE (defaults to $SCRIPTS).
+# # linenumof <FUNCTION/ALIAS/STRING> [DIR_OR_FILE=${LAND}] [RG_ARGS...]
+# Returns the line name of STRING, if STRING exists in DIR_OR_FILE (defaults to ${LAND}).
 # ## Examples
 # ```bash
 # $ linenumof "def pandas" $MANPROJ
