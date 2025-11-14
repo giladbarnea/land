@@ -2280,10 +2280,10 @@ function llm-what-changed(){
 	local one_by_one=false
 	local parse_file_paths=false
 	local -a git_diff_opts=(
-		$(gdargs+)
+		# $(gdargs+)
 		--src-prefix='[SOURCE] '
 		--dst-prefix='[DESTINATION] '
-		--histogram
+		# --histogram
 	)
 	while [[ $# -gt 0 ]]; do
 		case "$1" in
@@ -2292,7 +2292,7 @@ function llm-what-changed(){
 			--append-prompt=*) append_prompt="${1#*=}" ;;
 			--append-prompt) append_prompt="$2" ; shift ;;
 			--1-pass) two_pass=false ;;
-			--2-pass) two_pass=true ;;
+			--2-pass) log.warn "‘--2-pass’ is deprecated. Falling back to ‘--1-pass’." ; two_pass=false ;;
 			--dry-run=*) dry_run="${1#*=}" ;;
 			--dry-run) dry_run=true ;;
 			--one-by-one) one_by_one=true ;;
@@ -2331,32 +2331,35 @@ function llm-what-changed(){
 				"${original_args_without_file_paths[@]}" \
 				-- "${file_path}"
 				)" 2>&1 || fail_count+=1
-			what_changed_per_file["$file_path"]="${what_changed:-No changes}"
-			.llm-xml-wrap -q "$what_changed" --stdin-tag "$file_path"
+			what_changed_per_file["$file_path"]="${what_changed:-'No changes'}"
+			# xmlwrap -q "$what_changed" --tag "${file_path} diff"
+			print "${what_changed_per_file["$file_path"]}"
 		done
 		notif.info "Processed ${#file_paths[@]} files with $fail_count failures."
 		return $fail_count
 	fi
 	
-	# -- Not one-by-one
-	local git_diff_output
-	git_diff_output="$(git --no-pager diff "${git_diff_opts[@]}" "${additional_git_diff_args[@]}" -- "${file_paths[@]}")"
-	[[ -z "$git_diff_output" ]] && {
-		log.error "Git diff returned empty output."
-		return 1
-	}
+	# -- Not one by one
+	# local git_diff_output
+	# git_diff_output="$(git --no-pager diff "${git_diff_opts[@]}" "${additional_git_diff_args[@]}" -- "${file_paths[@]}")"
+	# [[ -z "$git_diff_output" ]] && {
+	# 	log.error "Git diff returned empty output."
+	# 	return 1
+	# }
 	local context
-	local tagged_git_diff="$(.llm-xml-wrap -q "$(git-diff-xml-wrap <<< "$git_diff_output")" --stdin-tag 'tagged git diff')"
+	# local tagged_git_diff="$(git-diff-xml-wrap <<< "$git_diff_output")"
+	local tagged_git_diff="$(git-diff-xml-wrap "${git_diff_opts[@]}" "${additional_git_diff_args[@]}" -- "${file_paths[@]}")"
 	if $two_pass; then
 		local before_and_after="$(.llm-xml-wrap -q "$(git.beforeafter 2>/dev/null)" --stdin-tag 'before and after two git commits')"
 		context="$(printf "%s\n\n%s" "$before_and_after" "$tagged_git_diff")"
 	else
 		context="$tagged_git_diff"
 	fi
+	local full_prompt="$(printf "%s\n\n%s" "$context" "$(xmlwrap -q "$prompt" --tag 'user-instructions')")"
 	if $dry_run; then
-		print -- "$context"
+		print -- "$full_prompt"
 	else
-		llm "$prompt" --no-format-stdin --no-md --quiet --no-clear <<< "$context"
+		llm "$(print -r -- "$full_prompt")" --no-format-stdin --no-md --quiet --no-clear
 	fi
 }
 
@@ -2367,8 +2370,7 @@ function llm-what-changed(){
 function llm-setup(){
 	local llm_install_output
 	local -i llm_install_exitcode
-	# llm install doesn't support --break-system-packages, so we potentially have to install via pip.
-	local -a llm_plugins=( llm-{openai-plugin,gemini,anthropic,perplexity,jq,xai,cmd,python,cluster,fragments-github,fragments-reader,tools-quickjs,pdf-to-images,video-frames,fragments-symbex,whisper-api} )
-	pip3.12 install -U --break-system-packages llm ${llm_plugins[@]}
+	local -a llm_plugins=( llm-{openai-plugin,gemini,anthropic,perplexity,jq,xai,cmd,python,cluster,fragments-github,fragments-reader,tools-quickjs,pdf-to-images,video-frames,fragments-symbex,whisper-api,fragments-youtube} )
+	command llm install -U llm ${llm_plugins[@]}
 }
 
