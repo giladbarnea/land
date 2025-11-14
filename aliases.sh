@@ -44,8 +44,8 @@ alias op='omz plugin'
 alias opl='omz plugin load'
 alias opi='omz plugin info'
 
-hash -d scripts="$SCRIPTS"
-hash -d comp="$SCRIPTS/completions"
+hash -d land="$LAND"
+hash -d comp="$LAND/completions"
 hash -d dev="$DEV"
 hash -d desk="$HOME/Desktop"
 hash -d doc="$HOME/Documents"
@@ -62,12 +62,16 @@ hash -d ob="$HOME/Documents/remote"
 # ----------------------
 alias b=bat
 alias c=command
+alias ca=cursor-agent
+alias clauded='claude --dangerously-skip-permissions'
+alias claudedh='claude --dangerously-skip-permissions --model=haiku'
+alias codexd='codex --dangerously-bypass-approvals-and-sandbox'
 alias fdd='fd -t d'
 alias fdf='fd -t f'
 alias ds=docstring
 alias n=nvim
 alias o='(){ [[ "$1" ]] && { open "$@"; return $? ; } ; open .; }'
-compdef o=open
+compdef _open o
 alias f=fd
 alias r=rg
 alias l=less
@@ -158,9 +162,13 @@ function define_editors_aliases(){
 	# Automatically loads the workspace file if it exists.
 	# Specifying --new-workspace will create and use a new workspace file. Only applicable if 
 	function cur() {
+		function _escape(){
+			printf '%q' "$1"
+		}
 		local workspace_specified=false
 		local create_new_workspace=false
 		local -a specified_dirs=()
+		local -a specified_files=()
 		local -a cursor_args=()
 		local root_dir
 		local arg
@@ -180,12 +188,26 @@ function define_editors_aliases(){
 				cursor_args+=("$arg")
 				continue
 			fi
+			
 			if [[ "$arg" = --new-workspace ]]; then
 				create_new_workspace=true
+			elif [[ -f "$arg" ]]; then
+				specified_files+=("$arg")
+				cursor_args+=("$arg")
+				continue
 			else
 				cursor_args+=("$arg")
 			fi
 		done
+		
+		# Escape `cursor_args` in-place for the rest of the flow.
+		local -a escaped_cursor_args=()
+		for arg in "${cursor_args[@]}"; do
+			escaped_cursor_args+=("$(_escape "$arg")")
+		done
+		cursor_args=("${escaped_cursor_args[@]}")
+		unset escaped_cursor_args
+
 		[[ "$workspace_specified" = true && "$create_new_workspace" != false ]] && {
 			log.warn "Workspace file was specified, but --new-workspace was also specified. Ignoring --new-workspace."
 			create_new_workspace=false
@@ -194,10 +216,25 @@ function define_editors_aliases(){
 			log.warn "Multiple directories were specified, and --new-workspace was also specified. Don't know which one is root, so ignoring --new-workspace."
 			create_new_workspace=false
 		}
+		
+		# cur ~/dev/
 		if [[ "${#specified_dirs[@]}" -eq 1 ]]; then
 			root_dir="${specified_dirs[1]}"
-		else
+		
+		# cur
+		elif [[ "${#specified_dirs[@]}" -eq 0 && "${#specified_files[@]}" -eq 0 ]]; then
 			root_dir="${PWD}"
+		
+		# cur like/this.py
+		elif [[ "${#specified_dirs[@]}" -eq 0 && "${#specified_files[@]}" -eq 1 ]]; then
+		    local specified_file_dir="${specified_files[1]:h}"
+		    if [[ -d "$specified_file_dir" && "$specified_file_dir" != "$PWD" ]]; then
+			    if confirm "Use '$specified_file_dir' as root directory?"; then
+				    root_dir="$specified_file_dir"
+				else
+					root_dir="${PWD}"
+				fi
+			fi
 		fi
 		if [[ "$workspace_specified" = true ]]; then
 			cursor editor "${cursor_args[@]}"
@@ -218,7 +255,7 @@ function define_editors_aliases(){
 				esac
 				local random_color="$(printf '#%06x\n' $(( RANDOM * 16777215 / 32767 )))"
 				jq -n --arg color "$random_color" '{"folders": [{"path": "."}], "settings": {"peacock.color": $color}}' > "${root_dir}/${workspace_filename}.code-workspace"
-				cursor editor "${root_dir}/${workspace_filename}.code-workspace" "${cursor_args[@]}"
+				cursor editor "$(_escape "${root_dir}/${workspace_filename}.code-workspace")" "${cursor_args[@]}"
 				return $?
 			fi
 			cursor editor "${cursor_args[@]}"
@@ -226,16 +263,18 @@ function define_editors_aliases(){
 		fi
 		if [[ "${#code_workspace_files[@]}" -eq 1 ]]; then
 			set -x
-			cursor editor "${code_workspace_files[@]}" "${cursor_args[@]}"
+			cursor editor "$(_escape "${code_workspace_files[1]}")" "${cursor_args[@]}"
 			set +x
 			return $?
 		fi
 		local chosen_workspace_file
 		local choices="${$(typeset code_workspace_files)#*=}"
 		chosen_workspace_file="$(input "Choose a workspace file:" --choices="$choices")"
-		cursor editor "$chosen_workspace_file" "${cursor_args[@]}"
+		cursor editor "$(_escape "$chosen_workspace_file")" "${cursor_args[@]}"
 		return $?
 	}
+	
+	
 	
 	local -a editors=(
 		# code
@@ -252,7 +291,7 @@ function define_editors_aliases(){
 		zshhist  "$HOME/.zsh_history"                                     
 		zshrc    "$HOME/.zshrc"                                           
 		pages    "$HOME/dev/termwiki/termwiki/private_pages/pages.py"     
-		scripts  "$SCRIPTS"                                               
+		scripts  "$LAND"                                               
 	)
 
 	# Initialize HISTORY_IGNORE base                      
@@ -293,7 +332,7 @@ function define_editors_aliases(){
 	# Handle scripts directory aliases                                    
 	local script subdir filename stem prefix cmd                                         
 	for subdir in . hooks; do                                             
-		for script in "$SCRIPTS/${subdir}"/*.*sh; do                      
+		for script in "${LAND}/${subdir}"/*.*sh; do                      
 			filename=${script##*/}                                  
 			stem=${filename%.*}                                     
 			# Create aliases for each editor plus 're' (source)           
@@ -320,7 +359,7 @@ function define_editors_aliases(){
 
 # * Define python aliases
 function define_python_aliases(){
-	local -a python_versions=(13 12 11 10 9)
+	local -a python_versions=(14 13 12 11 10 9)
 	local syspy_version=3.13
 
 	local findexec
@@ -420,4 +459,3 @@ function define_docker_aliases(){
 # * Node aliases
 # --------------
 
-alias nr='npm run'
