@@ -617,7 +617,7 @@ _.llm_key_names(){
 
 compdef _llm zshcmd
 
-compdef _llm llm simplify compress zshai zshcmd pyai claudeai 'claudeai+' gemini flashlite flash 'flash+' grok '4.1' '4.5' '4o' '4o@' o1 o1pro o3 o3m o4m
+compdef _llm llm simplify compress zshai zshcmd pyai claudeai 'claudeai+' flashlite flash 'flash+' grok '5' '5m' '5n' 
 
 compdef _llm:logs:list llm-logs llm-response llm-cids
 
