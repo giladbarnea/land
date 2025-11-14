@@ -26,7 +26,7 @@ compdef '_describe command "( $(git.branches) )"' grename
 
 # Completion for git.download-repo-dir
 _git_download_repo_dir(){
-  zstyle ':completion::complete:git.download-repo-dir:*:descriptions' format "$(docstring git.download-repo-dir $SCRIPTS/git.sh)"
+  zstyle ':completion::complete:git.download-repo-dir:*:descriptions' format "$(docstring git.download-repo-dir ${LAND}/git.sh)"
   local dir_def='[subdirectory within the repo]:subdir:'
   local ext_def="[file extension filter]:extension:"
   local branch_def='[branch or tag name]:branch:'

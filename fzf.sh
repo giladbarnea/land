@@ -9,7 +9,7 @@
 # export FZF_CTRL_P_OPTS="--preview 'tree -C {} | head -200'"
 export FZF_BINDINGS=(
 
-  # --bind "'down:down+execute(. fzf.sh; source $SCRIPTS/zenity.sh; notif.success \"export | grep FZF_PREVIEW_LINES\")'"
+  # --bind "'down:down+execute(. fzf.sh; source ${LAND}/zenity.sh; notif.success \"export | grep FZF_PREVIEW_LINES\")'"
 
   # alt-e: edit with cursor
   --bind "'alt-e:execute-silent(. fzf.sh; .fzf-open-in-cursor {})'"
