@@ -61,6 +61,16 @@ function is_zunit(){
   [[ "$ZSH_ARGZERO" = */zunit ]]
 }
 
+function is_human(){
+  is_interactive && \
+  ! is_piping && \
+  [[ "$CLAUDECODE" != 1 ]] && \
+  ! is_zunit && \
+  ! is_pycharm && \
+  [[ ! "$VSCODE_INJECTION" = 1 ]] && \
+  [[ ! "$CURSOR_TRACE_ID" ]]
+}
+
 # # randstr [LENGTH] (default 16)
 function randstr() {
   local len=${1:-16}
