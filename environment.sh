@@ -98,14 +98,14 @@ export DEV="$HOME/dev"
 # export MANPROJ="$DEV/manuals"
 # export MAN="$MANPROJ/manuals/manuals.py"
 
-# $SCRIPTS
+# ${LAND}
 # typeset PATH
-export SCRIPTS="$DEV/land"
-export PATH="$PATH:$SCRIPTS"
-export COMP="$SCRIPTS/completions"
+export LAND="$DEV/land"
+export PATH="$PATH:$LAND"
 
+# export ANTHROPIC_API_KEY="$(<~/.anthropic-api-key-hearai-gilad-local-dev)"
 # $WINMGMT
-# export WINMGMT="$SCRIPTS/winmgmt"
+# export WINMGMT="${LAND}/winmgmt"
 # export PATH="$PATH:$WINMGMT"
 
 # export PYTHONBREAKPOINT=pdbpp.set_trace
