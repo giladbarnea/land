@@ -6,7 +6,7 @@
 # -------------[ Log ]-------------
 
 
-declare -A -x LEVELS_COLORS=(
+declare -A LEVELS_COLORS=(
 	[debug]="${Cd}"
 	[info]="${C0}"
 	[warn]="${Cylw}"
@@ -182,6 +182,11 @@ function log.prompt() {
 # input "Choose:" --choices=${(j.,.)${(s..):-smurf}}
 # ```
 function input() {
+	# if [[ $- != *i* || ! -t 1 ]]; then
+	if ! is_interactive; then
+		log.warn "Not interactive. Returning 1"
+		return 1
+	fi
 	local message string choices_formatted specified_choices
 	local symbol='❯'
 	local -a valid_choices=()
@@ -332,8 +337,8 @@ function confirm() {
 	# if [[ ! tty -s ]]; then
 	#   return 1
 	# fi
-	if [[ $- != *i* ]]; then
-		log.warn "Not interactive. Returning 1"
+	if [[ $- != *i* || ! -t 1 || ! -t 0 ]]; then
+		log.warn "Not interactive or stdin/stdout is not available. Returning 1"
 		return 1
 	fi
 	input "$@" --choices y,n -s ''
