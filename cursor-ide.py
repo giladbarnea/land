@@ -544,12 +544,89 @@ def main() -> None:
             return
 
     # Snippet fallback or explicit request
-    def shorten_text(s: str, width: int = 160) -> str:
-        s = s.replace("\n", " ").strip()
-        return (s[: width - 1] + "…") if len(s) > width else s
+    def extract_text_from_json(obj: Any, max_texts: int = 5) -> List[str]:
+        """Recursively extract human-readable text from JSON structure."""
+        texts: List[str] = []
+        
+        def walk(o: Any, depth: int = 0) -> None:
+            if depth > 5 or len(texts) >= max_texts:
+                return
+            
+            if isinstance(o, dict):
+                # Special handling for known structures
+                if "text" in o and isinstance(o["text"], str) and o["text"].strip():
+                    texts.append(o["text"].strip())
+                    return
+                if "richText" in o and isinstance(o["richText"], str):
+                    # richText might be JSON itself
+                    try:
+                        rich = json.loads(o["richText"])
+                        walk(rich, depth + 1)
+                    except:
+                        pass
+                
+                # Look for text-like fields
+                for key, val in o.items():
+                    if key in {"_v", "type", "id", "fsPath", "external", "$mid", "diffId", "uri"}:
+                        continue  # Skip technical metadata
+                    if isinstance(val, str) and len(val) > 10 and len(val) < 500:
+                        # Potential human text (not too short, not too long)
+                        if not val.startswith("{") and not val.startswith("["):
+                            texts.append(val.strip())
+                    else:
+                        walk(val, depth + 1)
+            
+            elif isinstance(o, list):
+                for item in o:
+                    walk(item, depth + 1)
+        
+        walk(obj)
+        return texts
+    
+    def format_snippet(key: str, raw_text: str, shorten: bool = True) -> str:
+        """Format a snippet by extracting meaningful text from JSON."""
+        # Try to parse as JSON
+        try:
+            data = json.loads(raw_text)
+            
+            # For bubbleId entries, use specialized extraction
+            if key.startswith("bubbleId:"):
+                text = extract_plain_text_from_bubble(data, shorten=shorten)
+                if text:
+                    if shorten:
+                        text = text.replace("\n", " ").strip()
+                        return (text[:300] + "…") if len(text) > 300 else text
+                    else:
+                        return text
+                else:
+                    return "(no text in bubble)"
+            
+            # For all other JSON, extract text generically
+            texts = extract_text_from_json(data, max_texts=3)
+            if texts:
+                combined = " | ".join(texts[:3])
+                if shorten:
+                    combined = combined.replace("\n", " ").strip()
+                    return (combined[:300] + "…") if len(combined) > 300 else combined
+                else:
+                    return combined
+            else:
+                # No text found, show JSON structure hint
+                return f"(JSON: {list(data.keys())[:5] if isinstance(data, dict) else 'array'})"
+        
+        except (json.JSONDecodeError, Exception):
+            pass
+        
+        # Not JSON or parsing failed - show as-is
+        s = raw_text.replace("\n", " ").strip()
+        if shorten:
+            return (s[:160] + "…") if len(s) > 160 else s
+        else:
+            return s
 
     print("\nMatching snippets:\n")
     total_shown = 0
+    shorten_snippets = not args.no_shorten
     for db_path in (STATE_SQLITE_PATH, STATE_VSCDB_PATH):
         try:
             conn = apsw.Connection(str(db_path))
@@ -569,9 +646,8 @@ def main() -> None:
                             if isinstance(value, (bytes, bytearray))
                             else str(value)
                         )
-                        print(
-                            f"- [{db_path.name}] ItemTable key={key}: {shorten_text(text)}"
-                        )
+                        formatted = format_snippet(str(key), text, shorten_snippets)
+                        print(f"- [{db_path.name}] ItemTable key={key}: {formatted}")
                         total_shown += 1
                         if total_shown >= 100:
                             return
@@ -590,9 +666,8 @@ def main() -> None:
                             if isinstance(value, (bytes, bytearray))
                             else str(value)
                         )
-                        print(
-                            f"- [{db_path.name}] cursorDiskKV key={key}: {shorten_text(text)}"
-                        )
+                        formatted = format_snippet(str(key), text, shorten_snippets)
+                        print(f"- [{db_path.name}] cursorDiskKV key={key}: {formatted}")
                         total_shown += 1
                         if total_shown >= 100:
                             return
@@ -613,9 +688,9 @@ def main() -> None:
                                 if isinstance(value, (bytes, bytearray))
                                 else str(value)
                             )
-                            print(
-                                f"- [{db_path.name}] {table}.{col}: {shorten_text(text)}"
-                            )
+                            # Use empty key for generic table entries
+                            formatted = format_snippet("", text, shorten_snippets)
+                            print(f"- [{db_path.name}] {table}.{col}: {formatted}")
                             total_shown += 1
                             if total_shown >= 100:
                                 return
