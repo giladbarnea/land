@@ -283,8 +283,6 @@ function venv() {
 	confirm "Activate?" && {
 		vex source "$envdir"/bin/activate || return "$?"
 	}
-	pyinstallgoodies
-	return $?
 }
 
 function pyinstallgoodies(){
