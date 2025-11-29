@@ -63,15 +63,15 @@ hash -d ob="$HOME/Documents/remote"
 alias b=bat
 alias c=command
 alias ca=cursor-agent
-alias clauded='claude --dangerously-skip-permissions'
-alias claudedh='claude --dangerously-skip-permissions --model=haiku'
+alias clauded='CLAUDE_CODE_OAUTH_TOKEN=$(<~/.claude-code-oauth-token) claude --dangerously-skip-permissions'
+alias claudedh='CLAUDE_CODE_OAUTH_TOKEN=$(<~/.claude-code-oauth-token) /usr/local/Caskroom/claude-code/2.0.43/claude --dangerously-skip-permissions --model=haiku'
 alias codexd='codex --dangerously-bypass-approvals-and-sandbox'
 alias fdd='fd -t d'
 alias fdf='fd -t f'
 alias ds=docstring
 alias n=nvim
 alias o='(){ [[ "$1" ]] && { open "$@"; return $? ; } ; open .; }'
-compdef _open o
+compdef _open=o
 alias f=fd
 alias r=rg
 alias l=less
@@ -253,7 +253,15 @@ function define_editors_aliases(){
 					(true) workspace_filename="${root_dir:t}" ;;
 					(*) workspace_filename="${create_new_workspace%.code-workspace}" ;;
 				esac
-				local random_color="$(printf '#%06x\n' $(( RANDOM * 16777215 / 32767 )))"
+				# Generate a base darkness (20-80)
+				local base=$(( (RANDOM % 60) + 20 ))
+				# Set RGB channels. 
+				# We keep Red as the anchor and add slight jitter (+/- 5) to Green and Blue.
+				local r=$base
+				local g=$(( base + (RANDOM % 10) - 5 ))
+				local b=$(( base + (RANDOM % 10) - 5 ))
+				# Format as Hex
+				local random_color="$(printf '#%02x%02x%02x' "$r" "$g" "$b")"
 				jq -n --arg color "$random_color" '{"folders": [{"path": "."}], "settings": {"peacock.color": $color}}' > "${root_dir}/${workspace_filename}.code-workspace"
 				cursor editor "$(_escape "${root_dir}/${workspace_filename}.code-workspace")" "${cursor_args[@]}"
 				return $?
