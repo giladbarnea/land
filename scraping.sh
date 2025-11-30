@@ -180,11 +180,17 @@ function firecrawl-map(){
 		esac
 		shift
 	done
-	local firecrawl_api_key_path="$HOME/.firecrawl-api-key"
+	local firecrawl_api_key
+	if [[ -n "$FIRECRAWL_API_KEY" ]]; then
+		firecrawl_api_key="$FIRECRAWL_API_KEY"
+	else
+		firecrawl_api_key_path="$HOME/.firecrawl-api-key-hearai"
+		firecrawl_api_key="$(<"$firecrawl_api_key_path")"
+	fi
 	if [[ "$dry_run" = true ]]; then
 		log.notice "Would have run:"
 		echo "http --body --ignore-stdin --check-status POST https://api.firecrawl.dev/v1/map
-			'Authorization: Bearer $(<"$firecrawl_api_key_path")'
+			'Authorization: Bearer $firecrawl_api_key'
 			'Content-Type: application/json'
 			'url=$url'
 			${(@qq)firecrawl_options[*]}"
@@ -193,7 +199,7 @@ function firecrawl-map(){
 	local raw_response
 	raw_response="$(
 		http --body --ignore-stdin --check-status POST https://api.firecrawl.dev/v1/map \
-			"Authorization: Bearer $(<"$firecrawl_api_key_path")" \
+			"Authorization: Bearer $firecrawl_api_key" \
 			"Content-Type: application/json" \
 			"url=$url" \
 			"${firecrawl_options[@]}"

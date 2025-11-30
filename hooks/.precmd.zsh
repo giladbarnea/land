@@ -2,7 +2,7 @@
 # Creates a backup when ~/.zsh_history shrinks by >= HIST_BACKUP_MIN_SHRINK bytes
 # Backup file path: ~/.zsh_history.shrinkbackup.$EPOCHSECONDS
 # Uses a previous snapshot to capture the pre-shrink content where possible.
-typeset -gi HIST_BACKUP_MIN_SHRINK=256
+typeset -gi HIST_BACKUP_MIN_SHRINK=2048
 typeset -gi _g_hist_prev_size=0
 typeset -g  _g_hist_prev_snapshot_path
 

@@ -2268,11 +2268,13 @@ function llm-commit-msg(){
 # The processed git diff context is passed to the LLM.
 # If --dry-run is provided, prints the git diff context instead of passing it to the LLM.
 function llm-what-changed(){
+	log.debug "llm-what-changed: $@"
 	setopt localoptions
 	unsetopt errreturn errexit  # --one-by-one is recursive, so we don't want to exit on error.
 	local -a additional_git_diff_args
 	local -a file_paths
 	local -a original_args_without_file_paths=("${(@)@}")
+	
 	local prompt='What has changed? Clearly, directly and shortly describe what was before and what is now. Ignore whitespace and formatting changes unless that is the only kind of change throughout the entire diff.'
 	local append_prompt=''
 	local two_pass=false
@@ -2314,8 +2316,12 @@ function llm-what-changed(){
 		}
 		
 		# Prepare the original arguments for recursion: remove file paths and --one-by-one
-		original_args_without_file_paths=("${(@)original_args_without_file_paths:#-- *}")
+		local -i dash_dash_index=${original_args_without_file_paths[(i)--]}
+		(( dash_dash_index <= ${#original_args_without_file_paths} )) && \
+			original_args_without_file_paths=("${(@)original_args_without_file_paths[1,$((dash_dash_index - 1))]}")
 		original_args_without_file_paths=("${(@)original_args_without_file_paths:#--one-by-one*}")
+		
+		# This for loop is redundant given the '--.+' removal, but just making sure.
 		for file_path in "${file_paths[@]}"; do
 			original_args_without_file_paths=("${(@)original_args_without_file_paths:#$file_path}")
 		done
@@ -2347,8 +2353,8 @@ function llm-what-changed(){
 	# 	return 1
 	# }
 	local context
-	# local tagged_git_diff="$(git-diff-xml-wrap <<< "$git_diff_output")"
-	local tagged_git_diff="$(git-diff-xml-wrap "${git_diff_opts[@]}" "${additional_git_diff_args[@]}" -- "${file_paths[@]}")"
+	# local tagged_git_diff="$(git-structured-diff <<< "$git_diff_output")"
+	local tagged_git_diff="$(git-structured-diff "${git_diff_opts[@]}" "${additional_git_diff_args[@]}" -- "${file_paths[@]}")"
 	if $two_pass; then
 		local before_and_after="$(.llm-xml-wrap -q "$(git.beforeafter 2>/dev/null)" --stdin-tag 'before and after two git commits')"
 		context="$(printf "%s\n\n%s" "$before_and_after" "$tagged_git_diff")"
@@ -2359,6 +2365,7 @@ function llm-what-changed(){
 	if $dry_run; then
 		print -- "$full_prompt"
 	else
+	    log.notice "Running llm with full prompt:"
 		llm "$(print -r -- "$full_prompt")" --no-format-stdin --no-md --quiet --no-clear
 	fi
 }

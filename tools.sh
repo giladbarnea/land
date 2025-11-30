@@ -913,9 +913,17 @@ function kt-windows-min(){
 }
 
 # # kt-last <kitty @ get-text options...>
+# Gets last non-empty output.
 # Can specify e.g. -m neighbor:top
 function kt-last(){
 	kitty @ get-text --extent=last_non_empty_output "$@"
+}
+
+# # kt-all <kitty @ get-text options...>
+# Gets entire scrollback.
+# Can specify e.g. -m neighbor:top
+function kt-all(){
+	kitty @ get-text --extent=all "$@"
 }
 
 

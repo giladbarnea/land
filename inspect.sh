@@ -32,25 +32,47 @@ typeset -a RG_QUICK_SCAN_ARGS=(
     esac
     shift
   done
+  local optimization_is_function=false
+  local search_location="${LAND}"
+  local search_query
   case "${#positional_args}" in
     1)
       search_query="${positional_args[1]}"
-      # We don't just return ${functions_source[$search_query]} because we want to support rg extra opts.
-      # shellcheck disable=SC2299
-      search_location="${${functions_source[$search_query]}:-${LAND}}" 
+      
+      # Zsh keeps a global functions_source map we can leverage for a quick win (no search).
+      if [[ ${functions_source[$search_query]} ]]; then
+        optimization_is_function=true
+        
+        # functions_source doesn't help if function was sourced from a pipe.
+        [[ ${functions_source[$search_query]} != /dev/fd/* ]] && {
+          # We don't just return ${functions_source[$search_query]} here because we want to support rg extra opts.
+          search_location=${functions_source[$search_query]}
+        }
+      fi
+      
       ;;
     2)
       search_query="${positional_args[1]}"
       search_location="${positional_args[2]}" ;;
     *) log.error "$0: Too many args or not enough args. Usage:\n$(docstring -p "$0")"; return 2; ;;
   esac
+  
   local -a rg_args=( "${RG_QUICK_SCAN_ARGS[@]}" "${extra_rg_opts[@]}" )
+  
+  # Ensure optimization_is_function is resolved if it wasn't already.
+  [[ $optimization_is_function = false ]] && {
+    if isfunction "$search_query"; then
+      optimization_is_function=true
+    fi
+  }
+  
   # We allow optional quotes around the search query.
-  if isalias "$search_query"; then
+  if [[ $optimization_is_function = true ]]; then
+    search_query="^ *(function +)?('|\")?${search_query}('|\")?( *\(\))? *\{ *$"
+  elif isalias "$search_query"; then
     search_query="alias ('|\")?${search_query}('|\")?\="
   elif isvariable "${search_query}"; then
     search_query="('\")?${search_query}('\")?="
-  # TODO: handle functions
   elif isbuiltin "$search_query"; then
     log.error "Cannot get file of builtin: $search_query"
     return 1
@@ -62,7 +84,7 @@ typeset -a RG_QUICK_SCAN_ARGS=(
   fi
   # If using regex mode (not -F), anchor to non-comment lines to reduce false positives
   if [[ -n "${rg_args[(r)-F]}" ]]; then
-    search_query="^[[:space:]]*[^#].*${search_query}"
+    search_query="^ *[^#]${search_query}"
   fi
   rg "${rg_args[@]}" "$search_query" "$search_location"
 }
@@ -215,27 +237,9 @@ function docstring.getopts(){
     doc_string="$string"
   fi
 
-  # [^[:alnum:]] makes tests fail :shrug:
+  # I don't remember how I got to this regex or why it works. It's mostly OK.
   command grep -Po --color=never '([[:alnum:]]{0}-[a-zA-Z0-9_]{1}|---?[a-zA-Z0-9-_]{2,})' <<< "$doc_string" | sort -u
 }
-
-# # # build_declaration_regex <FUNCTION NAME OR ALIAS>
-# # Checks whether passed name is a function or an alias, and
-# # returns a literal regex to match its declaration.
-# function build_declaration_regex(){
-# 	# dollar sign at the end rules out 1-line functions, usually shims
-#   local fn_regex="^[[:space:]]*(function +)?${1}( *\(\))? *\{ *$"
-#   local query
-# 	if isfunction "$1"; then
-# 		query="${fn_regex}"
-# 	elif isalias "$1"; then
-# 		query="alias $1="
-# 	else
-# 		log.warn "Not a function nor alias: $1"
-# 		query="${fn_regex}|alias $1="
-# 	fi
-# 	echo "$query"
-# }
 
 
 # # isfunction <FUNCTION_NAME>

@@ -77,6 +77,43 @@ function randstr() {
   LC_ALL=C tr -dc 'A-Za-z0-9' </dev/urandom | head -c "$len"
 }
 
+# # sponge <FILE>
+# Reads stdin completely, then writes to FILE.
+# Minimal shell implementation of moreutils sponge.
+function sponge() {
+  local output_file="$1"
+  if [[ -z "$output_file" ]]; then
+    cat
+    return 0
+  fi
+
+  local output_dir
+  output_dir="$(dirname "$output_file")"
+
+  # Try to create temp file in same dir for atomic mv
+  local temp_file
+  if [[ -w "$output_dir" ]]; then
+    temp_file=$(mktemp "${output_dir}/.sponge.XXXXXX")
+  else
+    # Fallback to default tmp if we can't write to dir
+    temp_file=$(mktemp)
+  fi
+
+  if [[ ! "$temp_file" ]]; then
+    # Fallback to simple cat if logging fails or isn't available, but here we assume log.error exists
+    if isdefined log.error; then
+        log.error "sponge: could not create temp file"
+    else
+        echo "sponge: could not create temp file" >&2
+    fi
+    return 1
+  fi
+
+  cat > "$temp_file" || { rm -f "$temp_file"; return 1; }
+
+  mv "$temp_file" "$output_file"
+}
+
 
 # -----------[ Env vars ]-----------
 

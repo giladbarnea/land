@@ -50,6 +50,10 @@ if [[ "$PLATFORM" == UNIX ]]; then
 
     # The `grep` part is crucial, otherwise macos grep is used (no -P, etc.)
     declare _homebrew_bins="${HOMEBREW_PREFIX}/bin:${HOMEBREW_PREFIX}/sbin:${HOMEBREW_PREFIX}/opt/grep/libexec/gnubin"
+    
+    # Load default Node version from nvm dynamically
+    PATH="${PATH}:${HOME}/.nvm/versions/node/$(<~/.nvm/alias/default)/bin"
+    
     export PATH="${_homebrew_bins}${PATH+:${PATH}}"
 
     unset _homebrew_bins

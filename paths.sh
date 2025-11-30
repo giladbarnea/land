@@ -83,7 +83,6 @@ function tree() {
   setopt localoptions pipefail errreturn
   command eza \
     --classify \
-    --icons \
     --tree \
     --git-ignore \
     --all \

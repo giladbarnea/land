@@ -63,62 +63,26 @@ hash -d ob="$HOME/Documents/remote"
 alias b=bat
 alias c=command
 alias ca=cursor-agent
-alias clauded='CLAUDE_CODE_OAUTH_TOKEN=$(<~/.claude-code-oauth-token) claude --dangerously-skip-permissions'
-alias claudedh='CLAUDE_CODE_OAUTH_TOKEN=$(<~/.claude-code-oauth-token) /usr/local/Caskroom/claude-code/2.0.43/claude --dangerously-skip-permissions --model=haiku'
+alias claudeo='() { if [[ -f ~/.claude-code-oauth-token ]]; then CLAUDE_CODE_OAUTH_TOKEN=$(<~/.claude-code-oauth-token) claude --model=opus --dangerously-skip-permissions; else ANTHROPIC_API_KEY=$(<~/.anthropic-api-key-hearai-gilad-local-dev) claude --model=opus --dangerously-skip-permissions; fi ; }'
+alias clauded='() { if [[ -f ~/.claude-code-oauth-token ]]; then CLAUDE_CODE_OAUTH_TOKEN=$(<~/.claude-code-oauth-token) claude --dangerously-skip-permissions; else ANTHROPIC_API_KEY=$(<~/.anthropic-api-key-hearai-gilad-local-dev) claude --dangerously-skip-permissions; fi ; }'
+alias claudedh='() { if [[ -f ~/.claude-code-oauth-token ]]; then CLAUDE_CODE_OAUTH_TOKEN=$(<~/.claude-code-oauth-token) claude --model=haiku --dangerously-skip-permissions; else ANTHROPIC_API_KEY=$(<~/.anthropic-api-key-hearai-gilad-local-dev) claude --model=haiku --dangerously-skip-permissions; fi ; }'
 alias codexd='codex --dangerously-bypass-approvals-and-sandbox'
 alias fdd='fd -t d'
 alias fdf='fd -t f'
 alias ds=docstring
 alias n=nvim
 alias o='(){ [[ "$1" ]] && { open "$@"; return $? ; } ; open .; }'
-compdef _open=o
+compdef _open o
 alias f=fd
 alias r=rg
 alias l=less
 alias typora='open -b abnerworks.Typora'
+alias jqc='jq --color-output'
 
 # ----------------------
 # *** Global Aliases ***
 # ----------------------
 
-
-# https://docs.openwebui.com/getting-started/env-configuration/
-function ows(){
-	export ENABLE_LOGIN_FORM=true
-	export ENABLE_OAUTH_SIGNUP=true
-	export ENABLE_SIGNUP=true
-	export ENABLE_REALTIME_CHAT_SAVE=true
-	export DEFAULT_USER_ROLE=user
-	export WEBUI_SECRET_KEY=gilad
-	export ENABLE_CODE_EXECUTION=true
-	export ENABLE_CODE_INTERPRETER=true
-	export RAG_WEB_SEARCH_RESULT_COUNT=1
-	export RAG_WEB_SEARCH_CONCURRENT_REQUESTS=1
-	export ENABLE_WEBSOCKET_SUPPORT=true
-	export ENABLE_AUTOCOMPLETE_GENERATION=true
-	export PDF_EXTRACT_IMAGES=true
-	export ENABLE_IMAGE_GENERATION=true
-	export IMAGES_OPENAI_BASE_URL=https://api.openai.com/v1/chat/completions
-	export IMAGES_OPENAI_API_KEY=$(<~/.openai-api-key)
-	export IMAGES_GEMINI_API_KEY=$(<~/.gemini-api-key)
-	export IMAGES_GEMINI_API_BASE_URL=https://generativelanguage.googleapis.com/v1beta
-	export AUDIO_TTS_OPENAI_API_BASE_URL=https://api.openai.com/v1/audio/speech
-	export AUDIO_TTS_OPENAI_API_KEY=$(<~/.openai-api-key)
-	export AUDIO_STT_OPENAI_BASE_URL=https://api.openai.com/v1/audio/transcriptions
-	export AUDIO_STT_OPENAI_API_KEY=$(<~/.openai-api-key)
-	# export TAVILY_API_KEY=$(<~/.tavily-api-key)
-	# export TAVILY_EXTRACT_DEPTH=5
-	# export EXA_API_KEY=$(<~/.exa-api-key)
-	# export SERPAPI_API_KEY=$(<~/.serpapi-api-key)
-	export PERPLEXITY_API_KEY=$(<~/.perplexity-api-key)
-	# export GOOGLE_PSE_API_KEY=$(<~/.google-pse-api-key)
-	# export GOOGLE_PSE_ENGINE_ID=7458e8e468f1749e5
-# 	if [[ -e $HOME/dev/open-webui/backend/start.sh ]]; then
-#     $HOME/dev/open-webui/backend/start.sh
-#   else
-#     open-webui serve
-#   fi
-}
 
 # ** Editors: Pycharm, VSCode, Nvim etc **
 # -----------------------------------------
@@ -299,7 +263,7 @@ function define_editors_aliases(){
 		zshhist  "$HOME/.zsh_history"                                     
 		zshrc    "$HOME/.zshrc"                                           
 		pages    "$HOME/dev/termwiki/termwiki/private_pages/pages.py"     
-		scripts  "$LAND"                                               
+		land  "$LAND"                                               
 	)
 
 	# Initialize HISTORY_IGNORE base                      

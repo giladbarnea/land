@@ -1,7 +1,6 @@
 #!/usr/bin/env zsh
 
 # ------[ Aliases ]------
-{
 # * branch
 aliases[gcb]='git_current_branch'
 
@@ -42,11 +41,11 @@ alias gsall='git stash --all'
 aliases[gcm]='git commit -m'
 alias gcae='git commit --allow-empty'
 
+
 # * misc
 unalias gignore gunignore
 alias guiau='git update-index --assume-unchanged'
 alias guinau='git update-index --no-assume-unchanged'
-} 2> /dev/null 1> /dev/null
 
 # ------[ Helpers ]------
 
@@ -511,8 +510,8 @@ function gexcluded(){
 # Prints args for deeper git diff with ignoring whitespace and added context.
 function gdargs+(){
   print -- \
-    --unified=10 \
-    --inter-hunk-context=10 \
+    --unified=3 \
+    --inter-hunk-context=3 \
     --ignore-all-space \
     --ignore-blank-lines \
     --ignore-space-change \
@@ -817,11 +816,11 @@ function git.beforeafter(){
   
 }
 
-# # git-diff-xml-wrap [STDIN DIFF]
+# # git-structured-diff [STDIN DIFF]
 # Wraps blocks of changes in appropriate XML-like tags.
 # Example:
 # git diff --unified=20 --inter-hunk-context=10
-function git-diff-xml-wrap(){
+function git-structured-diff(){
   # Pretty diff wrapper with per-patch tags and file-level XML tags.
   # - Suppresses git metadata lines; prints '---' + <filepath> per file and closes with </filepath>.
   # - Context lines are printed raw (no leading space). Change blocks are wrapped as:
@@ -1010,7 +1009,6 @@ function git-diff-xml-wrap(){
       }
 
       # Emit per-file header and opening tag with summary (and dissimilarity if present)
-      print "---";
       if (file_dissim != "") {
         printf("<%s added=%d modified=%d deleted=%d dissimilarity=%s>\n", file_path, added_blocks, modified_blocks, deleted_blocks, file_dissim);
       } else {

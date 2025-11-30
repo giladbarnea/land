@@ -256,22 +256,22 @@ function uncd() {
   if isnum "$1"; then
     # * e.g. 'uncd 3 [bin]'
     # climb up (..) 1 time short on purpose: leave the last cd to custom cd
-    local -i builtin_cd_times=$((1 - 2))
+    local -i builtin_cd_times=$(($1 - 2))
+    log.debug "$(typeset builtin_cd_times)"
     shift
     local -i i=0
-    # log.debug "$builtin_cd_times times 'cd ..'"
     while [ "$i" -le "$builtin_cd_times" ]; do
 
       if [[ "$(dirname "$PWD")" == / ]]; then
-        # break one level before '/' (e.g. '/tmp')
-        log.warn "reached child of '/', not uncding any further"
+        # break one level before '/' (at e.g. '/tmp')
+        log.warn "Reached child of '/', not uncding any further."
         break
       fi
 
       if builtin cd ..; then
         ((i++))
       else
-        log.fatal "${Cc}builtin cd ..${Cc0} failed (PWD: '$PWD'), returning 1"
+        log.error "${Cc}builtin cd ..${Cc0} failed (PWD: '$PWD'), returning 1"
         return 1
       fi
 
@@ -287,7 +287,7 @@ function uncd() {
     # * 2nd arg specified, i.e. 'uncd 3 bin';
     # go up (..) last time with builtin cd (iter is minus 1) then custom cd to $2 ('bin')
     if ! builtin cd ..; then
-      log.fatal "${Cc}builtin cd ..${Cc0}' failed (PWD: '$PWD'), returning 1"
+      log.error "${Cc}builtin cd ..${Cc0}' failed (PWD: '$PWD'), returning 1"
       return 1
     fi
     custom_cd_dest="$1"
@@ -305,32 +305,32 @@ function uncd() {
 # cd to the directory of `THING`. `THING` should be a file in path, e.g. 'cdwhere npm'
 function cdwhere() {
   if [[ -z "$1" ]]; then
-    log.fatal "expecting 1 arg"
+    log.error "Expecting 1 arg"
     docstring -p "$0"
     return 1
   fi
   local where_res
   if ! where_res="$(where "$1")"; then
-    log.fatal "failed ${Cc}where $1"
+    log.error "Failed ${Cc}where $1"
     return 1
   fi
   if [[ -z "$where_res" ]]; then
-    log.fatal "${Cc}where $1${Cc0} result is empty"
+    log.error "${Cc}where $1${Cc0} result is empty"
     return 1
   fi
   log.debug "where_res:\n${Cc}$where_res"
   local dest
   if ! dest="$(fzff "$where_res")"; then
-    log.warn "nothing chosen"
+    log.warn "Nothing chosen"
     return $?
   fi
   local dir_name
   if ! dir_name="$(dirname "$dest")"; then
-    log.fatal "failed ${Cc}dirname $dest"
+    log.error "Failed ${Cc}dirname $dest"
     return 1
   fi
   if [[ ! -d "$dir_name" ]]; then
-    log.fatal "not a directory: '$dir_name'"
+    log.error "Not a directory: '$dir_name'"
     return 1
   fi
   cd "$dir_name"
