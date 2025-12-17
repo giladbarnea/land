@@ -568,8 +568,24 @@ function dedent(){
   fi
   [[ "$string" ]] || { log.error "$0: Not enough args. Usage:\n$(docstring "$0")"; return 2; }
 
-  # py.print -s 'from textwrap import dedent' 'dedent(stdin.replace("\t", "    "))' <<< "$string"
-  awk 'NF {match($0, /^[ \t]*/); len=RLENGTH; if(!min ||len<min) min=len; lines[++n]=$0} END {for(i=1; i<=n; i++) print substr(lines[i], min+1)}' <<< "$string"
+  # Pure shell implementation (Unicode-safe; awk's substr() corrupts multi-byte chars)
+  local -i min_indent=-1
+  local line stripped indent_len
+  while IFS= read -r line || [[ -n "$line" ]]; do
+    # Skip empty or whitespace-only lines for min calculation
+    stripped="${line##[[:space:]]##}"
+    [[ -z "$stripped" ]] && continue
+    indent_len=$(( ${#line} - ${#stripped} ))
+    (( min_indent < 0 || indent_len < min_indent )) && min_indent=$indent_len
+  done <<< "$string"
+
+  # If no indented content found or min is 0, return as-is
+  (( min_indent <= 0 )) && { printf '%s' "$string"; return; }
+
+  # Remove min_indent characters from each line
+  while IFS= read -r line || [[ -n "$line" ]]; do
+    printf '%s\n' "${line:$min_indent}"
+  done <<< "$string"
 }
 
 # # indent <STRING / stdin> <INDENT=2>

@@ -131,7 +131,7 @@ function copy() {
     fi
     content="$(<&0)"
     [[ $verbosity -ge 2 ]] && log.info "Copying stdin:\n${Cc}${content}"
-    printf "%s" "$content" | pbcopy
+    printf "%s" "$content" | LC_ALL=en_US.UTF-8 pbcopy
     return $?
   fi
   [[ "$verbosity" -gt 0 ]] && log.info "Copying ${Cc}${value}"
@@ -154,14 +154,14 @@ function copy() {
   #   content="$value"
   # fi
   if [[ -d "$value" ]]; then
-    printf "%s" "$value" | pbcopy
+    printf "%s" "$value" | LC_ALL=en_US.UTF-8 pbcopy
     return $?
   fi
   if [[ $raw == true || ! -f "$value" ]]; then
-    printf "%s" "$value" | pbcopy
+    printf "%s" "$value" | LC_ALL=en_US.UTF-8 pbcopy
     return $?
   fi
-  pbcopy <"$value"
+  LC_ALL=en_US.UTF-8 pbcopy <"$value"
   return $?
 }
 
@@ -174,13 +174,13 @@ function copee(){
 # # paste
 # Paste from clipboard.
 function paste() {
-  clippaste "$@"
+  LC_ALL=en_US.UTF-8 clippaste "$@"
 }
 
 # # pastee
 # Print clipboard to stderr before pasting it.
 function pastee(){
-  clippaste | eee
+  LC_ALL=en_US.UTF-8 clippaste | eee
 }
 
 # ** External Shells
