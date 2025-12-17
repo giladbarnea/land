@@ -2140,16 +2140,20 @@ function llm-search(){
 }
 
 
-# # llm-commit-msg [TREEISH...] [--1-pass / --2-pass (default 1 pass)] [--one-by-one[=true|false] (default false)]
+# # llm-commit-msg [TREEISH...] [--append-prompt APPEND_STRING] [--1-pass / --2-pass (default 1 pass)] [--one-by-one[=true|false] (default false)]
 # Generates a commit message for the given files against HEAD.
 # If no files are provided, prompts the user to confirm which files to use.
 function llm-commit-msg(){
 	setopt localoptions pipefail errreturn
 	local -a diff_targets=()
+	local prompt='Generate a short commit message. If different changes serve a common purpose, mention that purpose. Make sure the commit message clearly conveys what was changed and what it was before. Do not repeat yourself; be terse and concise. Condense (compress) descriptiveness and information LOSSLESSLY; in other words, pack as much "story" into as few words as possible. Readers should be able to answer the question "What was changed?" at a glance. If the changes span a single file, start the commit message with the file name. If the changes span multiple files, create a bullet list where each item starts with a file name. Begin with generating a somewhat-short version of the commit message, and then generate a really terse, one-sentence version, e.g. "file1.ext: add `my-func`, file2.ext: more robust this, file3.ext: remove that". Do not use Markdown formatting. Do not say "No other changes." in the end of the commit message.'
 	local two_pass=false
 	local one_by_one=false
+	local append_prompt=''
 	while [[ $# -gt 0 ]]; do
 		case "$1" in
+			--append-prompt=*) append_prompt="${1#*=}" ;;
+			--append-prompt) append_prompt="$2" ; shift ;;
 			--1-pass) two_pass=false ;;
 			--2-pass) two_pass=true ;;
 			--one-by-one) one_by_one=true ;;
@@ -2158,6 +2162,7 @@ function llm-commit-msg(){
 		esac
 		shift
 	done
+	[[ -n "$append_prompt" ]] && prompt="$(printf "%s\n%s" "$prompt" "$append_prompt")"
 	if [[ "${#diff_targets[@]}" = 0 ]]; then
 		local -a staged_files
 		local -a modified_files
@@ -2233,7 +2238,6 @@ function llm-commit-msg(){
 	diff_targets=( "${(@u)diff_targets[@]}" )
 	log.debug "$(typeset diff_targets)"
 	
-	local prompt='Generate a short commit message. If different changes serve a common purpose, mention that purpose. Make sure the commit message clearly conveys what was changed and what it was before. Do not repeat yourself; be terse and concise. Condense (compress) descriptiveness and information LOSSLESSLY; in other words, pack as much "story" into as few words as possible. Readers should be able to answer the question "What was changed?" at a glance. If the changes span a single file, start the commit message with the file name. If the changes span multiple files, create a bullet list where each item starts with a file name. Begin with generating a somewhat-short version of the commit message, and then generate a really terse, one-sentence version, e.g. "file1.ext: add `my-func`, file2.ext: more robust this, file3.ext: remove that". Do not use Markdown formatting. Do not say "No other changes." in the end of the commit message.'
 	log.info "Generating commit message for ${#diff_targets[@]} files..." -L -x
 	if $one_by_one; then
 		local tmp_file="$(mktemp)"
@@ -2338,7 +2342,6 @@ function llm-what-changed(){
 				-- "${file_path}"
 				)" 2>&1 || fail_count+=1
 			what_changed_per_file["$file_path"]="${what_changed:-'No changes'}"
-			# xmlwrap -q "$what_changed" --tag "${file_path} diff"
 			print "${what_changed_per_file["$file_path"]}"
 		done
 		notif.info "Processed ${#file_paths[@]} files with $fail_count failures."
