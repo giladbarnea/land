@@ -163,6 +163,8 @@ function firecrawls(){
 # Wrapper for the vanilla /map endpoint.
 # Available options:
 # - search:=string    # Filter URLs
+# Usage example:
+# `cached firecrawl-map "$url" | jq .links | py.eval 'import json; [print(url) for url in json.loads(stdin) if "/sli.dev" in url]' | map 'uv run ~/.claude/skills/robust-fetch/scripts/robust_fetch.py {} --scraper jina > "$(topathlike {} -f)".md'`
 function firecrawl-map(){
 	local url
 	local dry_run=false
