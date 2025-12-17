@@ -568,7 +568,8 @@ function dedent(){
   fi
   [[ "$string" ]] || { log.error "$0: Not enough args. Usage:\n$(docstring "$0")"; return 2; }
 
-  py.print -s 'from textwrap import dedent' 'dedent(stdin.replace("\t", "    "))' <<< "$string"
+  # py.print -s 'from textwrap import dedent' 'dedent(stdin.replace("\t", "    "))' <<< "$string"
+  awk 'NF {match($0, /^[ \t]*/); len=RLENGTH; if(!min ||len<min) min=len; lines[++n]=$0} END {for(i=1; i<=n; i++) print substr(lines[i], min+1)}' <<< "$string"
 }
 
 # # indent <STRING / stdin> <INDENT=2>
