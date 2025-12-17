@@ -1,0 +1,69 @@
+#compdef scraping
+
+_firecrawl_map() {
+  zstyle ':completion::complete:firecrawl-map:*:descriptions' format "$(docstring firecrawl-map "${LAND}/scraping.sh")"
+  local curcontext="$curcontext" state line
+  typeset -A opt_args
+
+  _arguments -S -C \
+    '(-n --dry-run)'{-n,--dry-run}'[Print the HTTPie request without running it]' \
+    '1:URL:->url' \
+    '*:map option:->map_option' \
+    && return 0
+
+  case "$state" in
+    (url)
+      _alternative \
+        'urls:URL:_urls' \
+        'files:filepath:_files'
+      ;;
+    (map_option)
+      local -a opts=(
+        'search\:=:Filter returned links'
+      )
+      _describe -t options "options" opts
+      ;;
+  esac
+}
+
+compdef _firecrawl_map firecrawl-map
+
+_firecrawl() {
+  zstyle ':completion::complete:firecrawl:*:descriptions' format "$(docstring firecrawl "${LAND}/scraping.sh")"
+  local curcontext="$curcontext" state line
+  typeset -A opt_args
+
+  _arguments -S -C \
+    '(-o --output)'{-o,--output}'[Write response JSON to file]:output file:_files' \
+    '1:URL:->url' \
+    '*:firecrawl option:->firecrawl_option' \
+    && return 0
+
+  case "$state" in
+    (url)
+      local -a special=( '-:Read URL from stdin' )
+      _describe -t special "special" special
+      _alternative \
+        'urls:URL:_urls' \
+        'files:filepath:_files'
+      ;;
+    (firecrawl_option)
+      local -a opts=(
+        'formats\:=:Formats to return'
+        'onlyMainContent\:=:Only main content'
+        'includeTags\:=:Tags to include'
+        'excludeTags\:=:Tags to exclude'
+        'maxAge\:=:Cache max age (ms)'
+        'waitFor\:=:Wait for content (ms)'
+        'timeout\:=:Timeout (ms)'
+        'removeBase64Images\:=:Remove base64 images'
+        'jsonOptions\:=:Options for JSON format'
+        'parsePdf\:=:Parse PDFs'
+        'location\:=:Location settings'
+      )
+      _describe -t options "options" opts
+      ;;
+  esac
+}
+
+compdef _firecrawl firecrawl
