@@ -63,10 +63,12 @@ hash -d ob="$HOME/Documents/remote"
 alias b=bat
 alias c=command
 alias ca=cursor-agent
-alias claudeo='() { if [[ -f ~/.claude-code-oauth-token ]]; then CLAUDE_CODE_OAUTH_TOKEN=$(<~/.claude-code-oauth-token) claude --model=opus --dangerously-skip-permissions; else ANTHROPIC_API_KEY=$(<~/.anthropic-api-key-hearai-gilad-local-dev) claude --model=opus --dangerously-skip-permissions; fi ; }'
-alias clauded='() { if [[ -f ~/.claude-code-oauth-token ]]; then CLAUDE_CODE_OAUTH_TOKEN=$(<~/.claude-code-oauth-token) claude --dangerously-skip-permissions; else ANTHROPIC_API_KEY=$(<~/.anthropic-api-key-hearai-gilad-local-dev) claude --dangerously-skip-permissions; fi ; }'
-alias claudedh='() { if [[ -f ~/.claude-code-oauth-token ]]; then CLAUDE_CODE_OAUTH_TOKEN=$(<~/.claude-code-oauth-token) claude --model=haiku --dangerously-skip-permissions; else ANTHROPIC_API_KEY=$(<~/.anthropic-api-key-hearai-gilad-local-dev) claude --model=haiku --dangerously-skip-permissions; fi ; }'
-alias codexd='codex --dangerously-bypass-approvals-and-sandbox'
+alias claudeo='() { if [[ -f ~/.claude-code-oauth-token ]]; then CLAUDE_CODE_OAUTH_TOKEN=$(<~/.claude-code-oauth-token) claude --model=opus --dangerously-skip-permissions "$@"; else ANTHROPIC_API_KEY=$(<~/.anthropic-api-key-hearai-gilad-local-dev) claude --model=opus --dangerously-skip-permissions "$@"; fi ; }'
+alias claudes='() { if [[ -f ~/.claude-code-oauth-token ]]; then CLAUDE_CODE_OAUTH_TOKEN=$(<~/.claude-code-oauth-token) claude --model=sonnet --dangerously-skip-permissions "$@"; else ANTHROPIC_API_KEY=$(<~/.anthropic-api-key-hearai-gilad-local-dev) claude --model=sonnet --dangerously-skip-permissions "$@"; fi ; }'
+alias claudeh='() { if [[ -f ~/.claude-code-oauth-token ]]; then CLAUDE_CODE_OAUTH_TOKEN=$(<~/.claude-code-oauth-token) claude --model=haiku --dangerously-skip-permissions "$@"; else ANTHROPIC_API_KEY=$(<~/.anthropic-api-key-hearai-gilad-local-dev) claude --model=haiku --dangerously-skip-permissions "$@"; fi ; }'
+alias codexd='codex --dangerously-bypass-approvals-and-sandbox --search'
+alias geminiy='() { GEMINI_API_KEY=$(<~/.gemini-api-key-vertex-hear-dev) gemini --yolo "$@"; }'
+alias geminii='() { GEMINI_API_KEY=$(<~/.gemini-api-key-vertex-hear-dev) gemini "$@" ; }'
 alias fdd='fd -t d'
 alias fdf='fd -t f'
 alias ds=docstring
