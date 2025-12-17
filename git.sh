@@ -1,6 +1,9 @@
 #!/usr/bin/env zsh
 
 # ------[ Aliases ]------
+# svn dcommit
+unalias gsd
+
 # * branch
 aliases[gcb]='git_current_branch'
 
@@ -30,7 +33,6 @@ unalias gstaa gstc gstd gstl gstp gsts gstu gstall
 alias gs='git stash'
 alias gsa='git stash apply'
 alias gsc='git stash clear'
-aliases[gsd]='git stash drop'
 alias gsl='git stash list'
 alias gsp='git stash pop'
 alias gsst='git stash show --text'
@@ -816,10 +818,10 @@ function git.beforeafter(){
   
 }
 
-# # git-structured-diff [STDIN DIFF]
+# # git-structured-diff [STDIN DIFF] [GIT_DIFF_OPTS...] [--no-function-context]
 # Wraps blocks of changes in appropriate XML-like tags.
 # Example:
-# git diff --unified=20 --inter-hunk-context=10
+# `git-structured-diff --unified=20 --inter-hunk-context=10 --no-function-context`
 function git-structured-diff(){
   # Pretty diff wrapper with per-patch tags and file-level XML tags.
   # - Suppresses git metadata lines; prints '---' + <filepath> per file and closes with </filepath>.
@@ -828,15 +830,41 @@ function git-structured-diff(){
   #   ...changed lines without +/- prefixes...
   #   </added|deleted|modified patch end: line N|lines N-M>
   
+  # local -a git_diff_args=($(gdargs+))
+  # echo "${git_diff_args[@]}"
+  # echo "\n"
+  # while [[ $# -gt 0 ]]; do
+  #   case "$1" in
+  #     --no-function-context) 
+  #     # Pop '--function-context' from git_diff_args
+  #     echo "\n"
+  #     echo "${git_diff_args[@]}"
+  #     local -i function_context_index=${git_diff_args[(I)'--function-context']}
+  #     echo function_context_index=$function_context_index
+  #     (( function_context_index )) && git_diff_args[$function_context_index]=()
+  #     echo "\n"
+  #     echo "${git_diff_args[@]}"
+  #     ;;
+  #     -*) git_diff_args+=("${1}") ;;
+  #     *) git_diff_args+=("$1") ;;
+  #   esac
+  #   shift
+  # done
+  # # typeset git_diff_args
+  # return
+  
+  # set -- "${git_diff_args[@]}"
+  
+  
   if ! is_piped && [[ -z "$1" ]]; then
     if is_piping || ! is_interactive; then
       log.info "No data provided and can’t ask user interactively. Defaulting to 'git --no-pager diff $(gdargs+) | $0'."
-      command git --no-pager diff $(gdargs+) | $0
-      return $?
+      command git --no-pager diff "${git_diff_args[@]}" | $0
+      return 0
     fi
     confirm "No data in stdin. Run 'git --no-pager diff $(gdargs+) | $0'?" || return 0
-    command git --no-pager diff $(gdargs+) | $0
-    return $?
+    command git --no-pager diff "${git_diff_args[@]}" | $0
+    return 0
   fi
   
   function .parse-diff(){
@@ -1148,8 +1176,8 @@ function git-structured-diff(){
 
   if [[ -n "$1" ]]; then
     is_piped && log.warn "Received data from both stdin and cli args. Ignoring stdin."
-    command git --no-pager diff $(gdargs+) "$@" | .parse-diff
-    return $?
+    command git --no-pager diff "${git_diff_args[@]}" "$@" | .parse-diff
+    return 0
   fi
   
   .parse-diff
