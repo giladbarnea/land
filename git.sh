@@ -508,7 +508,7 @@ function gexcluded(){
 
 # ------[ Diff ]------
 
-# # gdargs+ <arg> [shamrg]
+# # gdargs+
 # Prints args for deeper git diff with ignoring whitespace and added context.
 function gdargs+(){
   print -- \
@@ -521,12 +521,12 @@ function gdargs+(){
     --ignore-cr-at-eol \
     --find-copies-harder \
     --minimal \
-    --histogram \
     --ignore-submodules \
     --break-rewrites \
     --find-renames \
     --find-copies \
     --function-context
+  # It’s either minimal, histogram or patience.
 }
 
 # # gd [-t] [git diff ARGS...]
@@ -568,7 +568,7 @@ function gd() {
   local diffout
   # ** 1) With all ignore-* flags, and patience+harder
   local diff_basic_args=(
-    --diff-algorithm=patience
+    --minimal
     --find-copies-harder
   )
   local diff_ignore_args=(
@@ -582,13 +582,13 @@ function gd() {
   if [[ -n "$diffout" ]]; then
     # all good
     notif.success "git $diffcmd <ignore-flags> ${*}"
-    git "$diffcmd" "${diff_basic_args[@]}" "$@"
+    git "$diffcmd" "${diff_basic_args[@]}" "${diff_ignore_args[@]}" "$@"
     return $?
   fi
   # failed with all ignore-* flags
   # ** 2) No ignore-* flags, but patience+harder
   log.warn "Diff empty when with all ${Cc}ignore-*${Cc0} flags, trying without them"
-  diffout="$(git --no-pager diff "${diff_basic_args[@]}" "${@}")"
+  diffout="$(git --no-pager "$diffcmd" "${diff_basic_args[@]}" "${@}")"
   if [[ -n "$diffout" ]]; then
     if confirm "Found some diff without ${Cc}ignore-*${Cc0} flags. Show diff?"; then
       notif.success "git $diffcmd ${diff_basic_args[*]} ${*}"
@@ -645,7 +645,15 @@ function gd() {
       return $?
     fi
   fi
-
+  
+  # ** 7) untracked files
+  local untracked_files=($(git.untracked))
+  if (( ${#untracked_files[@]} > 0 )); then
+    if confirm "${Cc}git diff untracked files $*${Cc0} is not empty. Display? (recursive)"; then
+      git.untracked | xargs -I{} "$SHELL" -i -c 'gd --no-index /dev/null {}'
+      return $?
+    fi
+  fi
 
   return 1
 
@@ -1175,7 +1183,6 @@ function git-structured-diff(){
   local -a git_diff_args
 
   if [[ -n "$1" ]]; then
-    is_piped && log.warn "Received data from both stdin and cli args. Ignoring stdin."
     command git --no-pager diff "${git_diff_args[@]}" "$@" | .parse-diff
     return 0
   fi
