@@ -3,7 +3,7 @@
 # *** Environment Vars ***
 
 # export WHOIAM="${WHOIAM:-$(whoami)}"
-export LESS="--quit-if-one-screen --RAW-CONTROL-CHARS --hilite-unread --quit-on-intr --jump-target=15 --use-color --ignore-case --save-marks"
+export LESS="--tilde --line-num-width=4 --quit-if-one-screen --RAW-CONTROL-CHARS --hilite-unread --quit-on-intr --jump-target=15 --use-color --ignore-case --save-marks"
 export EDITOR=nvim
 export RIPGREP_CONFIG_PATH="$HOME"/.ripgreprc
 export HISTORY_SUBSTRING_SEARCH_ENSURE_UNIQUE=true
@@ -50,10 +50,10 @@ if [[ "$PLATFORM" == UNIX ]]; then
 
     # The `grep` part is crucial, otherwise macos grep is used (no -P, etc.)
     declare _homebrew_bins="${HOMEBREW_PREFIX}/bin:${HOMEBREW_PREFIX}/sbin:${HOMEBREW_PREFIX}/opt/grep/libexec/gnubin"
-    
+
     # Load default Node version from nvm dynamically
     PATH="${PATH}:${HOME}/.nvm/versions/node/$(<~/.nvm/alias/default)/bin"
-    
+
     export PATH="${_homebrew_bins}${PATH+:${PATH}}"
 
     unset _homebrew_bins

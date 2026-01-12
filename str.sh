@@ -687,27 +687,46 @@ function join(){
   
 }
 
-# # xmlwrap <CONTENT,STDIN,FILEPATH> -t,--tag,-st,--stdin-tag TAG [-q,--quiet]
-# Wraps the string in XML tags.
-function xmlwrap(){
+# # xt CONTENT/FILEPATH -t,--tag,-st,--stdin-tag TAG [-q,--quiet]
+# # xt TAG [-q,--quiet] <<< CONTENT/FILEPATH
+# # xt -t,--tag,-st,--stdin-tag TAG [-q,--quiet] <<< CONTENT/FILEPATH
+# Wraps the string in XML tag.
+# Examples:
+# ```bash
+# ❯ xt "Hello, world" -t span
+# <span>
+# Hello, world
+# </span>
+# # When content is piped, the tag is the first positional argument.
+# ❯ echo "Hello, world" | xt span
+# <span>
+# Hello, world
+# </span>
+# ```
+function xt(){
 	local content tag formatted_content
-	local quiet=false
+	local quiet=true  # makes the --quiet flag redundant, but can't bother refactor callers
 	while [[ $# -gt 0 ]]; do
 		case "$1" in
 			--tag=*|--stdin-tag=*) tag="${1#*=}" ;;
 			-t|--tag|-st|--stdin-tag) tag="$2" ; shift ;;
 			-q|--quiet) quiet=true ;;
-			*) content="$1" ;;
+			*) 
+        if [[ -n "$content" ]]; then
+          log.error "Multiple positional arguments provided. Usage:\n$(docstring "$0")"
+          return 1
+        fi
+        if is_piped; then
+          content="$(<&0)"
+          tag="$1"
+        else
+          content="$1"
+        fi
 		esac
 		shift
 	done
   [[ ! "$tag" ]] && { log.error "No tag provided." ; return 1 ; }
-	local piped=false
-	is_piped && piped=true
-	[[ ! "$content" && $piped = false ]] && { log.error "No content provided." ; return 1 ; }
-	[[ "$quiet" = false && "$content" && $piped = true ]] && log.warn "Ignoring piped content because content was also provided positionally."
-	[[ ! "$content" && $piped = true ]] && content="$(<&0)"
-	
+	[[ ! "$content" ]] && { log.error "No content provided." ; return 1 ; }
 	[[ -f "$content" ]] && content="$(<"$content")"
 	
   local tag_space_separated="${tag//_/ }"
@@ -728,4 +747,18 @@ function codeblock(){
   fi
   [[ "$string" ]] || { log.error "$0: Not enough args. Usage:\n$(docstring "$0")"; return 2; }
   awk '/^```/{p=!p;next} p' <<< "$string"
+}
+
+# # replace SEARCH REPLACE
+# Replaces all occurrences of SEARCH with REPLACE in the string.
+function replace(){
+  local string
+  local search replace
+  if [[ ! "$1" ]] && is_piped; then
+    string="$(<&0)"
+  else
+    string="$1"
+  fi
+  [[ "$string" ]] || { log.error "$0: Not enough args. Usage:\n$(docstring "$0")"; return 2; }
+  printf "%s" "${string//${search}/${replace}}"
 }

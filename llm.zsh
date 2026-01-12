@@ -1622,7 +1622,7 @@ function .llm-interpolate-template-variables(){
 # Returns either minimal, low, medium, or high.
 function .llm-auto-reasoning-effort(){
 	setopt localoptions errreturn
-	local user_message="$(xmlwrap -q -t 'user_query' "$1")"
+	local user_message="$(xt -q -t 'user_query' "$1")"
 	local reasoning_effort
 	local classifier_prompt="$(printf 'A user wants to query the LLM with the following:
 %s
@@ -1761,7 +1761,7 @@ function .llm-extract-code-block(){
 
 
 # # .llm-xml-wrap <CONTENT,STDIN,FILEPATH> [-t,--tag,-st,--stdin-tag TAG] [-q,--quiet]
-# Prepends "Given the following" to the return value of `xmlwrap "$@"`
+# Prepends "Given the following" to the return value of `xt "$@"`
 function .llm-xml-wrap() {
 	local content
 	local tag
@@ -1777,7 +1777,7 @@ function .llm-xml-wrap() {
 	done
 	local tagged_content formatted_content
 	if [[ "$tag" ]]; then
-	  tagged_content="$(xmlwrap "${original_args[@]}")"
+	  tagged_content="$(xt "${original_args[@]}")"
 	  local tag_space_separated="${tag//_/ }"
 	  local tag_underscores_separated="${tag// /_}"
  	  formatted_content="$(printf "Given the following %s:\n\n%s" "${tag_space_separated}" "${tagged_content}")"
@@ -2146,7 +2146,7 @@ function llm-search(){
 function llm-commit-msg(){
 	setopt localoptions pipefail errreturn
 	local -a diff_targets=()
-	local prompt='Generate a short commit message. If different changes serve a common purpose, mention that purpose. Make sure the commit message clearly conveys what was changed and what it was before. Do not repeat yourself; be terse and concise. Condense (compress) descriptiveness and information LOSSLESSLY; in other words, pack as much "story" into as few words as possible. Readers should be able to answer the question "What was changed?" at a glance. If the changes span a single file, start the commit message with the file name. If the changes span multiple files, create a bullet list where each item starts with a file name. Begin with generating a somewhat-short version of the commit message, and then generate a really terse, one-sentence version, e.g. "file1.ext: add `my-func`, file2.ext: more robust this, file3.ext: remove that". Do not use Markdown formatting. Do not say "No other changes." in the end of the commit message.'
+	local prompt='Generate a short commit message. If different changes serve a cohesive purpose, mention that purpose. Make sure the commit message clearly conveys what was changed and what it was before. Do not repeat yourself; be terse and concise. Condense (compress) descriptiveness and information LOSSLESSLY; in other words, pack as much "story" into as few words as possible. Readers should be able to answer the question "What was changed?" at a glance. If the changes span a single file, start the commit message with the file name. If the changes span multiple files, start with a very short phrase, then a bullet list where each item starts with a file name. Do not use Markdown formatting nor straight single quotes. Do not say "No other changes." in the end of the commit message.'
 	local two_pass=false
 	local one_by_one=false
 	local append_prompt=''
@@ -2364,7 +2364,7 @@ function llm-what-changed(){
 	else
 		context="$tagged_git_diff"
 	fi
-	local full_prompt="$(printf "%s\n\n%s" "$context" "$(xmlwrap -q "$prompt" --tag 'user-instructions')")"
+	local full_prompt="$(printf "%s\n\n%s" "$context" "$(xt -q "$prompt" --tag 'user-instructions')")"
 	if $dry_run; then
 		print -- "$full_prompt"
 	else

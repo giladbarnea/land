@@ -67,8 +67,8 @@ alias claudeo='() { if [[ -f ~/.claude-code-oauth-token ]]; then CLAUDE_CODE_OAU
 alias claudes='() { if [[ -f ~/.claude-code-oauth-token ]]; then CLAUDE_CODE_OAUTH_TOKEN=$(<~/.claude-code-oauth-token) claude --model=sonnet --dangerously-skip-permissions "$@"; else ANTHROPIC_API_KEY=$(<~/.anthropic-api-key-hearai-gilad-local-dev) claude --model=sonnet --dangerously-skip-permissions "$@"; fi ; }'
 alias claudeh='() { if [[ -f ~/.claude-code-oauth-token ]]; then CLAUDE_CODE_OAUTH_TOKEN=$(<~/.claude-code-oauth-token) claude --model=haiku --dangerously-skip-permissions "$@"; else ANTHROPIC_API_KEY=$(<~/.anthropic-api-key-hearai-gilad-local-dev) claude --model=haiku --dangerously-skip-permissions "$@"; fi ; }'
 alias codexd='codex --dangerously-bypass-approvals-and-sandbox --search'
-alias geminiy='() { GEMINI_API_KEY=$(<~/.gemini-api-key-vertex-hear-dev) gemini --yolo "$@"; }'
-alias geminii='() { GEMINI_API_KEY=$(<~/.gemini-api-key-vertex-hear-dev) gemini "$@" ; }'
+alias geminiy='() { GEMINI_API_KEY=$(<~/.gemini-api-key-vertex-hear-dev) gemini --yolo --model=gemini-3-pro-preview "$@"; }'
+alias geminif='() { GEMINI_API_KEY=$(<~/.gemini-api-key-vertex-hear-dev) gemini --model=gemini-3-flash-preview "$@" ; }'
 alias fdd='fd -t d'
 alias fdf='fd -t f'
 alias ds=docstring

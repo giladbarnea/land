@@ -68,13 +68,13 @@ function .ruff(){
 	done
 	local format_exitcode_is_true_problem=false format_exitcode
 	log.notice "Running ruff format --preview ${ruff_shared_args[*]} ${ruff_format_args[*]}"
-	uv run ruff format --preview "${ruff_shared_args[@]}" "${ruff_format_args[@]}"
+	uv run --no-project ruff format --preview "${ruff_shared_args[@]}" "${ruff_format_args[@]}"
 	format_exitcode=$?
 	[[ $format_exitcode = 2 ]] && format_exitcode_is_true_problem=true  # 2 is no such file (not sure if it's the only case)
 
 	# `check` exitcode is useless. Check out --exit-non-zero-on-fix or --exit-non-zero-on-format
 	log.notice "Running ruff check --unsafe-fixes --preview ${ruff_shared_args[*]} ${ruff_check_args[*]}"
-	uv run ruff check --unsafe-fixes --preview "${ruff_shared_args[@]}" "${ruff_check_args[@]}"
+	uv run --no-project ruff check --unsafe-fixes --preview "${ruff_shared_args[@]}" "${ruff_check_args[@]}"
 	[[ "$print_result" = true ]] && cat "$temp_file"
 	[[ "$format_exitcode_is_true_problem" = false ]]
 }
