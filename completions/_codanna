@@ -1,7 +1,9 @@
 #compdef codanna
+# Created 2026-01-13
 
 _codanna() {
-  local curcontext="$curcontext" state line ret=1
+  local curcontext="$curcontext" state line
+  local -i ret=1
   typeset -A opt_args
 
   local -a subcommands=(
@@ -27,28 +29,63 @@ _codanna() {
     '*:: :->args' && ret=0
 
   case $state in
-    subcommand)
+    (subcommand)
       _describe -t subcommands 'codanna subcommands' subcommands && ret=0
       ;;
-    args)
-      case $words[1] in
-        add-dir|remove-dir)
+    (args)
+      case "${words[1]}" in
+        (retrieve)
+          _codanna:retrieve
+          ;;
+        (add-dir|remove-dir)
           _arguments '*:directory:_files -/' && ret=0
           ;;
-        help)
+        (help)
           _describe -t subcommands 'codanna subcommands' subcommands && ret=0
           ;;
-        *)
+        (*)
           _message "no more arguments"
           ;;
       esac
       ;;
   esac
 
-  return ret
+  return $ret
 }
 
-if [ "$funcstack[1]" = "_codanna" ]; then
+_codanna:retrieve() {
+  local -a retrieve_subcommands=(
+    'symbol:Find a symbol by name'
+    'calls:Show what functions a given function calls'
+    'callers:Show what functions call a given function'
+    'implementations:Show what types implement a given trait'
+    'search:Search for symbols using full-text search'
+    'describe:Show information about a symbol'
+    'help:Print this message or the help of the given subcommand(s)'
+  )
+
+  _arguments -C \
+    '1: :->retrieve_subcommand' \
+    '*:: :->retrieve_args' && ret=0
+
+  case ${state} in
+    (retrieve_subcommand)
+      _describe -t subcommands 'codanna retrieve subcommands' retrieve_subcommands && ret=0
+      ;;
+    (retrieve_args)
+      case ${words[1]} in
+        (help)
+          _describe -t subcommands 'codanna retrieve subcommands' retrieve_subcommands && ret=0
+          ;;
+        (*)
+          _message "argument for ${words[1]}"
+          ;;
+      esac
+      ;;
+  esac
+}
+
+if [ "${funcstack[1]}" = "_codanna" ]; then
     _codanna "$@"
 else
     compdef _codanna codanna
