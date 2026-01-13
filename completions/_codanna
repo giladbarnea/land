@@ -1,0 +1,55 @@
+#compdef codanna
+
+_codanna() {
+  local curcontext="$curcontext" state line ret=1
+  typeset -A opt_args
+
+  local -a subcommands=(
+    'init:Set up .codanna directory'
+    'index:Build searchable index from codebase'
+    'add-dir:Add a directory to be indexed'
+    'remove-dir:Remove a directory from indexed paths'
+    'list-dirs:List all directories that are being indexed'
+    'retrieve:Query symbols, relationships, and dependencies'
+    'serve:Start MCP server'
+    'config:Display active settings'
+    'mcp-test:Test MCP connection'
+    'mcp:Execute MCP tools directly'
+    'benchmark:Benchmark parser performance'
+    'parse:Output AST nodes in JSONL format'
+    'plugin:Manage Claude Code plugins'
+    'documents:Index and search document collections'
+    'help:Print this message or the help of the given subcommand(s)'
+  )
+
+  _arguments -C \
+    '1: :->subcommand' \
+    '*:: :->args' && ret=0
+
+  case $state in
+    subcommand)
+      _describe -t subcommands 'codanna subcommands' subcommands && ret=0
+      ;;
+    args)
+      case $words[1] in
+        add-dir|remove-dir)
+          _arguments '*:directory:_files -/' && ret=0
+          ;;
+        help)
+          _describe -t subcommands 'codanna subcommands' subcommands && ret=0
+          ;;
+        *)
+          _message "no more arguments"
+          ;;
+      esac
+      ;;
+  esac
+
+  return ret
+}
+
+if [ "$funcstack[1]" = "_codanna" ]; then
+    _codanna "$@"
+else
+    compdef _codanna codanna
+fi
