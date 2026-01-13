@@ -414,25 +414,7 @@ function git.deleted(){
 # eval's `EXPRESSION` with literal `{}`.
 # Example: git.added 'echo {}'
 function git.added(){
-	local new_files="$(git status --short | command grep -Po '(?<=^A ).+')" || {
-		git status --short
-		return $?
-	}
-	[[ ! "$new_files" ]] && return 1
-	if [[ ! "$1" ]]; then
-	  printf "%s\n" "$new_files"
-	  return $?
-	fi
-	local new_file
-	declare -i fail_count=0
-  local expression="$*"
-  if [[ ! "$expression" =~ {} ]]; then
-    expression="${expression} '{}'"
-  fi
-	while read -r new_file; do
-		eval "${expression//"{}"/${new_file}}" || ((fail_count++))
-	done <<< "$new_files"
-	return "$fail_count"
+	git --no-pager diff --cached --name-only "$@"
 }
 
 # # git.files-not-in [TARGET_BRANCH=origin/<MAIN_BRANCH>] [-r, --reverse]
@@ -458,10 +440,10 @@ function git.files-not-in(){
   comm "${comm_args[@]}" <(<<< "$files_in_head") <(<<< "$files_in_target")
 }
 
-# # git.committed [COMMIT_SHA]
-# Lists the names of files that were changed in a specific commit (COMMIT_SHA or latest commit if unspecified).
+# # git.committed [COMMIT_SHA=HEAD]
+# Lists the names of files that were changed in a specific commit (COMMIT_SHA or HEAD if unspecified).
 function git.committed(){
-  git diff-tree --no-commit-id --name-only -r "${1:-HEAD}"
+  git diff --name-only @{upstream}..${1:-HEAD}
 }
 
 

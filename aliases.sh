@@ -80,6 +80,8 @@ alias r=rg
 alias l=less
 alias typora='open -b abnerworks.Typora'
 alias jqc='jq --color-output'
+alias cn=codanna
+alias cnr='codanna retrieve'
 
 # ----------------------
 # *** Global Aliases ***

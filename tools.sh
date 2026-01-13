@@ -33,7 +33,10 @@ function .ruff(){
 			ruff_shared_args+=(--silent "$temp_file")
 		fi
 	fi
+	
 	# Parse arguments
+	# For up-to-date comparison of format vs check options:
+	# ❯ delta <(ruff check --help | docstring.getopts | sort -u) <(ruff format --help | docstring.getopts | sort -u)
 	while [[ $# -gt 0 ]]; do
 		case "$1" in
 			# `format` and `check`: Boolean flags
@@ -43,22 +46,22 @@ function .ruff(){
 			# `format` and `check`: Options with values
 			--exclude*|--extension*|--force-exclude*|--target-version*|--line-length*|--cache-dir*|--stdin-filename)
 				if [[ $1 == *=* ]]; then 
-					ruff_shared_args+=("${1#*=}")
+					ruff_shared_args+=("$1") ;
 				else
-					ruff_shared_args+=("$2"); shift; 
+					ruff_shared_args+=("$1" "$2"); shift; 
 				fi ;;
 
-			# `format`: Boolean flags
+			# `format`-unique: Boolean flags
 			--check)
 				ruff_format_args+=("$1") ;;
 
-			# `format`: Options with values
+			# `format`-unique: Options with values
 			--range=*)
-				ruff_format_args+=("${1#*=}") ;;
+				ruff_format_args+=("$1") ;;
 			--range)
-				ruff_format_args+=("$2") ; shift ;;
+				ruff_format_args+=(--range="$2") ; shift ;;
 
-			# `check`: Anything else
+			# `check`-unique: Anything else
 			-*)
 				ruff_check_args+=("$1") ;;
 			*)
@@ -66,15 +69,15 @@ function .ruff(){
 		esac
 		shift
 	done
-	local format_exitcode_is_true_problem=false format_exitcode
+	local format_exitcode_is_true_problem=true format_exitcode
 	log.notice "Running ruff format --preview ${ruff_shared_args[*]} ${ruff_format_args[*]}"
-	uv run --no-project ruff format --preview "${ruff_shared_args[@]}" "${ruff_format_args[@]}"
+	uv run --no-project ruff format --exit-non-zero-on-format --preview "${ruff_shared_args[@]}" "${ruff_format_args[@]}"
 	format_exitcode=$?
-	[[ $format_exitcode = 2 ]] && format_exitcode_is_true_problem=true  # 2 is no such file (not sure if it's the only case)
+	# [[ $format_exitcode = 2 ]] && format_exitcode_is_true_problem=true  # 2 is no such file (not sure if it's the only case)
 
 	# `check` exitcode is useless. Check out --exit-non-zero-on-fix or --exit-non-zero-on-format
 	log.notice "Running ruff check --unsafe-fixes --preview ${ruff_shared_args[*]} ${ruff_check_args[*]}"
-	uv run --no-project ruff check --unsafe-fixes --preview "${ruff_shared_args[@]}" "${ruff_check_args[@]}"
+	uv run --no-project ruff check --unsafe-fixes --preview --exit-non-zero-on-fix "${ruff_shared_args[@]}" "${ruff_check_args[@]}"
 	[[ "$print_result" = true ]] && cat "$temp_file"
 	[[ "$format_exitcode_is_true_problem" = false ]]
 }
