@@ -2185,7 +2185,7 @@ function llm-commit-msg(){
 		if untracked_files=($(git.untracked)); then
 			has_untracked_files=true
 		fi
-		if added_files=($(git.added)); then
+		if added_files=($(git.stagedadded)); then
 			has_added_files=true
 		fi
 		if committed_files=($(git.committed)); then

@@ -687,9 +687,8 @@ function join(){
   
 }
 
-# # xt CONTENT/FILEPATH -t,--tag,-st,--stdin-tag TAG [-q,--quiet]
-# # xt TAG [-q,--quiet] <<< CONTENT/FILEPATH
-# # xt -t,--tag,-st,--stdin-tag TAG [-q,--quiet] <<< CONTENT/FILEPATH
+# # xt CONTENT/FILEPATH -t,--tag,-st,--stdin-tag TAG [-k,--kebab] [-q,--quiet]
+# # xt TAG [-k,--kebab] [-q,--quiet] <<< CONTENT/FILEPATH
 # Wraps the string in XML tag.
 # Examples:
 # ```bash
@@ -698,19 +697,26 @@ function join(){
 # Hello, world
 # </span>
 # # When content is piped, the tag is the first positional argument.
-# ❯ echo "Hello, world" | xt span
-# <span>
+# ❯ echo "Hello, world" | xt 'Friendly Greeting'
+# <Friendly Greeting>
 # Hello, world
-# </span>
+# </Friendly Greeting>
+# # When -k/--kebab is passed, the tag is converted to kebab-case.
+# ❯ xt 'Friendly Greeting' --kebab <<< "Hello, world"
+# <friendly-greeting>
+# Hello, world
+# </friendly-greeting>
 # ```
 function xt(){
 	local content tag formatted_content
 	local quiet=true  # makes the --quiet flag redundant, but can't bother refactor callers
+	local kebab=false
 	while [[ $# -gt 0 ]]; do
 		case "$1" in
 			--tag=*|--stdin-tag=*) tag="${1#*=}" ;;
 			-t|--tag|-st|--stdin-tag) tag="$2" ; shift ;;
 			-q|--quiet) quiet=true ;;
+			-k|--kebab) kebab=true ;;
 			*) 
         if [[ -n "$content" ]]; then
           log.error "Multiple positional arguments provided. Usage:\n$(docstring "$0")"
@@ -728,10 +734,8 @@ function xt(){
   [[ ! "$tag" ]] && { log.error "No tag provided." ; return 1 ; }
 	[[ ! "$content" ]] && { log.error "No content provided." ; return 1 ; }
 	[[ -f "$content" ]] && content="$(<"$content")"
-	
-  local tag_space_separated="${tag//_/ }"
-  local tag_underscores_separated="${tag// /_}"
-  formatted_content="$(printf "<${tag_underscores_separated}>\n%s\n</${tag_underscores_separated}>\n" "$content")"
+	[[ "$kebab" = true ]] && tag="$(printf "%s" "$tag" | tr ' ' '-' | tr '[:upper:]' '[:lower:]')"
+  formatted_content="$(printf "<${tag}>\n%s\n</${tag}>\n" "$content")"
 	[[ "$quiet" = false ]] && log.debug "$(shorten "$formatted_content" -m "$COLUMNS")"
 	print -r -- "$formatted_content"
 }

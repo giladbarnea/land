@@ -367,7 +367,7 @@ function git.staged(){
 	[[ ! "$staged_files" ]] && return 1
 	if [[ ! "$1" ]]; then
 	  printf "%s\n" "$staged_files"
-	  return $?
+	  return 0
 	fi
 	local staged_file
 	declare -i fail_count=0
@@ -381,8 +381,26 @@ function git.staged(){
 	return "$fail_count"
 }
 
+# # git.stageddeleted [EXPRESSION]
+# If no `EXPRESSION` is given, prints deleted files that have been staged.
+# Contrast with `git.deleted`, which prints deleted files that haven't been staged yet.
+# eval's `EXPRESSION` with literal `{}`.
+# Example: git.stageddeleted 'echo {}'
+function git.stageddeleted(){
+	git diff --cached --name-only --diff-filter=D "$@"
+}
+
+# # git.stagedmodified [EXPRESSION]
+# If no `EXPRESSION` is given, prints modified files that have been staged.
+# Contrast with `git.modified`, which prints modified files that haven't been staged yet.
+# eval's `EXPRESSION` with literal `{}`.
+# Example: git.stagedmodified 'echo {}'
+function git.stagedmodified(){
+	git diff --cached --name-only --diff-filter=M "$@"
+}
+
 # # git.deleted [EXPRESSION]
-# If no `EXPRESSION` is given, prints deleted files.
+# If no `EXPRESSION` is given, prints deleted files that haven't been staged yet.
 # eval's `EXPRESSION` with literal `{}`.
 # Example: git.deleted 'echo {}'
 function git.deleted(){
@@ -409,12 +427,12 @@ function git.deleted(){
 	return "$fail_count"
 }
 
-# # git.added [EXPRESSION]
+# # git.stagedadded [EXPRESSION]
 # If no `EXPRESSION` is given, prints new files.
 # eval's `EXPRESSION` with literal `{}`.
-# Example: git.added 'echo {}'
-function git.added(){
-	git --no-pager diff --cached --name-only "$@"
+# Example: git.stagedadded 'echo {}'
+function git.stagedadded(){
+	git --no-pager diff --cached --name-only --diff-filter=A "$@"
 }
 
 # # git.files-not-in [TARGET_BRANCH=origin/<MAIN_BRANCH>] [-r, --reverse]

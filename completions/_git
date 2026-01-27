@@ -2,7 +2,7 @@ compdef _git gd=git-diff
 compdef '_cat; compadd -x "$(docstring git.beforeafter)" ""; _describe command "( $(docstring.getopts git.beforeafter) )"' git.beforeafter
 compdef '_cat; compadd -x "$(docstring gexclude)" ""; _describe command "( $(docstring.getopts gexclude) )"' gexclude
 compdef 'compadd -x "$(docstring gexcluded)" ""; _describe command "( $(docstring.getopts gexcluded) )"' gexcluded
-compdef 'compadd -x "$(docstring git.added)" ""; _describe command "( $(docstring.getopts git.added) )"' git.added
+compdef 'compadd -x "$(docstring git.stagedadded)" ""; _describe command "( $(docstring.getopts git.stagedadded) )"' git.stagedadded
 compdef 'compadd -x "$(docstring git.clean)" ""; _describe command "( $(docstring.getopts git.clean) )"' git.clean
 compdef 'compadd -x "$(docstring git.commits)" ""; _describe command "( $(docstring.getopts git.commits) )"' git.commits
 compdef 'compadd -x "$(docstring git.showcommit)" ""; _describe command "( $(docstring.getopts git.showcommit) $(git branch --list --all | awk "{print \$1}") )";' git.showcommit
