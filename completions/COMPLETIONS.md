@@ -51,7 +51,11 @@ As of Feb 08, 2026, this is the script's output:
 ```
 
 Therefore, good example scripts are:
-- _gemini: most recently created AND updated. I'm signing here that it's the best script in this directory
+- _gemini: most recently created AND updated. I'm signing here that it's the best script in this directory. Inspired by `/Users/giladbarnea/.openclaw/completions/openclaw.zsh`. It is superior because: 
+    * it leverages separation of data arrays (`local -a options`) from logic before passing them to `_arguments`, instead of a massive, unreadable `_arguments` call
+    * modular dispatching (the 'Router') pattern, which uses a root function `_gemini` that acts as a router, which doesn't know *how* to complete `mcp add`, it just knows to pass control to `_gemini:mcp`, instead of nesting logic deep inside the root function 
+    * state-based argument handling: uses `_arguments -C` with `->state` to handle complex flows where the completion needs to change based on the position (Command vs. Arguments), rather than a single complex argument specification
+    * Robust registration (the footer): end with an explicit `compdef ...` rather than executing the function.
 - _codex: very recently created AND updated
 - _claude: recently created AND updated
 
