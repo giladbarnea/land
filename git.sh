@@ -4,6 +4,8 @@
 # svn dcommit
 unalias gsd
 
+unalias g
+
 # * branch
 aliases[gcb]='git_current_branch'
 
@@ -335,6 +337,7 @@ function git.modifiedranges(){
 # If '{}' is not found in `EXPRESSION`, the file path is appended to the end.
 # Example: git.untracked 'git restore'
 # Example 2: git.untracked 'git update-index {} --assume-unchanged'
+# shellcheck disable=SC2120
 function git.untracked(){
   local untracked_files
 	untracked_files="$(git ls-files --others --exclude-standard)" || return $?
@@ -387,7 +390,9 @@ function git.staged(){
 # eval's `EXPRESSION` with literal `{}`.
 # Example: git.stageddeleted 'echo {}'
 function git.stageddeleted(){
-	git diff --cached --name-only --diff-filter=D "$@"
+	local -a staged_deleted_files=($(git diff --cached --name-only --diff-filter=D "$@"))
+	printf "%s\n" "${staged_deleted_files[@]}"
+  [[ -n "${staged_deleted_files[*]}" ]]
 }
 
 # # git.stagedmodified [EXPRESSION]
@@ -396,7 +401,9 @@ function git.stageddeleted(){
 # eval's `EXPRESSION` with literal `{}`.
 # Example: git.stagedmodified 'echo {}'
 function git.stagedmodified(){
-	git diff --cached --name-only --diff-filter=M "$@"
+	local -a staged_modified_files=($(git diff --cached --name-only --diff-filter=M "$@"))
+	printf "%s\n" "${staged_modified_files[@]}"
+  [[ -n "${staged_modified_files[*]}" ]]
 }
 
 # # git.deleted [EXPRESSION]
@@ -432,36 +439,18 @@ function git.deleted(){
 # eval's `EXPRESSION` with literal `{}`.
 # Example: git.stagedadded 'echo {}'
 function git.stagedadded(){
-	git --no-pager diff --cached --name-only --diff-filter=A "$@"
+	local -a staged_added_files=($(git diff --cached --name-only --diff-filter=A "$@"))
+	printf "%s\n" "${staged_added_files[@]}"
+  [[ -n "${staged_added_files[*]}" ]]
 }
 
-# # git.files-not-in [TARGET_BRANCH=origin/<MAIN_BRANCH>] [-r, --reverse]
-# Shows files not in the target branch.
-# If `-r` is provided, shows files only in the target branch.
-function git.files-not-in(){
-  # -1      Suppress printing of column 1, lines only in file1.
-  # -2      Suppress printing of column 2, lines only in file2.
-  # -3      Suppress printing of column 3, lines common to both.
-  # -i      Case insensitive comparison of lines.
-  local comm_args=(-23)
-  local target_branch="origin/$(git_main_branch)"
-  while [[ $# -gt 0 ]]; do
-    case "$1" in
-      -r|--reverse) comm_args=(-13) ;;
-      *) [[ -n "$target_branch" ]] && log.error "Unexpected argument: $1" && return 2
-         target_branch="$1" ;;
-    esac
-    shift
-  done
-  local files_in_head="$(git ls-tree -r --name-only HEAD | sort)"
-  local files_in_target="$(git ls-tree -r --name-only "$target_branch" | sort)"
-  comm "${comm_args[@]}" <(<<< "$files_in_head") <(<<< "$files_in_target")
-}
 
 # # git.committed [COMMIT_SHA=HEAD]
 # Lists the names of files that were changed in a specific commit (COMMIT_SHA or HEAD if unspecified).
 function git.committed(){
-  git diff --name-only @{upstream}..${1:-HEAD}
+  local -a committed_files=($(git diff --name-only @{upstream}..${1:-HEAD}))
+  printf "%s\n" "${committed_files[@]}"
+  [[ -n "${committed_files[*]}" ]]
 }
 
 
@@ -479,7 +468,7 @@ function git.searchfile(){
 }
 
 # # gexclude <ARG>
-# Safely adds ARG to .git/info/exclude, unless it's already/partly there.
+# Safely adds ARG to .git/info/exclude, unless it's already there.
 function gexclude(){
   _git_dir_check_maybe_cd || return 1
   local excluded
@@ -488,12 +477,6 @@ function gexclude(){
 	    log.success "$1 already excluded"
 	    return 0
 	  fi
-	  if [[ "$1" == "$excluded"* ]]; then
-      confirm "Already excluded ${Cc}${excluded}${Cc0}, which is a substring of ${Cc}${1}${Cc0}.\nContinue?" || {
-        log.success "Returning 0"
-        return 0
-      }
-    fi
 	done
   printf "\n%s\n" "$1" >> .git/info/exclude
 }
@@ -512,8 +495,8 @@ function gexcluded(){
 # Prints args for deeper git diff with ignoring whitespace and added context.
 function gdargs+(){
   print -- \
-    --unified=3 \
-    --inter-hunk-context=3 \
+    --unified=0 \
+    --inter-hunk-context=0 \
     --ignore-all-space \
     --ignore-blank-lines \
     --ignore-space-change \
@@ -828,42 +811,16 @@ function git.beforeafter(){
 
 # # git-structured-diff [STDIN DIFF] [GIT_DIFF_OPTS...] [--no-function-context]
 # Wraps blocks of changes in appropriate XML-like tags.
+# Pretty diff wrapper with per-patch tags and file-level XML tags.
+# - Suppresses git metadata lines; prints '---' + <filepath> per file and closes with </filepath>.
+# - Context lines are printed raw (no leading space). Change blocks are wrapped as:
+#   <added|deleted|modified patch start: line N|lines N-M>
+#   ...changed lines without +/- prefixes...
+#   </added|deleted|modified patch end: line N|lines N-M>
 # Example:
-# `git-structured-diff --unified=20 --inter-hunk-context=10 --no-function-context`
+# `git-structured-diff`
+# `git-structured-diff --unified=20 --inter-hunk-context=10 --no-function-context -- path/to/treeish`
 function git-structured-diff(){
-  # Pretty diff wrapper with per-patch tags and file-level XML tags.
-  # - Suppresses git metadata lines; prints '---' + <filepath> per file and closes with </filepath>.
-  # - Context lines are printed raw (no leading space). Change blocks are wrapped as:
-  #   <added|deleted|modified patch start: line N|lines N-M>
-  #   ...changed lines without +/- prefixes...
-  #   </added|deleted|modified patch end: line N|lines N-M>
-  
-  # local -a git_diff_args=($(gdargs+))
-  # echo "${git_diff_args[@]}"
-  # echo "\n"
-  # while [[ $# -gt 0 ]]; do
-  #   case "$1" in
-  #     --no-function-context) 
-  #     # Pop '--function-context' from git_diff_args
-  #     echo "\n"
-  #     echo "${git_diff_args[@]}"
-  #     local -i function_context_index=${git_diff_args[(I)'--function-context']}
-  #     echo function_context_index=$function_context_index
-  #     (( function_context_index )) && git_diff_args[$function_context_index]=()
-  #     echo "\n"
-  #     echo "${git_diff_args[@]}"
-  #     ;;
-  #     -*) git_diff_args+=("${1}") ;;
-  #     *) git_diff_args+=("$1") ;;
-  #   esac
-  #   shift
-  # done
-  # # typeset git_diff_args
-  # return
-  
-  # set -- "${git_diff_args[@]}"
-  
-  
   if ! is_piped && [[ -z "$1" ]]; then
     if is_piping || ! is_interactive; then
       log.info "No data provided and can’t ask user interactively. Defaulting to 'git --no-pager diff $(gdargs+) | $0'."
@@ -1190,6 +1147,9 @@ function git-structured-diff(){
   .parse-diff
 }
 
+
+# ------[ Log and History ]------
+
 # # git.detective --paths <PATH1,PATH2,...> --keywords <KEYWORD1,KEYWORD2,...> [--follow <PATH1,PATH2,...> (defaults to specified PATHS)] [--since <DATE> (default "1 day ago")]
 # Prints each sub-result inside XML-like tags.
 function git.detective(){
@@ -1248,148 +1208,8 @@ function git.detective(){
   done
   
 }
-# ------[ Log and History ]------
-
-# # git.my-commits [DATE] [--pretty] [--branches=<pattern>]
-# Filters current user's commits by current day and `--all` if `--branches=...` isn't provided
-# `git.my-commits "April 4"`
-function git.my-commits(){
-  # ❯ git.my-commits | py.eval 'import re; [print(commit) for commit in re.findall(r"\* commit [^*]+", stdin, re.MULTILINE)]'
-  local author
-  if ! author="$(git config user.email)"; then
-    log.fatal "failed getting user email"
-    return 1
-  fi
-  local datestr
-  if [[ "$1" && ! "$1" == -* ]]; then
-    datestr="$1"
-    shift
-  else
-    # Aug 05
-    datestr="$(date "+%b %d")"
-  fi
-  local positional=()
-  local pretty=false
-  local all=true
-  while [[ $# -gt 0 ]]; do
-    case "$1" in
-      --pretty) pretty=true ;;
-      --branches=*) all=false; positional+=("$1") ;;
-      *) positional+=("$1") ;;
-    esac
-    shift
-  done
-  set -- "${positional[@]}"
-  local day="$(($(echo "$datestr" | cut -d ' ' -f2)))"
-  local prevday=$((day - 1))
-  #  local nextday=$((day + 1))
-  local month=$(echo "$datestr" | cut -d ' ' -f1)
-
-  # --source adds 'refs/heads/rsevents-demo-aug-21' to output
-  # --decorate not sure
-  # --graph shows connections
-  # --first-parent?
-  # --online?
-  local gitlog_args=(
-    --graph
-    --author="$author"
-    --since="$month $prevday"
-    --until="$month $day"
-  )
-  $pretty && gitlog_args+=(--pretty='%Cred%h%Creset -%C(auto)%d%Creset %s %Cgreen(%cr) %C(bold blue)<%an>%Creset')
-  $all && gitlog_args+=(--all)
-  git log "${gitlog_args[@]}" "$@"
-  #git log --graph --all --decorate --source --author="$author" --since="$month $prevday" --until="$month $day" --name-only
-}
-
-# alias gl='git log --oneline --decorate --graph --all'
-# alias glg="git log --graph --pretty='%Cred%h%Creset -%C(auto)%d%Creset %s %Cgreen(%cr) %C(bold blue)<%an>%Creset' --all"
-
-# # git.blame-who [-l, --long] <WHO> [WHERE=$PWD] [GIT_BLAME_OPTS...]
-# Shows filenames blaming `WHO`.
-# `--long` also prints the lines blaming `WHO`.
-# Examples:
-# ```bash
-# git.blame-who Barnea -l --since="June 2021" | less
-# ```
-function git.blame-who(){
-	if [[ -z "$1" ]]; then
-		log.fatal "$0 expecting at least 1 arg (WHO)"
-		return 2
-	fi
-	local long=false
-	local who where
-	local git_blame_args=(
-    -w  # Ignore whitespace
-    -M  # Detect renames
-    -C  # Detect moves or copies in same commit modified files
-    #-CC  # Plus detect moves or copies in files from commit that created the file
-    #-CCC  # Plus detect moves or copies in files from all commits
-    # -e  # Show email
-	)
-	while [ $# -gt 0 ]; do
-    case "$1" in
-      -l|--long)
-        long=true ;;
-      *)
-        if [[ -z "$who" ]]; then
-            who="$1"
-        elif [[ -z "$where" ]]; then
-            where="$1"
-        else
-            git_blame_args+=("$1")
-        fi ;;
-    esac
-    shift
-  done
 
 
-  if [[ -z "$who" ]]; then
-    log.fatal "$0: Missing <WHO> argument"
-    return 2
-  fi
-	if [[ -z "$where" ]]; then
-	    where="$PWD"
-	fi
-	log.debug "who: $who | where: $where | long: $long | git_blame_args: ${git_blame_args[*]}"
-  if [[ ! -d "$where" ]]; then
-    log.fatal "Does not exist or not a directory: $where"
-    return 1
-  fi
-	local blame_output findexec
-  local findargs=()
-  if type fd &>/dev/null; then
-    findexec=fd
-    findargs+=(-H -t f . "$where")
-  else
-    # shellcheck disable=SC2209
-    findexec=find
-    findargs+=("$where" -type f)
-  fi
-  local file_path
-  local longform_python_program="import sys
-lines=sys.stdin.readlines()
-for text in lines:
-  a,b,c = text.partition('$who')
-  a1,a2,a3 = a.partition('(')
-  a=f'{a1.rstrip()} {a2}{a3}'
-  c = c.lstrip()
-  d,e,f = c.partition(')')
-  print(f'${Cd}{a}{b} {d}{e}${C0}{f}', end='')
-  "
-	"$findexec" "${findargs[@]}" | while read -r file_path; do
-		blame_output="$(git blame "${git_blame_args[@]}" -- "$file_path" 2>/dev/null)"
-    if command grep -qi "$who" <<< "$blame_output"; then
-			if $long; then
-				printf "\n\033[1;96m%s\033[0m\n" "$file_path"
-			  command grep --color=never -i "$who" <<< "$blame_output" | python3.12 -c "$longform_python_program"
-			else
-				printf "%s\n" "$file_path"
-			fi
-		fi
-
-	done
-}
 
 # ------[ Remote Operations ]------
 

@@ -160,25 +160,29 @@
     cp -a "$history_file" "$backup_file"
     log.prompt "Backed up to ${backup_file}."
     local -a python_program=(
-      "import re"
-      "import sys"
-      "with open('${history_file}', 'r+', errors='ignore') as f:"
-      "    content = f.read()"
-      "    orig_line_count = len(content.splitlines())"
-      "    filtered = re.sub(r'(?m)^.*${pattern}.*\\n', '', content)"
-      "    new_line_count = len(filtered.splitlines())"
-      "    deleted_count = orig_line_count - new_line_count"
-      "    if deleted_count == 0:"
-      "        print('No matching lines found for pattern: ${pattern}', file=sys.stderr)"
-      "        sys.exit(1)"
-      "    confirm = input('Proceed deleting ${deleted_count} lines? [y/N]: ')"
-      "    if confirm.lower().strip() not in ['y', 'yes']:"
-      "        print('Cancelled.', file=sys.stderr)"
-      "        sys.exit(1)"
-      "    f.seek(0)"
-      "    f.write(filtered)"
-      "    f.truncate()"
-      "    print(f'Deleted {deleted_count} lines from ${history_file}')"
+      "try:"
+      "    import re"
+      "    import sys"
+      "    with open('${history_file}', 'r+', errors='ignore') as f:"
+      "        content = f.read()"
+      "        orig_line_count = len(content.splitlines())"
+      "        filtered = re.sub(r'(?m)^.*${pattern}.*\\n', '', content)"
+      "        new_line_count = len(filtered.splitlines())"
+      "        deleted_count = orig_line_count - new_line_count"
+      "        if deleted_count == 0:"
+      "            print('No matching lines found for pattern: ${pattern}', file=sys.stderr)"
+      "            sys.exit(1)"
+      "        confirm = input('Proceed deleting ${deleted_count} lines? [y/N]: ')"
+      "        if confirm.lower().strip() not in ['y', 'yes']:"
+      "            print('Cancelled.', file=sys.stderr)"
+      "            sys.exit(1)"
+      "        f.seek(0)"
+      "        f.write(filtered)"
+      "        f.truncate()"
+      "        print(f'Deleted {deleted_count} lines from ${history_file}')"
+      "except Exception as e:"
+      "    print(f'Error: {e!r}', file=sys.stderr)"
+      "    sys.exit(1)"
     )
     if ! python3.13 -OBIS -c "$(printf "%s\n" "${python_program[@]}")"; then
       log.error "Python program failed. Restoring from backup."
@@ -208,24 +212,28 @@
       return 1
     }
     local -a python_program=(
-      "import re"
-      "import os"
-      "with open('$history_file', 'r+', errors='ignore') as f:"
-      "  content = re.sub(r'${1:?}', '${2:?}', f.read())"
-      "  f.seek(0)"
-      "  f.write(content)"
-      "  f.truncate()"
+      "try:"
+      "    import re"
+      "    import os"
+      "    with open('$history_file', 'r+', errors='ignore') as f:"
+      "      original_content = f.read()"
+      "      replaced_content = re.sub(r'${1:?}', '${2:?}', original_content)"
+      "      f.seek(0)"
+      "      f.write(replaced_content)"
+      "      f.truncate()"
+      "except Exception as e:"
+      "    print(f'Error: {e!r}', file=sys.stderr)"
+      "    sys.exit(1)"
     )
-    python3.13 -OBIS -c "$(printf "%s\n" "${python_program[@]}")"
-    local -a changed_lines
-    changed_lines=($(comm -3 "$history_file" "$backup_file"))
-    if [[ "${#changed_lines[@]}" -gt 0 ]]; then
-      log.success "${#changed_lines} lines were changed in $history_file."
-      return 0
-    else
-      log.warn "History file was not changed."
+    python3.13 -OBIS -c "$(printf "%s\n" "${python_program[@]}")" || {
+      log.error "Python program failed. Restoring from backup."
+      mv "$backup_file" "$history_file"
       return 1
-    fi
+    }
+    local -i original_line_count="${#${(f)$(<"$history_file")}}"
+    local -i common_lines_count="${#${(f)$(comm -3 "$history_file" "$backup_file")}}"
+    local -i modified_line_count="$((original_line_count-common_lines_count))"
+    log.success "Modified ${modified_line_count} lines in $history_file."
   }
   
   # # hoff

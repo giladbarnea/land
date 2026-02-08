@@ -603,21 +603,31 @@ function evalcat() {
 	return $?
 }
 
-# # catrange <FILE_OR_PIPE> [START] [STOP]
+# # catrange [-n] <FILE_OR_PIPE> [START] [STOP]
 # `cat` a range of lines.
 # Both START and STOP are inclusive, to allow printing one line e.g. `catrange <FILE> 42 42`
+# Use `-n` to show original line numbers (like `cat -n`, but starting from START).
 # ## Examples
 # ```bash
 # catrange init.sh 362 412
+# catrange -n init.sh 362 412   # shows line numbers 362-412
 # cat init.sh | catrange 362
 # catrange init.sh -500 -1
 # ```
 function catrange() {
-	local piped filepath relstop
-	local -i total_lines
-	local -i start
-	local -i stop
-	local -i relstop
+	local piped filepath show_numbers=false value
+	local -i total_lines start stop relstop
+	local -a args=()
+
+	# Parse -n flag from arguments
+	for arg in "$@"; do
+		if [[ $arg == "-n" ]]; then
+			show_numbers=true
+		else
+			args+=("$arg")
+		fi
+	done
+	set -- "${args[@]}"
 
 	# Check if input is piped or from a file
 	if ! is_piped; then
@@ -641,14 +651,25 @@ function catrange() {
 
 		# Count total lines in the file
 		total_lines=$(wc -l < "$filepath")
+
+		# If -n, pre-number and treat as piped from here on
+		if $show_numbers; then
+			value=$(cat -n "$filepath")
+			piped=true
+		fi
 	else
-		local value="$(<&0)"
+		value="$(<&0)"
 		piped=true
 		start="$1"
 		stop="$2"
 
 		# Count total lines from pipe
 		total_lines=$(wc -l <<< "$value")
+
+		# If -n, pre-number the content
+		if $show_numbers; then
+			value=$(nl -ba -w 6 <<< "$value")
+		fi
 	fi
 
 	# Convert negative indices to positive
@@ -666,7 +687,7 @@ function catrange() {
 
 	# If no start is provided, cat entire input and return
 	if [[ -z $start ]]; then
-		if "$piped"; then
+		if $piped; then
 			printf "%s" "$value"
 		else
 			cat "$filepath"
@@ -681,7 +702,7 @@ function catrange() {
 			return 1
 		fi
 		relstop=$((stop - start + 1))
-		if [[ $piped = true ]]; then
+		if $piped; then
 			tail +${start} <<< "$value" | head -${relstop}
 		else
 			tail +${start} "$filepath" | head -${relstop}
@@ -690,8 +711,8 @@ function catrange() {
 	fi
 
 	# If only start is provided, tail from that line to the end
-	if [[ $piped = true ]]; then
-		tail +${start} <&0
+	if $piped; then
+		tail +${start} <<< "$value"
 	else
 		tail +${start} "$filepath"
 	fi

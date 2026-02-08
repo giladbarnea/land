@@ -67,9 +67,62 @@ alias ca=cursor-agent
 alias claudeo='() { if [[ -f ~/.claude-code-oauth-token ]]; then CLAUDE_CODE_OAUTH_TOKEN=$(<~/.claude-code-oauth-token) claude --model=opus --dangerously-skip-permissions "$@"; else ANTHROPIC_API_KEY=$(<~/.anthropic-api-key-hearai-gilad-local-dev) claude --model=opus --dangerously-skip-permissions "$@"; fi ; }'
 alias claudes='() { if [[ -f ~/.claude-code-oauth-token ]]; then CLAUDE_CODE_OAUTH_TOKEN=$(<~/.claude-code-oauth-token) claude --model=sonnet --dangerously-skip-permissions "$@"; else ANTHROPIC_API_KEY=$(<~/.anthropic-api-key-hearai-gilad-local-dev) claude --model=sonnet --dangerously-skip-permissions "$@"; fi ; }'
 alias claudeh='() { if [[ -f ~/.claude-code-oauth-token ]]; then CLAUDE_CODE_OAUTH_TOKEN=$(<~/.claude-code-oauth-token) claude --model=haiku --dangerously-skip-permissions "$@"; else ANTHROPIC_API_KEY=$(<~/.anthropic-api-key-hearai-gilad-local-dev) claude --model=haiku --dangerously-skip-permissions "$@"; fi ; }'
+alias claudeon='claudeo --no-session-persistence -p'
+alias claudesn='claudes --no-session-persistence -p'
+alias claudehn='claudeh --no-session-persistence -p'
 alias codexd='codex --dangerously-bypass-approvals-and-sandbox --search'
-alias geminiy='() { GEMINI_API_KEY=$(<~/.gemini-api-key-vertex-hear-dev) gemini --yolo --model=gemini-3-pro-preview "$@"; }'
-alias geminif='() { GEMINI_API_KEY=$(<~/.gemini-api-key-vertex-hear-dev) gemini --model=gemini-3-flash-preview "$@" ; }'
+
+function _gemini() {
+	local -a args_besides_prompt=()
+	local full_prompt
+	local specified_interactive_flag=false
+	local specified_noninteractive_flag=false
+	local running_interactively=true
+	while [[ "${#}" -gt 0 ]]; do
+		if [[ "$1" = -* ]]; then
+			args_besides_prompt+=("$1")
+			if [[ "$1" = -i || "$1" = --prompt-interactive ]]; then
+				specified_interactive_flag=true
+			fi
+			if [[ "$1" = -p || "$1" = --prompt ]]; then
+				specified_noninteractive_flag=true
+				running_interactively=false
+			fi
+			shift
+			continue
+		fi
+		if [[ -n "$full_prompt" ]]; then
+		  log.warn "More than one positional argument was specified. Adding the current one to the prompt: $(shorten "$1" -m 30)"
+		  full_prompt="$(printf "%s\n%s" "$full_prompt" "$1")"
+		else
+			full_prompt="$1"
+		fi
+		shift
+	done
+	if is_piped; then
+		local stdin="$(cat)"
+		if [[ -n "$stdin" ]]; then
+			log.debug 'piped and not empty'
+			full_prompt="$(printf "%s\n%s" "$stdin" "$full_prompt")"
+			if [[ "$specified_interactive_flag" = false && "$specified_noninteractive_flag" = false ]]; then
+			    args_besides_prompt+=(-i)
+			fi
+		fi
+	fi
+	if [[ "$running_interactively" = true ]]; then
+		GEMINI_API_KEY=$(<~/.gemini-api-key-vertex-hear-dev) gemini "${args_besides_prompt[@]}" "$full_prompt" < /dev/tty
+	else
+	    log.debug 'running non-interactively'
+		GEMINI_API_KEY=$(<~/.gemini-api-key-vertex-hear-dev) gemini "${args_besides_prompt[@]}" "$full_prompt" 2>&1 < /dev/tty \
+			| grep -v -E 'DEP0040|to show where the warning|YOLO mode is enabled|Both GOOGLE_API_KEY|Hook registry initialized'
+	fi
+}
+function geminip() {
+	_gemini --yolo --model=gemini-3-pro-preview "$@"
+}
+function geminif() {
+	_gemini --yolo --model=gemini-3-flash-preview "$@"
+}
 alias fdd='fd -t d'
 alias fdf='fd -t f'
 alias ds=docstring
@@ -79,6 +132,7 @@ compdef _open o
 alias f=fd
 alias r=rg
 alias l=less
+alias g=grep
 alias typora='open -b abnerworks.Typora'
 alias jqc='jq --color-output'
 alias cn=codanna

@@ -498,14 +498,27 @@ function shorten(){
 		print -- "$string"
 		return 0
 	}
-  local -i max_prefix_length=$(((max_length-7)*(2/3)))
-	local -i max_suffix_length=$(((max_length-7)*(1/3)))
-	# shellcheck disable=SC2079
-	local -i prefix_length=$(((str_length*1.5) - 7 < max_prefix_length ? str_length : max_prefix_length))
-	local -i suffix_length=$(((str_length*3) - 7 < max_suffix_length ? str_length : max_suffix_length))
+
+	# The separator " [...] " is 7 chars
+	local -i separator_length=7
+
+	# If max_length is too small to fit separator + at least 2 chars, just truncate
+	if [[ "$max_length" -lt $((separator_length + 2)) ]]; then
+		print -- "${string[1,$max_length]}"
+		return 0
+	fi
+
+	# Available space for prefix + suffix
+	local -i available=$((max_length - separator_length))
+
+	# Split 2/3 for prefix, 1/3 for suffix (at least 1 char each)
+	local -i prefix_length=$((available * 2 / 3))
+	local -i suffix_length=$((available - prefix_length))
+	[[ "$prefix_length" -lt 1 ]] && prefix_length=1
+	[[ "$suffix_length" -lt 1 ]] && suffix_length=1
+
 	local prefix="${string[1,${prefix_length}]}"
-	local rsuffix_length="$((-suffix_length))"
-	local suffix="${string[${rsuffix_length},-1]}"
+	local suffix="${string[-${suffix_length},-1]}"
 	if [[ "$string" == *$'\n'* || "$suffix" == *$'\n'* ]]; then
 		print -- "${prefix}\n[...]\n${suffix}"
 	else
