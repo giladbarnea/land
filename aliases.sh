@@ -62,15 +62,29 @@ hash -d ob="$HOME/Documents/remote"
 # ----------------------
 alias b=bat
 alias c=command
-alias cb='clawdbot'
+alias oc='openclaw'
 alias ca=cursor-agent
+
 alias claudeo='() { if [[ -f ~/.claude-code-oauth-token ]]; then CLAUDE_CODE_OAUTH_TOKEN=$(<~/.claude-code-oauth-token) claude --model=opus --dangerously-skip-permissions "$@"; else ANTHROPIC_API_KEY=$(<~/.anthropic-api-key-hearai-gilad-local-dev) claude --model=opus --dangerously-skip-permissions "$@"; fi ; }'
+compdef _claude claudeo
+
 alias claudes='() { if [[ -f ~/.claude-code-oauth-token ]]; then CLAUDE_CODE_OAUTH_TOKEN=$(<~/.claude-code-oauth-token) claude --model=sonnet --dangerously-skip-permissions "$@"; else ANTHROPIC_API_KEY=$(<~/.anthropic-api-key-hearai-gilad-local-dev) claude --model=sonnet --dangerously-skip-permissions "$@"; fi ; }'
+compdef _claude claudes
+
 alias claudeh='() { if [[ -f ~/.claude-code-oauth-token ]]; then CLAUDE_CODE_OAUTH_TOKEN=$(<~/.claude-code-oauth-token) claude --model=haiku --dangerously-skip-permissions "$@"; else ANTHROPIC_API_KEY=$(<~/.anthropic-api-key-hearai-gilad-local-dev) claude --model=haiku --dangerously-skip-permissions "$@"; fi ; }'
+compdef _claude claudeh
+
 alias claudeon='claudeo --no-session-persistence -p'
+compdef _claude claudeon
+
 alias claudesn='claudes --no-session-persistence -p'
+compdef _claude claudesn
+
 alias claudehn='claudeh --no-session-persistence -p'
+compdef _claude claudehn
+
 alias codexd='codex --dangerously-bypass-approvals-and-sandbox --search'
+compdef _codex codexd
 
 function _gemini() {
 	local -a args_besides_prompt=()
