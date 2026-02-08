@@ -62,3 +62,24 @@ Therefore, good example scripts are:
 Perhaps unintuitively bad examples scripts are:
 - _git: created date in the oldest bin
 - _ruff: created date in the oldest bin AND auto-generated (360kb)
+
+### Know all the subcommands, options, and their sub-subcommands and options before writing the script
+
+Recursively traverse the tool's `--help` pages down to the leaves.
+E.g., `claude --help | tee -a /tmp/claude-help-all.txt` reveals (truncated):
+
+```
+Usage: claude [options] [command] [prompt]
+Arguments:
+  prompt                                            Your prompt
+
+Options:
+  --add-dir <directories...>                        Additional directories to allow tool
+
+Commands:
+  plugin                                            Manage Claude Code plugins
+  mcp                                               Configure and manage MCP servers
+```
+
+Therefore, immediately run `claude plugin --help | tee -a /tmp/claude-help-all.txt` and `claude mcp --help | tee -a /tmp/claude-help-all.txt`.
+`claude plugin --help` will itself reveal more subcommands (`claude plugin marketplace`), which in turn also have nested subcommands (`claude plugin marketplace list`), and so on. Traverse exhaust the whole tree breadth-first to cultivate a complete help-all file. Only then apply the best practices in `_gemini` to the current situation and proceed to implement.
