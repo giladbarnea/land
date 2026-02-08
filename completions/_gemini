@@ -1,337 +1,254 @@
 #compdef gemini
 
-autoload -U is-at-least
-
 _gemini() {
-    typeset -A opt_args
-    typeset -a _arguments_options
-    local ret=1
+  local curcontext="$curcontext" state line
+  local -i ret=1
+  typeset -A opt_args
 
-    if is-at-least 5.2; then
-        _arguments_options=(-s -S -C)
-    else
-        _arguments_options=(-s -C)
-    fi
+  local -a args=(
+    '(-d --debug)'{-d,--debug}'[Run in debug mode (open debug console with F12)]'
+    '(-m --model)'{-m,--model}'=[Model]:MODEL:_default'
+    '(-p --prompt)'{-p,--prompt}'=[Run in non-interactive (headless) mode with the given prompt]:PROMPT:_default'
+    '(-i --prompt-interactive)'{-i,--prompt-interactive}'=[Execute the provided prompt and continue in interactive mode]:PROMPT:_default'
+    '(-s --sandbox)'{-s,--sandbox}'[Run in sandbox?]'
+    '(-y --yolo)'{-y,--yolo}'[Automatically accept all actions (aka YOLO mode)]'
+    '--approval-mode=[Set the approval mode]:MODE:(default auto_edit yolo plan)'
+    '--experimental-acp[Starts the agent in ACP mode]'
+    '*--allowed-mcp-server-names=[Allowed MCP server names]:NAME:_default'
+    '*--allowed-tools=[Tools that are allowed to run without confirmation]:TOOL:_default'
+    '*'{-e,--extensions}'=[A list of extensions to use. If not provided, all extensions are used]:EXTENSION:_default'
+    '(-l --list-extensions)'{-l,--list-extensions}'[List all available extensions and exit]'
+    '(-r --resume)'{-r,--resume}'=[Resume a previous session]:SESSION_ID:_default'
+    '--list-sessions[List available sessions for the current project and exit]'
+    '--delete-session=[Delete a session by index number]:SESSION_INDEX:_default'
+    '*--include-directories=[Additional directories to include in the workspace]:DIR:_files -/'
+    '--screen-reader[Enable screen reader mode for accessibility]'
+    '(-o --output-format)'{-o,--output-format}'=[The format of the CLI output]:FORMAT:(text json stream-json)'
+    '--raw-output[Disable sanitization of model output (e.g. allow ANSI escape sequences)]'
+    '--accept-raw-output-risk[Suppress the security warning when using --raw-output]'
+    '(-v --version)'{-v,--version}'[Show version number]'
+    '(-h --help)'{-h,--help}'[Show help]'
+  )
 
-    local -a args=(
-        '(-d --debug)'{-d,--debug}'[Run in debug mode (open debug console with F12)]'
-        '(-m --model)'{-m,--model}'=[Model]:MODEL:_default'
-        '(-p --prompt)'{-p,--prompt}'=[Run in non-interactive (headless) mode with the given prompt]:PROMPT:_default'
-        '(-i --prompt-interactive)'{-i,--prompt-interactive}'=[Execute the provided prompt and continue in interactive mode]:PROMPT:_default'
-        '(-s --sandbox)'{-s,--sandbox}'[Run in sandbox?]'
-        '(-y --yolo)'{-y,--yolo}'[Automatically accept all actions (aka YOLO mode)]'
-        '--approval-mode=[Set the approval mode]:MODE:(default auto_edit yolo plan)'
-        '--experimental-acp[Starts the agent in ACP mode]'
-        '*--allowed-mcp-server-names=[Allowed MCP server names]:NAME:_default'
-        '*--allowed-tools=[Tools that are allowed to run without confirmation]:TOOL:_default'
-        '*'{-e,--extensions}'=[A list of extensions to use. If not provided, all extensions are used]:EXTENSION:_default'
-        '(-l --list-extensions)'{-l,--list-extensions}'[List all available extensions and exit]'
-        '(-r --resume)'{-r,--resume}'=[Resume a previous session]:SESSION_ID:_default'
-        '--list-sessions[List available sessions for the current project and exit]'
-        '--delete-session=[Delete a session by index number]:SESSION_INDEX:_default'
-        '*--include-directories=[Additional directories to include in the workspace]:DIR:_files -/'
-        '--screen-reader[Enable screen reader mode for accessibility]'
-        '(-o --output-format)'{-o,--output-format}'=[The format of the CLI output]:FORMAT:(text json stream-json)'
-        '--raw-output[Disable sanitization of model output (e.g. allow ANSI escape sequences)]'
-        '--accept-raw-output-risk[Suppress the security warning when using --raw-output]'
-        '(-v --version)'{-v,--version}'[Show version number]'
-        '(-h --help)'{-h,--help}'[Show help]'
-        '::query -- Initial prompt. Runs in interactive mode by default; use -p/--prompt for non-interactive:_default'
-        ":: :_gemini_commands"
-        "*::: :->subcmd"
-    )
+  local -a subcommands=(
+    'mcp:Manage MCP servers'
+    'extensions:Manage Gemini CLI extensions'
+    'skills:Manage agent skills'
+    'hooks:Manage Gemini CLI hooks'
+  )
 
-    local context curcontext="$curcontext" state line
-    _arguments "${_arguments_options[@]}" "${args[@]}" && ret=0
+  _arguments -C \
+    "${args[@]}" \
+    '1: :->subcmd' \
+    '*:: :->args' && ret=0
 
-    case $state in
+  case $state in
     (subcmd)
-        words=($line[1] "${words[@]}")
-        (( CURRENT += 1 ))
-        curcontext="${curcontext%:*:*}:gemini-command-$line[1]:"
-        case $line[1] in
-            (mcp) _gemini_mcp ;;
-            (extensions|extension) _gemini_extensions ;;
-            (skills|skill) _gemini_skills ;;
-            (hooks|hook) _gemini_hooks ;;
-        esac
-    ;;
-    esac
-    return ret
+      _describe -t subcommands 'gemini commands' subcommands
+      _default
+      ;;
+    (args)
+      case $line[1] in
+        (mcp)
+          _gemini:mcp
+          ret=$?
+          ;;
+        (extensions|extension)
+          _gemini:extensions
+          ret=$?
+          ;;
+        (skills|skill)
+          _gemini:skills
+          ret=$?
+          ;;
+        (hooks|hook)
+          _gemini:hooks
+          ret=$?
+          ;;
+        (*)
+          _default
+          ;;
+      esac
+      ;;
+  esac
+
+  return $ret
 }
 
-(( $+functions[_gemini_commands] )) ||
-_gemini_commands() {
-    local commands; commands=(
-        'mcp:Manage MCP servers'
-        'extensions:Manage Gemini CLI extensions'
-        'skills:Manage agent skills'
-        'hooks:Manage Gemini CLI hooks'
-    )
-    _describe -t commands 'gemini commands' commands "$@"
-}
+_gemini:mcp() {
+  local -a mcp_subcommands=(
+    'add:Add a server'
+    'remove:Remove a server'
+    'list:List all configured MCP servers'
+    'enable:Enable an MCP server'
+    'disable:Disable an MCP server'
+  )
 
-_gemini_mcp() {
-    local context curcontext="$curcontext" state line
-    local -a args=(
-        '(-d --debug)'{-d,--debug}'[Run in debug mode]'
-        '(-h --help)'{-h,--help}'[Show help]'
-        ":: :_gemini_mcp_commands"
-        "*::: :->subcmd"
-    )
-    _arguments "${_arguments_options[@]}" "${args[@]}" && return 0
+  _arguments -C \
+    '(-d --debug)'{-d,--debug}'[Run in debug mode]' \
+    '(-h --help)'{-h,--help}'[Show help]' \
+    "1: :->subcmd" \
+    "*:: :->args"
 
-    case $state in
+  case $state in
     (subcmd)
-        words=($line[1] "${words[@]}")
-        (( CURRENT += 1 ))
-        curcontext="${curcontext%:*:*}:gemini-mcp-command-$line[1]:"
-        case $line[1] in
-            (add)
-                local -a subargs=(
-                    ':name: '
-                    ':commandOrUrl: '
-                    '*:args: '
-                )
-                _arguments "${_arguments_options[@]}" "${subargs[@]}"
-                ;;
-            (remove)
-                local -a subargs=(
-                    ':name: '
-                )
-                _arguments "${_arguments_options[@]}" "${subargs[@]}"
-                ;;
-            (list)
-                _arguments "${_arguments_options[@]}"
-                ;;
-            (enable)
-                local -a subargs=(
-                    ':name: '
-                )
-                _arguments "${_arguments_options[@]}" "${subargs[@]}"
-                ;;
-            (disable)
-                local -a subargs=(
-                    ':name: '
-                )
-                _arguments "${_arguments_options[@]}" "${subargs[@]}"
-                ;;
-        esac
-        ;;
-    esac
+      _describe -t subcommands 'gemini mcp commands' mcp_subcommands
+      ;;
+    (args)
+      case $line[1] in
+        (add)
+          _arguments -C \
+            ':name: ' \
+            ':commandOrUrl: ' \
+            '*:args: '
+          ;;
+        (remove|enable|disable)
+          _arguments -C \
+            ':name: '
+          ;;
+        (list)
+          _arguments -C
+          ;;
+      esac
+      ;;
+  esac
 }
 
-(( $+functions[_gemini_mcp_commands] )) ||
-_gemini_mcp_commands() {
-    local commands; commands=(
-        'add:Add a server'
-        'remove:Remove a server'
-        'list:List all configured MCP servers'
-        'enable:Enable an MCP server'
-        'disable:Disable an MCP server'
-    )
-    _describe -t commands 'gemini mcp commands' commands "$@"
-}
+_gemini:extensions() {
+  local -a extensions_subcommands=(
+    'install:Installs an extension from a git repository URL or a local path'
+    'uninstall:Uninstalls one or more extensions'
+    'list:Lists installed extensions'
+    'update:Updates all extensions or a named extension to the latest version'
+    'disable:Disables an extension'
+    'enable:Enables an extension'
+    'link:Links an extension from a local path'
+    'new:Create a new extension from a boilerplate example'
+    'validate:Validates an extension from a local path'
+    'config:Configure extension settings'
+  )
 
-_gemini_extensions() {
-    local context curcontext="$curcontext" state line
-    local -a args=(
-        '(-d --debug)'{-d,--debug}'[Run in debug mode]'
-        '(-h --help)'{-h,--help}'[Show help]'
-        ":: :_gemini_extensions_commands"
-        "*::: :->subcmd"
-    )
-    _arguments "${_arguments_options[@]}" "${args[@]}" && return 0
+  _arguments -C \
+    '(-d --debug)'{-d,--debug}'[Run in debug mode]' \
+    '(-h --help)'{-h,--help}'[Show help]' \
+    "1: :->subcmd" \
+    "*:: :->args"
 
-    case $state in
+  case $state in
     (subcmd)
-        words=($line[1] "${words[@]}")
-        (( CURRENT += 1 ))
-        curcontext="${curcontext%:*:*}:gemini-extensions-command-$line[1]:"
-        case $line[1] in
-            (install)
-                local -a subargs=(
-                    '--auto-update[Auto update extension]'
-                    '--pre-release[Install pre-release version]'
-                    ':source: '
-                )
-                _arguments "${_arguments_options[@]}" "${subargs[@]}"
-                ;;
-            (uninstall)
-                local -a subargs=(
-                    '*:names: '
-                )
-                _arguments "${_arguments_options[@]}" "${subargs[@]}"
-                ;;
-            (list)
-                _arguments "${_arguments_options[@]}"
-                ;;
-            (update)
-                local -a subargs=(
-                    '--all[Update all extensions]'
-                    ':name: '
-                )
-                _arguments "${_arguments_options[@]}" "${subargs[@]}"
-                ;;
-            (disable)
-                local -a subargs=(
-                    '--scope=[Scope]:SCOPE:(user project)'
-                    ':name: '
-                )
-                _arguments "${_arguments_options[@]}" "${subargs[@]}"
-                ;;
-            (enable)
-                local -a subargs=(
-                    '--scope=[Scope]:SCOPE:(user project)'
-                    ':name: '
-                )
-                _arguments "${_arguments_options[@]}" "${subargs[@]}"
-                ;;
-            (link)
-                local -a subargs=(
-                    ':path:_files -/'
-                )
-                _arguments "${_arguments_options[@]}" "${subargs[@]}"
-                ;;
-            (new)
-                local -a subargs=(
-                    ':path:_files -/'
-                    ':template: '
-                )
-                _arguments "${_arguments_options[@]}" "${subargs[@]}"
-                ;;
-            (validate)
-                local -a subargs=(
-                    ':path:_files -/'
-                )
-                _arguments "${_arguments_options[@]}" "${subargs[@]}"
-                ;;
-            (config)
-                local -a subargs=(
-                    ':name: '
-                    ':setting: '
-                )
-                _arguments "${_arguments_options[@]}" "${subargs[@]}"
-                ;;
-        esac
-        ;;
-    esac
+      _describe -t subcommands 'gemini extensions commands' extensions_subcommands
+      ;;
+    (args)
+      case $line[1] in
+        (install)
+          _arguments -C \
+            '--auto-update[Auto update extension]' \
+            '--pre-release[Install pre-release version]' \
+            ':source: '
+          ;;
+        (uninstall)
+          _arguments -C \
+            '*:names: '
+          ;;
+        (list)
+          _arguments -C
+          ;;
+        (update)
+          _arguments -C \
+            '--all[Update all extensions]' \
+            ':name: '
+          ;;
+        (disable|enable)
+          _arguments -C \
+            '--scope=[Scope]:SCOPE:(user project)' \
+            ':name: '
+          ;;
+        (link|new|validate)
+          _arguments -C \
+            ':path:_files -/'
+          ;;
+        (config)
+          _arguments -C \
+            ':name: ' \
+            ':setting: '
+          ;;
+      esac
+      ;;
+  esac
 }
 
-(( $+functions[_gemini_extensions_commands] )) ||
-_gemini_extensions_commands() {
-    local commands; commands=(
-        'install:Installs an extension from a git repository URL or a local path'
-        'uninstall:Uninstalls one or more extensions'
-        'list:Lists installed extensions'
-        'update:Updates all extensions or a named extension to the latest version'
-        'disable:Disables an extension'
-        'enable:Enables an extension'
-        'link:Links an extension from a local path'
-        'new:Create a new extension from a boilerplate example'
-        'validate:Validates an extension from a local path'
-        'config:Configure extension settings'
-    )
-    _describe -t commands 'gemini extensions commands' commands "$@"
-}
+_gemini:skills() {
+  local -a skills_subcommands=(
+    'list:Lists discovered agent skills'
+    'enable:Enables an agent skill'
+    'disable:Disables an agent skill'
+    'install:Installs an agent skill from a git repository URL or a local path'
+    'uninstall:Uninstalls an agent skill by name'
+  )
 
-_gemini_skills() {
-    local context curcontext="$curcontext" state line
-    local -a args=(
-        '(-d --debug)'{-d,--debug}'[Run in debug mode]'
-        '(-h --help)'{-h,--help}'[Show help]'
-        ":: :_gemini_skills_commands"
-        "*::: :->subcmd"
-    )
-    _arguments "${_arguments_options[@]}" "${args[@]}" && return 0
+  _arguments -C \
+    '(-d --debug)'{-d,--debug}'[Run in debug mode]' \
+    '(-h --help)'{-h,--help}'[Show help]' \
+    "1: :->subcmd" \
+    "*:: :->args"
 
-    case $state in
+  case $state in
     (subcmd)
-        words=($line[1] "${words[@]}")
-        (( CURRENT += 1 ))
-        curcontext="${curcontext%:*:*}:gemini-skills-command-$line[1]:"
-        case $line[1] in
-            (list)
-                local -a subargs=(
-                    '--all[List all skills]'
-                )
-                _arguments "${_arguments_options[@]}" "${subargs[@]}"
-                ;;
-            (enable)
-                local -a subargs=(
-                    ':name: '
-                )
-                _arguments "${_arguments_options[@]}" "${subargs[@]}"
-                ;;
-            (disable)
-                local -a subargs=(
-                    '--scope=[Scope]:SCOPE:(user project)'
-                    ':name: '
-                )
-                _arguments "${_arguments_options[@]}" "${subargs[@]}"
-                ;;
-            (install)
-                local -a subargs=(
-                    '--scope=[Scope]:SCOPE:(user project)'
-                    '--path[Install from local path]'
-                    ':source: '
-                )
-                _arguments "${_arguments_options[@]}" "${subargs[@]}"
-                ;;
-            (uninstall)
-                local -a subargs=(
-                    '--scope=[Scope]:SCOPE:(user project)'
-                    ':name: '
-                )
-                _arguments "${_arguments_options[@]}" "${subargs[@]}"
-                ;;
-        esac
-        ;;
-    esac
+      _describe -t subcommands 'gemini skills commands' skills_subcommands
+      ;;
+    (args)
+      case $line[1] in
+        (list)
+          _arguments -C \
+            '--all[List all skills]'
+          ;;
+        (enable)
+          _arguments -C \
+            ':name: '
+          ;;
+        (disable|uninstall)
+          _arguments -C \
+            '--scope=[Scope]:SCOPE:(user project)' \
+            ':name: '
+          ;;
+        (install)
+          _arguments -C \
+            '--scope=[Scope]:SCOPE:(user project)' \
+            '--path[Install from local path]' \
+            ':source: '
+          ;;
+      esac
+      ;;
+  esac
 }
 
-(( $+functions[_gemini_skills_commands] )) ||
-_gemini_skills_commands() {
-    local commands; commands=(
-        'list:Lists discovered agent skills'
-        'enable:Enables an agent skill'
-        'disable:Disables an agent skill'
-        'install:Installs an agent skill from a git repository URL or a local path'
-        'uninstall:Uninstalls an agent skill by name'
-    )
-    _describe -t commands 'gemini skills commands' commands "$@"
-}
+_gemini:hooks() {
+  local -a hooks_subcommands=(
+    'migrate:Migrate hooks from Claude Code to Gemini CLI'
+  )
 
-_gemini_hooks() {
-    local context curcontext="$curcontext" state line
-    local -a args=(
-        '(-d --debug)'{-d,--debug}'[Run in debug mode]'
-        '(-h --help)'{-h,--help}'[Show help]'
-        ":: :_gemini_hooks_commands"
-        "*::: :->subcmd"
-    )
-    _arguments "${_arguments_options[@]}" "${args[@]}" && return 0
+  _arguments -C \
+    '(-d --debug)'{-d,--debug}'[Run in debug mode]' \
+    '(-h --help)'{-h,--help}'[Show help]' \
+    "1: :->subcmd" \
+    "*:: :->args"
 
-    case $state in
+  case $state in
     (subcmd)
-        words=($line[1] "${words[@]}")
-        (( CURRENT += 1 ))
-        curcontext="${curcontext%:*:*}:gemini-hooks-command-$line[1]:"
-        case $line[1] in
-            (migrate)
-                _arguments "${_arguments_options[@]}"
-                ;;
-        esac
-        ;;
-    esac
+      _describe -t subcommands 'gemini hooks commands' hooks_subcommands
+      ;;
+    (args)
+      case $line[1] in
+        (migrate)
+          _arguments -C
+          ;;
+      esac
+      ;;
+  esac
 }
 
-(( $+functions[_gemini_hooks_commands] )) ||
-_gemini_hooks_commands() {
-    local commands; commands=(
-        'migrate:Migrate hooks from Claude Code to Gemini CLI'
-    )
-    _describe -t commands 'gemini hooks commands' commands "$@"
-}
-
-_gemini "$@"
+if [ "${funcstack[1]}" = "_gemini" ]; then
+    _gemini "$@"
+else
+    compdef _gemini gemini
+fi
