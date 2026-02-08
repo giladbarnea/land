@@ -26,6 +26,7 @@ As of Feb 08, 2026, this is the script's output:
 ```
 │ File       │ Created                   │ Modified                  │
 │ ────────── │ ───────────────────────── │ ───────────────────────── │
+│ _gemini    │ 2026-02-08T09:51:15+02:00 │ 2026-02-08T11:09:58+02:00 │
 │ _codex     │ 2026-02-08T08:44:51+02:00 │ 2026-02-08T08:44:51+02:00 │
 │ _claude    │ 2026-01-27T13:07:39+02:00 │ 2026-01-27T13:07:39+02:00 │
 │ _opencode  │ 2026-01-27T12:37:51+02:00 │ 2026-01-27T12:37:51+02:00 │
@@ -50,11 +51,9 @@ As of Feb 08, 2026, this is the script's output:
 ```
 
 Therefore, good example scripts are:
-- _codex: most recently created AND updated
-- _claude: very recently created AND updated
-- _opencode: recently created AND updated
-- _codanna: recently created AND updated
-- _scraping: recently created AND updated
+- _gemini: most recently created AND updated. I'm signing here that it's the best script in this directory
+- _codex: very recently created AND updated
+- _claude: recently created AND updated
 
 Perhaps unintuitively bad examples scripts are:
 - _git: created date in the oldest bin
