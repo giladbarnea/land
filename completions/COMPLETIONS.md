@@ -22,10 +22,11 @@ for file in "${scripts[@]}"; do
 done | sort -k4,4r -k6,6r;
 ```
 
-As of Jan 27, 2026, this is the script's output:
+As of Feb 08, 2026, this is the script's output:
 ```
 │ File       │ Created                   │ Modified                  │
 │ ────────── │ ───────────────────────── │ ───────────────────────── │
+│ _codex     │ 2026-02-08T08:44:51+02:00 │ 2026-02-08T08:44:51+02:00 │
 │ _claude    │ 2026-01-27T13:07:39+02:00 │ 2026-01-27T13:07:39+02:00 │
 │ _opencode  │ 2026-01-27T12:37:51+02:00 │ 2026-01-27T12:37:51+02:00 │
 │ _codanna   │ 2026-01-13T17:10:52+02:00 │ 2026-01-13T19:45:15+02:00 │
@@ -49,7 +50,8 @@ As of Jan 27, 2026, this is the script's output:
 ```
 
 Therefore, good example scripts are:
-- _claude: most recently created AND updated
+- _codex: most recently created AND updated
+- _claude: very recently created AND updated
 - _opencode: recently created AND updated
 - _codanna: recently created AND updated
 - _scraping: recently created AND updated
