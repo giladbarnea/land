@@ -2380,7 +2380,7 @@ function llm-what-changed(){
 function llm-setup(){
 	local llm_install_output
 	local -i llm_install_exitcode
-	local -a llm_plugins=( llm-{openai-plugin,gemini,anthropic,perplexity,jq,xai,cmd,python,cluster,fragments-github,fragments-reader,tools-quickjs,pdf-to-images,video-frames,fragments-symbex,whisper-api,fragments-youtube} )
+	local -a llm_plugins=( llm-{openai-plugin,gemini,anthropic,perplexity,jq,xai,cmd,python,cluster,fragments-site-text,fragments-reader,fragments-github,fragments-reader,fragments-pdf,fragments-symbex,tools-quickjs,pdf-to-images,video-frames,whisper-api,fragments-youtube} )
 	command llm install -U llm ${llm_plugins[@]}
 }
 
