@@ -1399,6 +1399,7 @@ function git.tmr(){
   echo "" > /tmp/repostatuses.txt;
   fd --type d --hidden '^\.git$' --max-depth=15 --exec zsh -ic '
     repo="$(dirname "{}")"
+    repo_header=$'\''\033[1m'\''"$repo"$'\''\033[0m'\''
     
     # Skip certain directories
     case "$repo" in
@@ -1412,22 +1413,40 @@ function git.tmr(){
         return
         ;;
     esac
+    {
+      echo ""
+      echo "$repo_header"
+      echo "$repo"
+    } >> /tmp/repostatuses.txt
+    echo ""
+    echo "$repo_header"
+
     if ! builtin cd "$repo"; then
-      echo "❌ $repo N/A" | tee -a /tmp/repostatuses.txt
+      echo "❌ N/A (cannot cd)" | tee -a /tmp/repostatuses.txt
       return 1
     fi
-    git fetch --all
+    local fetch_output fetch_exit_code
+    fetch_output="$(git fetch --all 2>&1)"
+    fetch_exit_code=$?
+    if [[ -n "$fetch_output" ]]; then
+      while IFS= read -r line; do
+        echo "  ▍ $line" | tee -a /tmp/repostatuses.txt
+      done <<< "$fetch_output"
+    fi
+
     git_status_output="$(git status 2>&1)"
     
     # Outgoing:
     local has_uncommitted_changes=false
+    local status_unknown=false
     if grep -q -E "Changes not staged for commit:|Untracked files:|use \"git add\" and/or \"git commit -a\"" <<< "$git_status_output"; then
       has_uncommitted_changes=true
     elif grep -q "nothing to commit, working tree clean" <<< "$git_status_output"; then
       :
     else
+      status_unknown=true
       {
-        echo "❔ $repo N/A"
+        echo "❔ N/A (unrecognized git status output)"
         for line in "${(f)git_status_output}"; do
             mdquote "$line"
         done
@@ -1443,6 +1462,15 @@ function git.tmr(){
       is_ahead=true
     fi
     
+    if [[ "$fetch_exit_code" -ne 0 ]]; then
+      echo "❌ FETCH FAILED" | tee -a /tmp/repostatuses.txt
+      return "$fetch_exit_code"
+    fi
+
+    if $status_unknown; then
+      return 1
+    fi
+
     local message
     if $has_uncommitted_changes; then
       message+="CHANGES ⬆ "
@@ -1455,9 +1483,9 @@ function git.tmr(){
     fi
     
     if [[ -n "$message" ]]; then
-      message="*️⃣ $repo $message"
+      message="*️⃣ $message"
     else
-      message="✅ $repo OK"
+      message="✅ OK"
     fi
     echo "$message" | tee -a /tmp/repostatuses.txt
   ' \;
