@@ -77,17 +77,33 @@ function resolve(){
   return 1
 }
 
-# # tree [PATH=.]
-# Prints a simple visual recursive file tree.
+# # tree [-u/--no-git-ignore] [PATH=.]
+# Prints a simple visual recursive file tree, respecting git ignore.
+# If -u or --no-git-ignore is specified, git-ignored files are also printed. 
 function tree() {
   setopt localoptions pipefail errreturn
-  command eza \
-    --classify \
-    --tree \
-    --git-ignore \
-    --all \
-    --ignore-glob "$(tr $'\n' \| < ~/.gitignore_global)" \
-    "$@"
+  local git_ignore=true
+  local arg
+  for arg in "$@"; do
+    if [[ arg = "-u"* || arg = "--no-git-ignore" ]]; then
+      git_ignore=false
+      break
+    fi
+  done
+  local -a eza_args=(
+    --classify
+    --tree
+    --group-directories-first
+    --all
+  )
+  if [[ "$git_ignore" = true ]]; then
+    eza_args+=(
+    --git-ignore
+    --ignore-glob "$(tr $'\n' \| < ~/.gitignore_global)"
+      )
+  fi
+  eza_args+=("$@")
+  command eza "${eza_args[@]}"
 }
 
 # -----[ $PATH ]-----

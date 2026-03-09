@@ -80,8 +80,8 @@ function log(){
 
 	level="${1}"
 	
-	local level_color="${LEVELS_COLORS[$level]}"
-	if [[ -n "$level_color" ]]; then
+	local level_color="${LEVELS_COLORS[${level}]}"
+	if [[ -n "$level_color" ]] && is_interactive; then
 		if [[ $show_level = true ]]; then
 			string+="[${(U)level}]"
 		fi

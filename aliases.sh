@@ -83,10 +83,10 @@ compdef _claude claudesn
 alias claudehn='claudeh --no-session-persistence -p'
 compdef _claude claudehn
 
-alias codexd='codex --dangerously-bypass-approvals-and-sandbox --search'
+alias codexd='OPENAI_API_KEY="$(<~/.openai-api-key-hear-dev)" codex --yolo'
 compdef _codex codexd
 
-function _gemini() {
+function :gemini() {
 	local -a args_besides_prompt=()
 	local full_prompt
 	local specified_interactive_flag=false
@@ -105,18 +105,26 @@ function _gemini() {
 			shift
 			continue
 		fi
-		if [[ -n "$full_prompt" ]]; then
-		  log.warn "More than one positional argument was specified. Adding the current one to the prompt: $(shorten "$1" -m 30)"
-		  full_prompt="$(printf "%s\n%s" "$full_prompt" "$1")"
-		else
+		if [[ -z "$full_prompt" ]]; then
 			full_prompt="$1"
+			shift
+			continue
+		fi
+		# If the current argument has more than one word, treat it as an intentional extension of the prompt.
+		if [[ ${(w)#1} -gt 1 ]]; then
+			log.warn "More than one positional argument was specified. Adding the current one to the prompt: $(shorten "$1" -m 30)"
+			full_prompt="$(printf "%s\n%s" "$full_prompt" "$1")"
+	
+		# Otherwise, treat it as a regular positional argument.
+		else
+			args_besides_prompt+=("$1")
 		fi
 		shift
 	done
 	if is_piped; then
 		local stdin="$(cat)"
 		if [[ -n "$stdin" ]]; then
-			log.debug 'piped and not empty'
+			log.debug 'Piped and not empty'
 			full_prompt="$(printf "%s\n%s" "$stdin" "$full_prompt")"
 			if [[ "$specified_interactive_flag" = false && "$specified_noninteractive_flag" = false ]]; then
 			    args_besides_prompt+=(-i)
@@ -126,22 +134,26 @@ function _gemini() {
 	if [[ "$running_interactively" = true ]]; then
 		GEMINI_API_KEY=$(<~/.gemini-api-key-vertex-hear-dev) gemini "${args_besides_prompt[@]}" "$full_prompt" < /dev/tty
 	else
-	    log.debug 'running non-interactively'
+	    log.debug 'Running non-interactively'
 		GEMINI_API_KEY=$(<~/.gemini-api-key-vertex-hear-dev) gemini "${args_besides_prompt[@]}" "$full_prompt" 2>&1 < /dev/tty \
 			| grep -v -E 'DEP0040|to show where the warning|YOLO mode is enabled|Both GOOGLE_API_KEY|Hook registry initialized'
 	fi
 }
 function geminip() {
-	_gemini --yolo --model=gemini-3-pro-preview "$@"
+	:gemini --yolo --model=gemini-3.1-pro-preview "$@"
 }
 function geminif() {
-	_gemini --yolo --model=gemini-3-flash-preview "$@"
+	:gemini --yolo --model=gemini-3-flash-preview "$@"
 }
+function geminifl() {
+	:gemini --yolo --model=gemini-3-1-flash-lite-preview "$@"
+}
+compdef _gemini :gemini geminip geminif geminifl
 alias fdd='fd -t d'
 alias fdf='fd -t f'
 alias ds=docstring
 alias n=nvim
-alias o='(){ [[ "$1" ]] && { open "$@"; return $? ; } ; open .; }'
+o(){ [[ "$1" ]] && { open "$@"; return $? ; } ; open .; }
 compdef _open o
 alias f=fd
 alias r=rg
@@ -266,11 +278,7 @@ function define_editors_aliases(){
 		elif [[ "${#specified_dirs[@]}" -eq 0 && "${#specified_files[@]}" -eq 1 ]]; then
 		    local specified_file_dir="${specified_files[1]:h}"
 		    if [[ -d "$specified_file_dir" && "$specified_file_dir" != "$PWD" ]]; then
-			    if confirm "Use '$specified_file_dir' as root directory?"; then
-				    root_dir="$specified_file_dir"
-				else
-					root_dir="${PWD}"
-				fi
+				root_dir="${PWD}"
 			fi
 		fi
 		if [[ "$workspace_specified" = true ]]; then
