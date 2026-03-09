@@ -148,3 +148,6 @@ function mdquote() {
 	local value="${1:-$(<&0)}"
 	echo "  \033[48;2;28;28;28;90m▍\033[39m  \033[2m${value}\033[0m"
 }
+
+# # ruler
+function ruler(){ echo ""; printf "─%.0s" {1..80}; echo ""; }
