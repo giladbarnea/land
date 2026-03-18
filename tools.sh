@@ -421,6 +421,11 @@ if command -v eza &>/dev/null; then
 			--color-scale=all
 			--color-scale-mode=gradient
 		)
+		if   (( COLUMNS < 50 )); then eza_args+=(--no-user --no-permissions --no-filesize --no-time)
+		elif (( COLUMNS < 60 )); then eza_args+=(--no-user --no-permissions --no-filesize)
+		elif (( COLUMNS < 70 )); then eza_args+=(--no-user --no-permissions)
+		elif (( COLUMNS < 80 )); then eza_args+=(--no-user)
+		fi
 		local sort=name
 		while [[ $# -gt 0 ]]; do
 			case "$1" in
@@ -453,7 +458,7 @@ if command -v eza &>/dev/null; then
 		# When targetdir has space in it and is relative,
 		# builtin cd complains unless explicitly prepended with ./
 		[[ "$targetdir" != /* ]] && targetdir="./${targetdir}"
-		if [[ -d "${targetdir}/.git" ]]; then
+		if git -C "${targetdir}" rev-parse --git-dir &>/dev/null 2>&1; then
 			eza_args+=(--git)
 		fi
 		local exitcode

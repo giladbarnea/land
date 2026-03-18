@@ -1,0 +1,4737 @@
+#compdef openfang
+
+autoload -U is-at-least
+
+_openfang() {
+    typeset -A opt_args
+    typeset -a _arguments_options
+    local ret=1
+
+    if is-at-least 5.2; then
+        _arguments_options=(-s -S -C)
+    else
+        _arguments_options=(-s -C)
+    fi
+
+    local context curcontext="$curcontext" state line
+    _arguments "${_arguments_options[@]}" : \
+'--config=[Path to config file]:CONFIG:_files' \
+'-h[Print help (see more with '\''--help'\'')]' \
+'--help[Print help (see more with '\''--help'\'')]' \
+'-V[Print version]' \
+'--version[Print version]' \
+":: :_openfang_commands" \
+"*::: :->openfang" \
+&& ret=0
+    case $state in
+    (openfang)
+        words=($line[1] "${words[@]}")
+        (( CURRENT += 1 ))
+        curcontext="${curcontext%:*:*}:openfang-command-$line[1]:"
+        case $line[1] in
+            (init)
+_arguments "${_arguments_options[@]}" : \
+'--config=[Path to config file]:CONFIG:_files' \
+'--quick[Quick mode\: no prompts, just write config + .env (for CI/scripts)]' \
+'-h[Print help]' \
+'--help[Print help]' \
+&& ret=0
+;;
+(start)
+_arguments "${_arguments_options[@]}" : \
+'--config=[Path to config file]:CONFIG:_files' \
+'--yolo[Auto-approve all tool calls (no confirmation prompts)]' \
+'-h[Print help]' \
+'--help[Print help]' \
+&& ret=0
+;;
+(stop)
+_arguments "${_arguments_options[@]}" : \
+'--config=[Path to config file]:CONFIG:_files' \
+'-h[Print help]' \
+'--help[Print help]' \
+&& ret=0
+;;
+(agent)
+_arguments "${_arguments_options[@]}" : \
+'--config=[Path to config file]:CONFIG:_files' \
+'-h[Print help]' \
+'--help[Print help]' \
+":: :_openfang__agent_commands" \
+"*::: :->agent" \
+&& ret=0
+
+    case $state in
+    (agent)
+        words=($line[1] "${words[@]}")
+        (( CURRENT += 1 ))
+        curcontext="${curcontext%:*:*}:openfang-agent-command-$line[1]:"
+        case $line[1] in
+            (new)
+_arguments "${_arguments_options[@]}" : \
+'--config=[Path to config file]:CONFIG:_files' \
+'-h[Print help]' \
+'--help[Print help]' \
+'::template -- Template name (e.g., "coder", "assistant"). Interactive picker if omitted:_default' \
+&& ret=0
+;;
+(spawn)
+_arguments "${_arguments_options[@]}" : \
+'--config=[Path to config file]:CONFIG:_files' \
+'-h[Print help]' \
+'--help[Print help]' \
+':manifest -- Path to the agent manifest TOML file:_files' \
+&& ret=0
+;;
+(list)
+_arguments "${_arguments_options[@]}" : \
+'--config=[Path to config file]:CONFIG:_files' \
+'--json[Output as JSON for scripting]' \
+'-h[Print help]' \
+'--help[Print help]' \
+&& ret=0
+;;
+(chat)
+_arguments "${_arguments_options[@]}" : \
+'--config=[Path to config file]:CONFIG:_files' \
+'-h[Print help]' \
+'--help[Print help]' \
+':agent_id -- Agent ID (UUID):_default' \
+&& ret=0
+;;
+(kill)
+_arguments "${_arguments_options[@]}" : \
+'--config=[Path to config file]:CONFIG:_files' \
+'-h[Print help]' \
+'--help[Print help]' \
+':agent_id -- Agent ID (UUID):_default' \
+&& ret=0
+;;
+(set)
+_arguments "${_arguments_options[@]}" : \
+'--config=[Path to config file]:CONFIG:_files' \
+'-h[Print help]' \
+'--help[Print help]' \
+':agent_id -- Agent ID (UUID):_default' \
+':field -- Field to set (model):_default' \
+':value -- New value:_default' \
+&& ret=0
+;;
+(help)
+_arguments "${_arguments_options[@]}" : \
+":: :_openfang__agent__help_commands" \
+"*::: :->help" \
+&& ret=0
+
+    case $state in
+    (help)
+        words=($line[1] "${words[@]}")
+        (( CURRENT += 1 ))
+        curcontext="${curcontext%:*:*}:openfang-agent-help-command-$line[1]:"
+        case $line[1] in
+            (new)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(spawn)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(list)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(chat)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(kill)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(set)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(help)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+        esac
+    ;;
+esac
+;;
+        esac
+    ;;
+esac
+;;
+(workflow)
+_arguments "${_arguments_options[@]}" : \
+'--config=[Path to config file]:CONFIG:_files' \
+'-h[Print help]' \
+'--help[Print help]' \
+":: :_openfang__workflow_commands" \
+"*::: :->workflow" \
+&& ret=0
+
+    case $state in
+    (workflow)
+        words=($line[1] "${words[@]}")
+        (( CURRENT += 1 ))
+        curcontext="${curcontext%:*:*}:openfang-workflow-command-$line[1]:"
+        case $line[1] in
+            (list)
+_arguments "${_arguments_options[@]}" : \
+'--config=[Path to config file]:CONFIG:_files' \
+'-h[Print help]' \
+'--help[Print help]' \
+&& ret=0
+;;
+(create)
+_arguments "${_arguments_options[@]}" : \
+'--config=[Path to config file]:CONFIG:_files' \
+'-h[Print help]' \
+'--help[Print help]' \
+':file -- Path to a JSON file describing the workflow:_files' \
+&& ret=0
+;;
+(get)
+_arguments "${_arguments_options[@]}" : \
+'--config=[Path to config file]:CONFIG:_files' \
+'-h[Print help]' \
+'--help[Print help]' \
+':workflow_id -- Workflow ID (UUID):_default' \
+&& ret=0
+;;
+(update)
+_arguments "${_arguments_options[@]}" : \
+'--config=[Path to config file]:CONFIG:_files' \
+'-h[Print help]' \
+'--help[Print help]' \
+':workflow_id -- Workflow ID (UUID):_default' \
+':file -- Path to a JSON file with the updated workflow definition:_files' \
+&& ret=0
+;;
+(delete)
+_arguments "${_arguments_options[@]}" : \
+'--config=[Path to config file]:CONFIG:_files' \
+'-h[Print help]' \
+'--help[Print help]' \
+':workflow_id -- Workflow ID (UUID):_default' \
+&& ret=0
+;;
+(run)
+_arguments "${_arguments_options[@]}" : \
+'--config=[Path to config file]:CONFIG:_files' \
+'-h[Print help]' \
+'--help[Print help]' \
+':workflow_id -- Workflow ID (UUID):_default' \
+':input -- Input text for the workflow:_default' \
+&& ret=0
+;;
+(help)
+_arguments "${_arguments_options[@]}" : \
+":: :_openfang__workflow__help_commands" \
+"*::: :->help" \
+&& ret=0
+
+    case $state in
+    (help)
+        words=($line[1] "${words[@]}")
+        (( CURRENT += 1 ))
+        curcontext="${curcontext%:*:*}:openfang-workflow-help-command-$line[1]:"
+        case $line[1] in
+            (list)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(create)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(get)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(update)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(delete)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(run)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(help)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+        esac
+    ;;
+esac
+;;
+        esac
+    ;;
+esac
+;;
+(trigger)
+_arguments "${_arguments_options[@]}" : \
+'--config=[Path to config file]:CONFIG:_files' \
+'-h[Print help]' \
+'--help[Print help]' \
+":: :_openfang__trigger_commands" \
+"*::: :->trigger" \
+&& ret=0
+
+    case $state in
+    (trigger)
+        words=($line[1] "${words[@]}")
+        (( CURRENT += 1 ))
+        curcontext="${curcontext%:*:*}:openfang-trigger-command-$line[1]:"
+        case $line[1] in
+            (list)
+_arguments "${_arguments_options[@]}" : \
+'--agent-id=[Optional agent ID to filter by]:AGENT_ID:_default' \
+'--config=[Path to config file]:CONFIG:_files' \
+'-h[Print help]' \
+'--help[Print help]' \
+&& ret=0
+;;
+(create)
+_arguments "${_arguments_options[@]}" : \
+'--prompt=[Prompt template (use {{event}} placeholder)]:PROMPT:_default' \
+'--max-fires=[Maximum number of times to fire (0 = unlimited)]:MAX_FIRES:_default' \
+'--config=[Path to config file]:CONFIG:_files' \
+'-h[Print help]' \
+'--help[Print help]' \
+':agent_id -- Agent ID (UUID) that owns the trigger:_default' \
+':pattern_json -- Trigger pattern as JSON (e.g. '\''{"lifecycle"\:{}}'\'' or '\''{"agent_spawned"\:{"name_pattern"\:"*"}}'\''):_default' \
+&& ret=0
+;;
+(delete)
+_arguments "${_arguments_options[@]}" : \
+'--config=[Path to config file]:CONFIG:_files' \
+'-h[Print help]' \
+'--help[Print help]' \
+':trigger_id -- Trigger ID (UUID):_default' \
+&& ret=0
+;;
+(help)
+_arguments "${_arguments_options[@]}" : \
+":: :_openfang__trigger__help_commands" \
+"*::: :->help" \
+&& ret=0
+
+    case $state in
+    (help)
+        words=($line[1] "${words[@]}")
+        (( CURRENT += 1 ))
+        curcontext="${curcontext%:*:*}:openfang-trigger-help-command-$line[1]:"
+        case $line[1] in
+            (list)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(create)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(delete)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(help)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+        esac
+    ;;
+esac
+;;
+        esac
+    ;;
+esac
+;;
+(migrate)
+_arguments "${_arguments_options[@]}" : \
+'--from=[Source framework to migrate from]:FROM:(openclaw langchain autogpt)' \
+'--source-dir=[Path to the source workspace (auto-detected if not set)]:SOURCE_DIR:_files' \
+'--config=[Path to config file]:CONFIG:_files' \
+'--dry-run[Dry run — show what would be imported without making changes]' \
+'-h[Print help]' \
+'--help[Print help]' \
+&& ret=0
+;;
+(skill)
+_arguments "${_arguments_options[@]}" : \
+'--config=[Path to config file]:CONFIG:_files' \
+'-h[Print help]' \
+'--help[Print help]' \
+":: :_openfang__skill_commands" \
+"*::: :->skill" \
+&& ret=0
+
+    case $state in
+    (skill)
+        words=($line[1] "${words[@]}")
+        (( CURRENT += 1 ))
+        curcontext="${curcontext%:*:*}:openfang-skill-command-$line[1]:"
+        case $line[1] in
+            (install)
+_arguments "${_arguments_options[@]}" : \
+'--config=[Path to config file]:CONFIG:_files' \
+'-h[Print help]' \
+'--help[Print help]' \
+':source -- Skill name, local path, or git URL:_default' \
+&& ret=0
+;;
+(list)
+_arguments "${_arguments_options[@]}" : \
+'--config=[Path to config file]:CONFIG:_files' \
+'-h[Print help]' \
+'--help[Print help]' \
+&& ret=0
+;;
+(remove)
+_arguments "${_arguments_options[@]}" : \
+'--config=[Path to config file]:CONFIG:_files' \
+'-h[Print help]' \
+'--help[Print help]' \
+':name -- Skill name:_default' \
+&& ret=0
+;;
+(search)
+_arguments "${_arguments_options[@]}" : \
+'--config=[Path to config file]:CONFIG:_files' \
+'-h[Print help]' \
+'--help[Print help]' \
+':query -- Search query:_default' \
+&& ret=0
+;;
+(create)
+_arguments "${_arguments_options[@]}" : \
+'--config=[Path to config file]:CONFIG:_files' \
+'-h[Print help]' \
+'--help[Print help]' \
+&& ret=0
+;;
+(help)
+_arguments "${_arguments_options[@]}" : \
+":: :_openfang__skill__help_commands" \
+"*::: :->help" \
+&& ret=0
+
+    case $state in
+    (help)
+        words=($line[1] "${words[@]}")
+        (( CURRENT += 1 ))
+        curcontext="${curcontext%:*:*}:openfang-skill-help-command-$line[1]:"
+        case $line[1] in
+            (install)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(list)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(remove)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(search)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(create)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(help)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+        esac
+    ;;
+esac
+;;
+        esac
+    ;;
+esac
+;;
+(channel)
+_arguments "${_arguments_options[@]}" : \
+'--config=[Path to config file]:CONFIG:_files' \
+'-h[Print help]' \
+'--help[Print help]' \
+":: :_openfang__channel_commands" \
+"*::: :->channel" \
+&& ret=0
+
+    case $state in
+    (channel)
+        words=($line[1] "${words[@]}")
+        (( CURRENT += 1 ))
+        curcontext="${curcontext%:*:*}:openfang-channel-command-$line[1]:"
+        case $line[1] in
+            (list)
+_arguments "${_arguments_options[@]}" : \
+'--config=[Path to config file]:CONFIG:_files' \
+'-h[Print help]' \
+'--help[Print help]' \
+&& ret=0
+;;
+(setup)
+_arguments "${_arguments_options[@]}" : \
+'--config=[Path to config file]:CONFIG:_files' \
+'-h[Print help]' \
+'--help[Print help]' \
+'::channel -- Channel name (telegram, discord, slack, whatsapp, etc.). Shows picker if omitted:_default' \
+&& ret=0
+;;
+(test)
+_arguments "${_arguments_options[@]}" : \
+'--config=[Path to config file]:CONFIG:_files' \
+'-h[Print help]' \
+'--help[Print help]' \
+':channel -- Channel name:_default' \
+&& ret=0
+;;
+(enable)
+_arguments "${_arguments_options[@]}" : \
+'--config=[Path to config file]:CONFIG:_files' \
+'-h[Print help]' \
+'--help[Print help]' \
+':channel -- Channel name:_default' \
+&& ret=0
+;;
+(disable)
+_arguments "${_arguments_options[@]}" : \
+'--config=[Path to config file]:CONFIG:_files' \
+'-h[Print help]' \
+'--help[Print help]' \
+':channel -- Channel name:_default' \
+&& ret=0
+;;
+(help)
+_arguments "${_arguments_options[@]}" : \
+":: :_openfang__channel__help_commands" \
+"*::: :->help" \
+&& ret=0
+
+    case $state in
+    (help)
+        words=($line[1] "${words[@]}")
+        (( CURRENT += 1 ))
+        curcontext="${curcontext%:*:*}:openfang-channel-help-command-$line[1]:"
+        case $line[1] in
+            (list)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(setup)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(test)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(enable)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(disable)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(help)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+        esac
+    ;;
+esac
+;;
+        esac
+    ;;
+esac
+;;
+(hand)
+_arguments "${_arguments_options[@]}" : \
+'--config=[Path to config file]:CONFIG:_files' \
+'-h[Print help]' \
+'--help[Print help]' \
+":: :_openfang__hand_commands" \
+"*::: :->hand" \
+&& ret=0
+
+    case $state in
+    (hand)
+        words=($line[1] "${words[@]}")
+        (( CURRENT += 1 ))
+        curcontext="${curcontext%:*:*}:openfang-hand-command-$line[1]:"
+        case $line[1] in
+            (list)
+_arguments "${_arguments_options[@]}" : \
+'--config=[Path to config file]:CONFIG:_files' \
+'-h[Print help]' \
+'--help[Print help]' \
+&& ret=0
+;;
+(active)
+_arguments "${_arguments_options[@]}" : \
+'--config=[Path to config file]:CONFIG:_files' \
+'-h[Print help]' \
+'--help[Print help]' \
+&& ret=0
+;;
+(install)
+_arguments "${_arguments_options[@]}" : \
+'--config=[Path to config file]:CONFIG:_files' \
+'-h[Print help]' \
+'--help[Print help]' \
+':path -- Path to the hand directory (must contain HAND.toml):_default' \
+&& ret=0
+;;
+(activate)
+_arguments "${_arguments_options[@]}" : \
+'--config=[Path to config file]:CONFIG:_files' \
+'-h[Print help]' \
+'--help[Print help]' \
+':id -- Hand ID (e.g. "clip", "lead", "researcher"):_default' \
+&& ret=0
+;;
+(deactivate)
+_arguments "${_arguments_options[@]}" : \
+'--config=[Path to config file]:CONFIG:_files' \
+'-h[Print help]' \
+'--help[Print help]' \
+':id -- Hand ID:_default' \
+&& ret=0
+;;
+(info)
+_arguments "${_arguments_options[@]}" : \
+'--config=[Path to config file]:CONFIG:_files' \
+'-h[Print help]' \
+'--help[Print help]' \
+':id -- Hand ID:_default' \
+&& ret=0
+;;
+(check-deps)
+_arguments "${_arguments_options[@]}" : \
+'--config=[Path to config file]:CONFIG:_files' \
+'-h[Print help]' \
+'--help[Print help]' \
+':id -- Hand ID:_default' \
+&& ret=0
+;;
+(install-deps)
+_arguments "${_arguments_options[@]}" : \
+'--config=[Path to config file]:CONFIG:_files' \
+'-h[Print help]' \
+'--help[Print help]' \
+':id -- Hand ID:_default' \
+&& ret=0
+;;
+(pause)
+_arguments "${_arguments_options[@]}" : \
+'--config=[Path to config file]:CONFIG:_files' \
+'-h[Print help]' \
+'--help[Print help]' \
+':id -- Instance ID (from `hand active`):_default' \
+&& ret=0
+;;
+(resume)
+_arguments "${_arguments_options[@]}" : \
+'--config=[Path to config file]:CONFIG:_files' \
+'-h[Print help]' \
+'--help[Print help]' \
+':id -- Instance ID (from `hand active`):_default' \
+&& ret=0
+;;
+(help)
+_arguments "${_arguments_options[@]}" : \
+":: :_openfang__hand__help_commands" \
+"*::: :->help" \
+&& ret=0
+
+    case $state in
+    (help)
+        words=($line[1] "${words[@]}")
+        (( CURRENT += 1 ))
+        curcontext="${curcontext%:*:*}:openfang-hand-help-command-$line[1]:"
+        case $line[1] in
+            (list)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(active)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(install)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(activate)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(deactivate)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(info)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(check-deps)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(install-deps)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(pause)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(resume)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(help)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+        esac
+    ;;
+esac
+;;
+        esac
+    ;;
+esac
+;;
+(config)
+_arguments "${_arguments_options[@]}" : \
+'--config=[Path to config file]:CONFIG:_files' \
+'-h[Print help]' \
+'--help[Print help]' \
+":: :_openfang__config_commands" \
+"*::: :->config" \
+&& ret=0
+
+    case $state in
+    (config)
+        words=($line[1] "${words[@]}")
+        (( CURRENT += 1 ))
+        curcontext="${curcontext%:*:*}:openfang-config-command-$line[1]:"
+        case $line[1] in
+            (show)
+_arguments "${_arguments_options[@]}" : \
+'--config=[Path to config file]:CONFIG:_files' \
+'-h[Print help]' \
+'--help[Print help]' \
+&& ret=0
+;;
+(edit)
+_arguments "${_arguments_options[@]}" : \
+'--config=[Path to config file]:CONFIG:_files' \
+'-h[Print help]' \
+'--help[Print help]' \
+&& ret=0
+;;
+(get)
+_arguments "${_arguments_options[@]}" : \
+'--config=[Path to config file]:CONFIG:_files' \
+'-h[Print help]' \
+'--help[Print help]' \
+':key -- Dotted key path (e.g. "default_model.provider", "api_listen"):_default' \
+&& ret=0
+;;
+(set)
+_arguments "${_arguments_options[@]}" : \
+'--config=[Path to config file]:CONFIG:_files' \
+'-h[Print help]' \
+'--help[Print help]' \
+':key -- Dotted key path:_default' \
+':value -- New value:_default' \
+&& ret=0
+;;
+(unset)
+_arguments "${_arguments_options[@]}" : \
+'--config=[Path to config file]:CONFIG:_files' \
+'-h[Print help]' \
+'--help[Print help]' \
+':key -- Dotted key path to remove (e.g. "api.cors_origin"):_default' \
+&& ret=0
+;;
+(set-key)
+_arguments "${_arguments_options[@]}" : \
+'--config=[Path to config file]:CONFIG:_files' \
+'-h[Print help]' \
+'--help[Print help]' \
+':provider -- Provider name (groq, anthropic, openai, gemini, deepseek, etc.):_default' \
+&& ret=0
+;;
+(delete-key)
+_arguments "${_arguments_options[@]}" : \
+'--config=[Path to config file]:CONFIG:_files' \
+'-h[Print help]' \
+'--help[Print help]' \
+':provider -- Provider name:_default' \
+&& ret=0
+;;
+(test-key)
+_arguments "${_arguments_options[@]}" : \
+'--config=[Path to config file]:CONFIG:_files' \
+'-h[Print help]' \
+'--help[Print help]' \
+':provider -- Provider name:_default' \
+&& ret=0
+;;
+(help)
+_arguments "${_arguments_options[@]}" : \
+":: :_openfang__config__help_commands" \
+"*::: :->help" \
+&& ret=0
+
+    case $state in
+    (help)
+        words=($line[1] "${words[@]}")
+        (( CURRENT += 1 ))
+        curcontext="${curcontext%:*:*}:openfang-config-help-command-$line[1]:"
+        case $line[1] in
+            (show)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(edit)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(get)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(set)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(unset)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(set-key)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(delete-key)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(test-key)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(help)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+        esac
+    ;;
+esac
+;;
+        esac
+    ;;
+esac
+;;
+(chat)
+_arguments "${_arguments_options[@]}" : \
+'--config=[Path to config file]:CONFIG:_files' \
+'-h[Print help]' \
+'--help[Print help]' \
+'::agent -- Optional agent name or ID to chat with:_default' \
+&& ret=0
+;;
+(status)
+_arguments "${_arguments_options[@]}" : \
+'--config=[Path to config file]:CONFIG:_files' \
+'--json[Output as JSON for scripting]' \
+'-h[Print help]' \
+'--help[Print help]' \
+&& ret=0
+;;
+(doctor)
+_arguments "${_arguments_options[@]}" : \
+'--config=[Path to config file]:CONFIG:_files' \
+'--json[Output as JSON for scripting]' \
+'--repair[Attempt to auto-fix issues (create missing dirs/config)]' \
+'-h[Print help]' \
+'--help[Print help]' \
+&& ret=0
+;;
+(dashboard)
+_arguments "${_arguments_options[@]}" : \
+'--config=[Path to config file]:CONFIG:_files' \
+'-h[Print help]' \
+'--help[Print help]' \
+&& ret=0
+;;
+(completion)
+_arguments "${_arguments_options[@]}" : \
+'--config=[Path to config file]:CONFIG:_files' \
+'-h[Print help]' \
+'--help[Print help]' \
+':shell -- Shell to generate completions for:(bash elvish fish powershell zsh)' \
+&& ret=0
+;;
+(mcp)
+_arguments "${_arguments_options[@]}" : \
+'--config=[Path to config file]:CONFIG:_files' \
+'-h[Print help]' \
+'--help[Print help]' \
+&& ret=0
+;;
+(add)
+_arguments "${_arguments_options[@]}" : \
+'--key=[API key or token to store in the vault]:KEY:_default' \
+'--config=[Path to config file]:CONFIG:_files' \
+'-h[Print help]' \
+'--help[Print help]' \
+':name -- Integration name (e.g., "github", "slack", "notion"):_default' \
+&& ret=0
+;;
+(remove)
+_arguments "${_arguments_options[@]}" : \
+'--config=[Path to config file]:CONFIG:_files' \
+'-h[Print help]' \
+'--help[Print help]' \
+':name -- Integration name:_default' \
+&& ret=0
+;;
+(integrations)
+_arguments "${_arguments_options[@]}" : \
+'--config=[Path to config file]:CONFIG:_files' \
+'-h[Print help]' \
+'--help[Print help]' \
+'::query -- Search query (optional — lists all if omitted):_default' \
+&& ret=0
+;;
+(vault)
+_arguments "${_arguments_options[@]}" : \
+'--config=[Path to config file]:CONFIG:_files' \
+'-h[Print help]' \
+'--help[Print help]' \
+":: :_openfang__vault_commands" \
+"*::: :->vault" \
+&& ret=0
+
+    case $state in
+    (vault)
+        words=($line[1] "${words[@]}")
+        (( CURRENT += 1 ))
+        curcontext="${curcontext%:*:*}:openfang-vault-command-$line[1]:"
+        case $line[1] in
+            (init)
+_arguments "${_arguments_options[@]}" : \
+'--config=[Path to config file]:CONFIG:_files' \
+'-h[Print help]' \
+'--help[Print help]' \
+&& ret=0
+;;
+(set)
+_arguments "${_arguments_options[@]}" : \
+'--config=[Path to config file]:CONFIG:_files' \
+'-h[Print help]' \
+'--help[Print help]' \
+':key -- Credential key (env var name):_default' \
+&& ret=0
+;;
+(list)
+_arguments "${_arguments_options[@]}" : \
+'--config=[Path to config file]:CONFIG:_files' \
+'-h[Print help]' \
+'--help[Print help]' \
+&& ret=0
+;;
+(remove)
+_arguments "${_arguments_options[@]}" : \
+'--config=[Path to config file]:CONFIG:_files' \
+'-h[Print help]' \
+'--help[Print help]' \
+':key -- Credential key:_default' \
+&& ret=0
+;;
+(help)
+_arguments "${_arguments_options[@]}" : \
+":: :_openfang__vault__help_commands" \
+"*::: :->help" \
+&& ret=0
+
+    case $state in
+    (help)
+        words=($line[1] "${words[@]}")
+        (( CURRENT += 1 ))
+        curcontext="${curcontext%:*:*}:openfang-vault-help-command-$line[1]:"
+        case $line[1] in
+            (init)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(set)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(list)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(remove)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(help)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+        esac
+    ;;
+esac
+;;
+        esac
+    ;;
+esac
+;;
+(new)
+_arguments "${_arguments_options[@]}" : \
+'--config=[Path to config file]:CONFIG:_files' \
+'-h[Print help]' \
+'--help[Print help]' \
+':kind -- What to scaffold:(skill integration)' \
+&& ret=0
+;;
+(tui)
+_arguments "${_arguments_options[@]}" : \
+'--config=[Path to config file]:CONFIG:_files' \
+'-h[Print help]' \
+'--help[Print help]' \
+&& ret=0
+;;
+(models)
+_arguments "${_arguments_options[@]}" : \
+'--config=[Path to config file]:CONFIG:_files' \
+'-h[Print help]' \
+'--help[Print help]' \
+":: :_openfang__models_commands" \
+"*::: :->models" \
+&& ret=0
+
+    case $state in
+    (models)
+        words=($line[1] "${words[@]}")
+        (( CURRENT += 1 ))
+        curcontext="${curcontext%:*:*}:openfang-models-command-$line[1]:"
+        case $line[1] in
+            (list)
+_arguments "${_arguments_options[@]}" : \
+'--provider=[Filter by provider name]:PROVIDER:_default' \
+'--config=[Path to config file]:CONFIG:_files' \
+'--json[Output as JSON for scripting]' \
+'-h[Print help]' \
+'--help[Print help]' \
+&& ret=0
+;;
+(aliases)
+_arguments "${_arguments_options[@]}" : \
+'--config=[Path to config file]:CONFIG:_files' \
+'--json[Output as JSON for scripting]' \
+'-h[Print help]' \
+'--help[Print help]' \
+&& ret=0
+;;
+(providers)
+_arguments "${_arguments_options[@]}" : \
+'--config=[Path to config file]:CONFIG:_files' \
+'--json[Output as JSON for scripting]' \
+'-h[Print help]' \
+'--help[Print help]' \
+&& ret=0
+;;
+(set)
+_arguments "${_arguments_options[@]}" : \
+'--config=[Path to config file]:CONFIG:_files' \
+'-h[Print help]' \
+'--help[Print help]' \
+'::model -- Model ID or alias (e.g. "gpt-4o", "claude-sonnet"). Interactive picker if omitted:_default' \
+&& ret=0
+;;
+(help)
+_arguments "${_arguments_options[@]}" : \
+":: :_openfang__models__help_commands" \
+"*::: :->help" \
+&& ret=0
+
+    case $state in
+    (help)
+        words=($line[1] "${words[@]}")
+        (( CURRENT += 1 ))
+        curcontext="${curcontext%:*:*}:openfang-models-help-command-$line[1]:"
+        case $line[1] in
+            (list)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(aliases)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(providers)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(set)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(help)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+        esac
+    ;;
+esac
+;;
+        esac
+    ;;
+esac
+;;
+(gateway)
+_arguments "${_arguments_options[@]}" : \
+'--config=[Path to config file]:CONFIG:_files' \
+'-h[Print help]' \
+'--help[Print help]' \
+":: :_openfang__gateway_commands" \
+"*::: :->gateway" \
+&& ret=0
+
+    case $state in
+    (gateway)
+        words=($line[1] "${words[@]}")
+        (( CURRENT += 1 ))
+        curcontext="${curcontext%:*:*}:openfang-gateway-command-$line[1]:"
+        case $line[1] in
+            (start)
+_arguments "${_arguments_options[@]}" : \
+'--config=[Path to config file]:CONFIG:_files' \
+'-h[Print help]' \
+'--help[Print help]' \
+&& ret=0
+;;
+(stop)
+_arguments "${_arguments_options[@]}" : \
+'--config=[Path to config file]:CONFIG:_files' \
+'-h[Print help]' \
+'--help[Print help]' \
+&& ret=0
+;;
+(status)
+_arguments "${_arguments_options[@]}" : \
+'--config=[Path to config file]:CONFIG:_files' \
+'--json[Output as JSON for scripting]' \
+'-h[Print help]' \
+'--help[Print help]' \
+&& ret=0
+;;
+(help)
+_arguments "${_arguments_options[@]}" : \
+":: :_openfang__gateway__help_commands" \
+"*::: :->help" \
+&& ret=0
+
+    case $state in
+    (help)
+        words=($line[1] "${words[@]}")
+        (( CURRENT += 1 ))
+        curcontext="${curcontext%:*:*}:openfang-gateway-help-command-$line[1]:"
+        case $line[1] in
+            (start)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(stop)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(status)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(help)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+        esac
+    ;;
+esac
+;;
+        esac
+    ;;
+esac
+;;
+(approvals)
+_arguments "${_arguments_options[@]}" : \
+'--config=[Path to config file]:CONFIG:_files' \
+'-h[Print help]' \
+'--help[Print help]' \
+":: :_openfang__approvals_commands" \
+"*::: :->approvals" \
+&& ret=0
+
+    case $state in
+    (approvals)
+        words=($line[1] "${words[@]}")
+        (( CURRENT += 1 ))
+        curcontext="${curcontext%:*:*}:openfang-approvals-command-$line[1]:"
+        case $line[1] in
+            (list)
+_arguments "${_arguments_options[@]}" : \
+'--config=[Path to config file]:CONFIG:_files' \
+'--json[Output as JSON for scripting]' \
+'-h[Print help]' \
+'--help[Print help]' \
+&& ret=0
+;;
+(approve)
+_arguments "${_arguments_options[@]}" : \
+'--config=[Path to config file]:CONFIG:_files' \
+'-h[Print help]' \
+'--help[Print help]' \
+':id -- Approval ID:_default' \
+&& ret=0
+;;
+(reject)
+_arguments "${_arguments_options[@]}" : \
+'--config=[Path to config file]:CONFIG:_files' \
+'-h[Print help]' \
+'--help[Print help]' \
+':id -- Approval ID:_default' \
+&& ret=0
+;;
+(help)
+_arguments "${_arguments_options[@]}" : \
+":: :_openfang__approvals__help_commands" \
+"*::: :->help" \
+&& ret=0
+
+    case $state in
+    (help)
+        words=($line[1] "${words[@]}")
+        (( CURRENT += 1 ))
+        curcontext="${curcontext%:*:*}:openfang-approvals-help-command-$line[1]:"
+        case $line[1] in
+            (list)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(approve)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(reject)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(help)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+        esac
+    ;;
+esac
+;;
+        esac
+    ;;
+esac
+;;
+(cron)
+_arguments "${_arguments_options[@]}" : \
+'--config=[Path to config file]:CONFIG:_files' \
+'-h[Print help]' \
+'--help[Print help]' \
+":: :_openfang__cron_commands" \
+"*::: :->cron" \
+&& ret=0
+
+    case $state in
+    (cron)
+        words=($line[1] "${words[@]}")
+        (( CURRENT += 1 ))
+        curcontext="${curcontext%:*:*}:openfang-cron-command-$line[1]:"
+        case $line[1] in
+            (list)
+_arguments "${_arguments_options[@]}" : \
+'--config=[Path to config file]:CONFIG:_files' \
+'--json[Output as JSON for scripting]' \
+'-h[Print help]' \
+'--help[Print help]' \
+&& ret=0
+;;
+(create)
+_arguments "${_arguments_options[@]}" : \
+'--name=[Optional job name (auto-generated if omitted)]:NAME:_default' \
+'--config=[Path to config file]:CONFIG:_files' \
+'-h[Print help]' \
+'--help[Print help]' \
+':agent -- Agent name or ID to run:_default' \
+':spec -- Cron expression (e.g. "0 */6 * * *"):_default' \
+':prompt -- Prompt to send when the job fires:_default' \
+&& ret=0
+;;
+(delete)
+_arguments "${_arguments_options[@]}" : \
+'--config=[Path to config file]:CONFIG:_files' \
+'-h[Print help]' \
+'--help[Print help]' \
+':id -- Job ID:_default' \
+&& ret=0
+;;
+(enable)
+_arguments "${_arguments_options[@]}" : \
+'--config=[Path to config file]:CONFIG:_files' \
+'-h[Print help]' \
+'--help[Print help]' \
+':id -- Job ID:_default' \
+&& ret=0
+;;
+(disable)
+_arguments "${_arguments_options[@]}" : \
+'--config=[Path to config file]:CONFIG:_files' \
+'-h[Print help]' \
+'--help[Print help]' \
+':id -- Job ID:_default' \
+&& ret=0
+;;
+(help)
+_arguments "${_arguments_options[@]}" : \
+":: :_openfang__cron__help_commands" \
+"*::: :->help" \
+&& ret=0
+
+    case $state in
+    (help)
+        words=($line[1] "${words[@]}")
+        (( CURRENT += 1 ))
+        curcontext="${curcontext%:*:*}:openfang-cron-help-command-$line[1]:"
+        case $line[1] in
+            (list)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(create)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(delete)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(enable)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(disable)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(help)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+        esac
+    ;;
+esac
+;;
+        esac
+    ;;
+esac
+;;
+(sessions)
+_arguments "${_arguments_options[@]}" : \
+'--config=[Path to config file]:CONFIG:_files' \
+'--json[Output as JSON for scripting]' \
+'-h[Print help]' \
+'--help[Print help]' \
+'::agent -- Optional agent name or ID to filter by:_default' \
+&& ret=0
+;;
+(logs)
+_arguments "${_arguments_options[@]}" : \
+'--lines=[Number of lines to show]:LINES:_default' \
+'--config=[Path to config file]:CONFIG:_files' \
+'-f[Follow log output in real time]' \
+'--follow[Follow log output in real time]' \
+'-h[Print help]' \
+'--help[Print help]' \
+&& ret=0
+;;
+(health)
+_arguments "${_arguments_options[@]}" : \
+'--config=[Path to config file]:CONFIG:_files' \
+'--json[Output as JSON for scripting]' \
+'-h[Print help]' \
+'--help[Print help]' \
+&& ret=0
+;;
+(security)
+_arguments "${_arguments_options[@]}" : \
+'--config=[Path to config file]:CONFIG:_files' \
+'-h[Print help]' \
+'--help[Print help]' \
+":: :_openfang__security_commands" \
+"*::: :->security" \
+&& ret=0
+
+    case $state in
+    (security)
+        words=($line[1] "${words[@]}")
+        (( CURRENT += 1 ))
+        curcontext="${curcontext%:*:*}:openfang-security-command-$line[1]:"
+        case $line[1] in
+            (status)
+_arguments "${_arguments_options[@]}" : \
+'--config=[Path to config file]:CONFIG:_files' \
+'--json[Output as JSON for scripting]' \
+'-h[Print help]' \
+'--help[Print help]' \
+&& ret=0
+;;
+(audit)
+_arguments "${_arguments_options[@]}" : \
+'--limit=[Maximum number of entries to show]:LIMIT:_default' \
+'--config=[Path to config file]:CONFIG:_files' \
+'--json[Output as JSON for scripting]' \
+'-h[Print help]' \
+'--help[Print help]' \
+&& ret=0
+;;
+(verify)
+_arguments "${_arguments_options[@]}" : \
+'--config=[Path to config file]:CONFIG:_files' \
+'-h[Print help]' \
+'--help[Print help]' \
+&& ret=0
+;;
+(help)
+_arguments "${_arguments_options[@]}" : \
+":: :_openfang__security__help_commands" \
+"*::: :->help" \
+&& ret=0
+
+    case $state in
+    (help)
+        words=($line[1] "${words[@]}")
+        (( CURRENT += 1 ))
+        curcontext="${curcontext%:*:*}:openfang-security-help-command-$line[1]:"
+        case $line[1] in
+            (status)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(audit)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(verify)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(help)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+        esac
+    ;;
+esac
+;;
+        esac
+    ;;
+esac
+;;
+(memory)
+_arguments "${_arguments_options[@]}" : \
+'--config=[Path to config file]:CONFIG:_files' \
+'-h[Print help]' \
+'--help[Print help]' \
+":: :_openfang__memory_commands" \
+"*::: :->memory" \
+&& ret=0
+
+    case $state in
+    (memory)
+        words=($line[1] "${words[@]}")
+        (( CURRENT += 1 ))
+        curcontext="${curcontext%:*:*}:openfang-memory-command-$line[1]:"
+        case $line[1] in
+            (list)
+_arguments "${_arguments_options[@]}" : \
+'--config=[Path to config file]:CONFIG:_files' \
+'--json[Output as JSON for scripting]' \
+'-h[Print help]' \
+'--help[Print help]' \
+':agent -- Agent name or ID:_default' \
+&& ret=0
+;;
+(get)
+_arguments "${_arguments_options[@]}" : \
+'--config=[Path to config file]:CONFIG:_files' \
+'--json[Output as JSON for scripting]' \
+'-h[Print help]' \
+'--help[Print help]' \
+':agent -- Agent name or ID:_default' \
+':key -- Key name:_default' \
+&& ret=0
+;;
+(set)
+_arguments "${_arguments_options[@]}" : \
+'--config=[Path to config file]:CONFIG:_files' \
+'-h[Print help]' \
+'--help[Print help]' \
+':agent -- Agent name or ID:_default' \
+':key -- Key name:_default' \
+':value -- Value to store:_default' \
+&& ret=0
+;;
+(delete)
+_arguments "${_arguments_options[@]}" : \
+'--config=[Path to config file]:CONFIG:_files' \
+'-h[Print help]' \
+'--help[Print help]' \
+':agent -- Agent name or ID:_default' \
+':key -- Key name:_default' \
+&& ret=0
+;;
+(help)
+_arguments "${_arguments_options[@]}" : \
+":: :_openfang__memory__help_commands" \
+"*::: :->help" \
+&& ret=0
+
+    case $state in
+    (help)
+        words=($line[1] "${words[@]}")
+        (( CURRENT += 1 ))
+        curcontext="${curcontext%:*:*}:openfang-memory-help-command-$line[1]:"
+        case $line[1] in
+            (list)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(get)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(set)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(delete)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(help)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+        esac
+    ;;
+esac
+;;
+        esac
+    ;;
+esac
+;;
+(devices)
+_arguments "${_arguments_options[@]}" : \
+'--config=[Path to config file]:CONFIG:_files' \
+'-h[Print help]' \
+'--help[Print help]' \
+":: :_openfang__devices_commands" \
+"*::: :->devices" \
+&& ret=0
+
+    case $state in
+    (devices)
+        words=($line[1] "${words[@]}")
+        (( CURRENT += 1 ))
+        curcontext="${curcontext%:*:*}:openfang-devices-command-$line[1]:"
+        case $line[1] in
+            (list)
+_arguments "${_arguments_options[@]}" : \
+'--config=[Path to config file]:CONFIG:_files' \
+'--json[Output as JSON for scripting]' \
+'-h[Print help]' \
+'--help[Print help]' \
+&& ret=0
+;;
+(pair)
+_arguments "${_arguments_options[@]}" : \
+'--config=[Path to config file]:CONFIG:_files' \
+'-h[Print help]' \
+'--help[Print help]' \
+&& ret=0
+;;
+(remove)
+_arguments "${_arguments_options[@]}" : \
+'--config=[Path to config file]:CONFIG:_files' \
+'-h[Print help]' \
+'--help[Print help]' \
+':id -- Device ID:_default' \
+&& ret=0
+;;
+(help)
+_arguments "${_arguments_options[@]}" : \
+":: :_openfang__devices__help_commands" \
+"*::: :->help" \
+&& ret=0
+
+    case $state in
+    (help)
+        words=($line[1] "${words[@]}")
+        (( CURRENT += 1 ))
+        curcontext="${curcontext%:*:*}:openfang-devices-help-command-$line[1]:"
+        case $line[1] in
+            (list)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(pair)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(remove)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(help)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+        esac
+    ;;
+esac
+;;
+        esac
+    ;;
+esac
+;;
+(qr)
+_arguments "${_arguments_options[@]}" : \
+'--config=[Path to config file]:CONFIG:_files' \
+'-h[Print help]' \
+'--help[Print help]' \
+&& ret=0
+;;
+(webhooks)
+_arguments "${_arguments_options[@]}" : \
+'--config=[Path to config file]:CONFIG:_files' \
+'-h[Print help]' \
+'--help[Print help]' \
+":: :_openfang__webhooks_commands" \
+"*::: :->webhooks" \
+&& ret=0
+
+    case $state in
+    (webhooks)
+        words=($line[1] "${words[@]}")
+        (( CURRENT += 1 ))
+        curcontext="${curcontext%:*:*}:openfang-webhooks-command-$line[1]:"
+        case $line[1] in
+            (list)
+_arguments "${_arguments_options[@]}" : \
+'--config=[Path to config file]:CONFIG:_files' \
+'--json[Output as JSON for scripting]' \
+'-h[Print help]' \
+'--help[Print help]' \
+&& ret=0
+;;
+(create)
+_arguments "${_arguments_options[@]}" : \
+'--config=[Path to config file]:CONFIG:_files' \
+'-h[Print help]' \
+'--help[Print help]' \
+':agent -- Agent name or ID:_default' \
+':url -- Webhook callback URL:_default' \
+&& ret=0
+;;
+(delete)
+_arguments "${_arguments_options[@]}" : \
+'--config=[Path to config file]:CONFIG:_files' \
+'-h[Print help]' \
+'--help[Print help]' \
+':id -- Webhook ID:_default' \
+&& ret=0
+;;
+(test)
+_arguments "${_arguments_options[@]}" : \
+'--config=[Path to config file]:CONFIG:_files' \
+'-h[Print help]' \
+'--help[Print help]' \
+':id -- Webhook ID:_default' \
+&& ret=0
+;;
+(help)
+_arguments "${_arguments_options[@]}" : \
+":: :_openfang__webhooks__help_commands" \
+"*::: :->help" \
+&& ret=0
+
+    case $state in
+    (help)
+        words=($line[1] "${words[@]}")
+        (( CURRENT += 1 ))
+        curcontext="${curcontext%:*:*}:openfang-webhooks-help-command-$line[1]:"
+        case $line[1] in
+            (list)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(create)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(delete)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(test)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(help)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+        esac
+    ;;
+esac
+;;
+        esac
+    ;;
+esac
+;;
+(onboard)
+_arguments "${_arguments_options[@]}" : \
+'--config=[Path to config file]:CONFIG:_files' \
+'--quick[Quick non-interactive mode]' \
+'-h[Print help]' \
+'--help[Print help]' \
+&& ret=0
+;;
+(setup)
+_arguments "${_arguments_options[@]}" : \
+'--config=[Path to config file]:CONFIG:_files' \
+'--quick[Quick mode (same as \`init --quick\`)]' \
+'-h[Print help]' \
+'--help[Print help]' \
+&& ret=0
+;;
+(configure)
+_arguments "${_arguments_options[@]}" : \
+'--config=[Path to config file]:CONFIG:_files' \
+'-h[Print help]' \
+'--help[Print help]' \
+&& ret=0
+;;
+(message)
+_arguments "${_arguments_options[@]}" : \
+'--config=[Path to config file]:CONFIG:_files' \
+'--json[Output as JSON for scripting]' \
+'-h[Print help]' \
+'--help[Print help]' \
+':agent -- Agent name or ID:_default' \
+':text -- Message text:_default' \
+&& ret=0
+;;
+(system)
+_arguments "${_arguments_options[@]}" : \
+'--config=[Path to config file]:CONFIG:_files' \
+'-h[Print help]' \
+'--help[Print help]' \
+":: :_openfang__system_commands" \
+"*::: :->system" \
+&& ret=0
+
+    case $state in
+    (system)
+        words=($line[1] "${words[@]}")
+        (( CURRENT += 1 ))
+        curcontext="${curcontext%:*:*}:openfang-system-command-$line[1]:"
+        case $line[1] in
+            (info)
+_arguments "${_arguments_options[@]}" : \
+'--config=[Path to config file]:CONFIG:_files' \
+'--json[Output as JSON for scripting]' \
+'-h[Print help]' \
+'--help[Print help]' \
+&& ret=0
+;;
+(version)
+_arguments "${_arguments_options[@]}" : \
+'--config=[Path to config file]:CONFIG:_files' \
+'--json[Output as JSON for scripting]' \
+'-h[Print help]' \
+'--help[Print help]' \
+&& ret=0
+;;
+(help)
+_arguments "${_arguments_options[@]}" : \
+":: :_openfang__system__help_commands" \
+"*::: :->help" \
+&& ret=0
+
+    case $state in
+    (help)
+        words=($line[1] "${words[@]}")
+        (( CURRENT += 1 ))
+        curcontext="${curcontext%:*:*}:openfang-system-help-command-$line[1]:"
+        case $line[1] in
+            (info)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(version)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(help)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+        esac
+    ;;
+esac
+;;
+        esac
+    ;;
+esac
+;;
+(reset)
+_arguments "${_arguments_options[@]}" : \
+'--config=[Path to config file]:CONFIG:_files' \
+'--confirm[Skip confirmation prompt]' \
+'-h[Print help]' \
+'--help[Print help]' \
+&& ret=0
+;;
+(uninstall)
+_arguments "${_arguments_options[@]}" : \
+'--config=[Path to config file]:CONFIG:_files' \
+'--confirm[Skip confirmation prompt (also --yes)]' \
+'--keep-config[Keep config files (config.toml, .env, secrets.env)]' \
+'-h[Print help]' \
+'--help[Print help]' \
+&& ret=0
+;;
+(help)
+_arguments "${_arguments_options[@]}" : \
+":: :_openfang__help_commands" \
+"*::: :->help" \
+&& ret=0
+
+    case $state in
+    (help)
+        words=($line[1] "${words[@]}")
+        (( CURRENT += 1 ))
+        curcontext="${curcontext%:*:*}:openfang-help-command-$line[1]:"
+        case $line[1] in
+            (init)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(start)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(stop)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(agent)
+_arguments "${_arguments_options[@]}" : \
+":: :_openfang__help__agent_commands" \
+"*::: :->agent" \
+&& ret=0
+
+    case $state in
+    (agent)
+        words=($line[1] "${words[@]}")
+        (( CURRENT += 1 ))
+        curcontext="${curcontext%:*:*}:openfang-help-agent-command-$line[1]:"
+        case $line[1] in
+            (new)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(spawn)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(list)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(chat)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(kill)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(set)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+        esac
+    ;;
+esac
+;;
+(workflow)
+_arguments "${_arguments_options[@]}" : \
+":: :_openfang__help__workflow_commands" \
+"*::: :->workflow" \
+&& ret=0
+
+    case $state in
+    (workflow)
+        words=($line[1] "${words[@]}")
+        (( CURRENT += 1 ))
+        curcontext="${curcontext%:*:*}:openfang-help-workflow-command-$line[1]:"
+        case $line[1] in
+            (list)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(create)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(get)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(update)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(delete)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(run)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+        esac
+    ;;
+esac
+;;
+(trigger)
+_arguments "${_arguments_options[@]}" : \
+":: :_openfang__help__trigger_commands" \
+"*::: :->trigger" \
+&& ret=0
+
+    case $state in
+    (trigger)
+        words=($line[1] "${words[@]}")
+        (( CURRENT += 1 ))
+        curcontext="${curcontext%:*:*}:openfang-help-trigger-command-$line[1]:"
+        case $line[1] in
+            (list)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(create)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(delete)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+        esac
+    ;;
+esac
+;;
+(migrate)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(skill)
+_arguments "${_arguments_options[@]}" : \
+":: :_openfang__help__skill_commands" \
+"*::: :->skill" \
+&& ret=0
+
+    case $state in
+    (skill)
+        words=($line[1] "${words[@]}")
+        (( CURRENT += 1 ))
+        curcontext="${curcontext%:*:*}:openfang-help-skill-command-$line[1]:"
+        case $line[1] in
+            (install)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(list)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(remove)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(search)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(create)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+        esac
+    ;;
+esac
+;;
+(channel)
+_arguments "${_arguments_options[@]}" : \
+":: :_openfang__help__channel_commands" \
+"*::: :->channel" \
+&& ret=0
+
+    case $state in
+    (channel)
+        words=($line[1] "${words[@]}")
+        (( CURRENT += 1 ))
+        curcontext="${curcontext%:*:*}:openfang-help-channel-command-$line[1]:"
+        case $line[1] in
+            (list)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(setup)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(test)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(enable)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(disable)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+        esac
+    ;;
+esac
+;;
+(hand)
+_arguments "${_arguments_options[@]}" : \
+":: :_openfang__help__hand_commands" \
+"*::: :->hand" \
+&& ret=0
+
+    case $state in
+    (hand)
+        words=($line[1] "${words[@]}")
+        (( CURRENT += 1 ))
+        curcontext="${curcontext%:*:*}:openfang-help-hand-command-$line[1]:"
+        case $line[1] in
+            (list)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(active)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(install)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(activate)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(deactivate)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(info)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(check-deps)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(install-deps)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(pause)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(resume)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+        esac
+    ;;
+esac
+;;
+(config)
+_arguments "${_arguments_options[@]}" : \
+":: :_openfang__help__config_commands" \
+"*::: :->config" \
+&& ret=0
+
+    case $state in
+    (config)
+        words=($line[1] "${words[@]}")
+        (( CURRENT += 1 ))
+        curcontext="${curcontext%:*:*}:openfang-help-config-command-$line[1]:"
+        case $line[1] in
+            (show)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(edit)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(get)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(set)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(unset)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(set-key)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(delete-key)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(test-key)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+        esac
+    ;;
+esac
+;;
+(chat)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(status)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(doctor)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(dashboard)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(completion)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(mcp)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(add)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(remove)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(integrations)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(vault)
+_arguments "${_arguments_options[@]}" : \
+":: :_openfang__help__vault_commands" \
+"*::: :->vault" \
+&& ret=0
+
+    case $state in
+    (vault)
+        words=($line[1] "${words[@]}")
+        (( CURRENT += 1 ))
+        curcontext="${curcontext%:*:*}:openfang-help-vault-command-$line[1]:"
+        case $line[1] in
+            (init)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(set)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(list)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(remove)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+        esac
+    ;;
+esac
+;;
+(new)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(tui)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(models)
+_arguments "${_arguments_options[@]}" : \
+":: :_openfang__help__models_commands" \
+"*::: :->models" \
+&& ret=0
+
+    case $state in
+    (models)
+        words=($line[1] "${words[@]}")
+        (( CURRENT += 1 ))
+        curcontext="${curcontext%:*:*}:openfang-help-models-command-$line[1]:"
+        case $line[1] in
+            (list)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(aliases)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(providers)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(set)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+        esac
+    ;;
+esac
+;;
+(gateway)
+_arguments "${_arguments_options[@]}" : \
+":: :_openfang__help__gateway_commands" \
+"*::: :->gateway" \
+&& ret=0
+
+    case $state in
+    (gateway)
+        words=($line[1] "${words[@]}")
+        (( CURRENT += 1 ))
+        curcontext="${curcontext%:*:*}:openfang-help-gateway-command-$line[1]:"
+        case $line[1] in
+            (start)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(stop)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(status)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+        esac
+    ;;
+esac
+;;
+(approvals)
+_arguments "${_arguments_options[@]}" : \
+":: :_openfang__help__approvals_commands" \
+"*::: :->approvals" \
+&& ret=0
+
+    case $state in
+    (approvals)
+        words=($line[1] "${words[@]}")
+        (( CURRENT += 1 ))
+        curcontext="${curcontext%:*:*}:openfang-help-approvals-command-$line[1]:"
+        case $line[1] in
+            (list)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(approve)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(reject)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+        esac
+    ;;
+esac
+;;
+(cron)
+_arguments "${_arguments_options[@]}" : \
+":: :_openfang__help__cron_commands" \
+"*::: :->cron" \
+&& ret=0
+
+    case $state in
+    (cron)
+        words=($line[1] "${words[@]}")
+        (( CURRENT += 1 ))
+        curcontext="${curcontext%:*:*}:openfang-help-cron-command-$line[1]:"
+        case $line[1] in
+            (list)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(create)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(delete)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(enable)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(disable)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+        esac
+    ;;
+esac
+;;
+(sessions)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(logs)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(health)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(security)
+_arguments "${_arguments_options[@]}" : \
+":: :_openfang__help__security_commands" \
+"*::: :->security" \
+&& ret=0
+
+    case $state in
+    (security)
+        words=($line[1] "${words[@]}")
+        (( CURRENT += 1 ))
+        curcontext="${curcontext%:*:*}:openfang-help-security-command-$line[1]:"
+        case $line[1] in
+            (status)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(audit)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(verify)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+        esac
+    ;;
+esac
+;;
+(memory)
+_arguments "${_arguments_options[@]}" : \
+":: :_openfang__help__memory_commands" \
+"*::: :->memory" \
+&& ret=0
+
+    case $state in
+    (memory)
+        words=($line[1] "${words[@]}")
+        (( CURRENT += 1 ))
+        curcontext="${curcontext%:*:*}:openfang-help-memory-command-$line[1]:"
+        case $line[1] in
+            (list)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(get)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(set)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(delete)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+        esac
+    ;;
+esac
+;;
+(devices)
+_arguments "${_arguments_options[@]}" : \
+":: :_openfang__help__devices_commands" \
+"*::: :->devices" \
+&& ret=0
+
+    case $state in
+    (devices)
+        words=($line[1] "${words[@]}")
+        (( CURRENT += 1 ))
+        curcontext="${curcontext%:*:*}:openfang-help-devices-command-$line[1]:"
+        case $line[1] in
+            (list)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(pair)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(remove)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+        esac
+    ;;
+esac
+;;
+(qr)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(webhooks)
+_arguments "${_arguments_options[@]}" : \
+":: :_openfang__help__webhooks_commands" \
+"*::: :->webhooks" \
+&& ret=0
+
+    case $state in
+    (webhooks)
+        words=($line[1] "${words[@]}")
+        (( CURRENT += 1 ))
+        curcontext="${curcontext%:*:*}:openfang-help-webhooks-command-$line[1]:"
+        case $line[1] in
+            (list)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(create)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(delete)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(test)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+        esac
+    ;;
+esac
+;;
+(onboard)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(setup)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(configure)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(message)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(system)
+_arguments "${_arguments_options[@]}" : \
+":: :_openfang__help__system_commands" \
+"*::: :->system" \
+&& ret=0
+
+    case $state in
+    (system)
+        words=($line[1] "${words[@]}")
+        (( CURRENT += 1 ))
+        curcontext="${curcontext%:*:*}:openfang-help-system-command-$line[1]:"
+        case $line[1] in
+            (info)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(version)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+        esac
+    ;;
+esac
+;;
+(reset)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(uninstall)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(help)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+        esac
+    ;;
+esac
+;;
+        esac
+    ;;
+esac
+}
+
+(( $+functions[_openfang_commands] )) ||
+_openfang_commands() {
+    local commands; commands=(
+'init:Initialize OpenFang (create ~/.openfang/ and default config)' \
+'start:Start the OpenFang kernel daemon (API server + kernel)' \
+'stop:Stop the running daemon' \
+'agent:Manage agents (new, list, chat, kill, spawn) \[*\]' \
+'workflow:Manage workflows (list, create, run) \[*\]' \
+'trigger:Manage event triggers (list, create, delete) \[*\]' \
+'migrate:Migrate from another agent framework to OpenFang' \
+'skill:Manage skills (install, list, search, create, remove) \[*\]' \
+'channel:Manage channel integrations (setup, test, enable, disable) \[*\]' \
+'hand:Manage hands (list, activate, deactivate, info) \[*\]' \
+'config:Show or edit configuration (show, edit, get, set, keys) \[*\]' \
+'chat:Quick chat with the default agent' \
+'status:Show kernel status' \
+'doctor:Run diagnostic health checks' \
+'dashboard:Open the web dashboard in the default browser' \
+'completion:Generate shell completion scripts' \
+'mcp:Start MCP (Model Context Protocol) server over stdio' \
+'add:Add an integration (one-click MCP server setup)' \
+'remove:Remove an installed integration' \
+'integrations:List or search integrations' \
+'vault:Manage the credential vault (init, set, list, remove) \[*\]' \
+'new:Scaffold a new skill or integration template' \
+'tui:Launch the interactive terminal dashboard' \
+'models:Browse models, aliases, and providers \[*\]' \
+'gateway:Daemon control (start, stop, status) \[*\]' \
+'approvals:Manage execution approvals (list, approve, reject) \[*\]' \
+'cron:Manage scheduled jobs (list, create, delete, enable, disable) \[*\]' \
+'sessions:List conversation sessions' \
+'logs:Tail the OpenFang log file' \
+'health:Quick daemon health check' \
+'security:Security tools and audit trail \[*\]' \
+'memory:Search and manage agent memory (KV store) \[*\]' \
+'devices:Device pairing and token management \[*\]' \
+'qr:Generate device pairing QR code' \
+'webhooks:Webhook helpers and trigger management \[*\]' \
+'onboard:Interactive onboarding wizard' \
+'setup:Quick non-interactive initialization' \
+'configure:Interactive setup wizard for credentials and channels' \
+'message:Send a one-shot message to an agent' \
+'system:System info and version \[*\]' \
+'reset:Reset local config and state' \
+'uninstall:Completely uninstall OpenFang from your system' \
+'help:Print this message or the help of the given subcommand(s)' \
+    )
+    _describe -t commands 'openfang commands' commands "$@"
+}
+(( $+functions[_openfang__add_commands] )) ||
+_openfang__add_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang add commands' commands "$@"
+}
+(( $+functions[_openfang__agent_commands] )) ||
+_openfang__agent_commands() {
+    local commands; commands=(
+'new:Spawn a new agent from a template (interactive or by name)' \
+'spawn:Spawn a new agent from a manifest file' \
+'list:List all running agents' \
+'chat:Interactive chat with an agent' \
+'kill:Kill an agent' \
+'set:Set an agent property (e.g., model)' \
+'help:Print this message or the help of the given subcommand(s)' \
+    )
+    _describe -t commands 'openfang agent commands' commands "$@"
+}
+(( $+functions[_openfang__agent__chat_commands] )) ||
+_openfang__agent__chat_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang agent chat commands' commands "$@"
+}
+(( $+functions[_openfang__agent__help_commands] )) ||
+_openfang__agent__help_commands() {
+    local commands; commands=(
+'new:Spawn a new agent from a template (interactive or by name)' \
+'spawn:Spawn a new agent from a manifest file' \
+'list:List all running agents' \
+'chat:Interactive chat with an agent' \
+'kill:Kill an agent' \
+'set:Set an agent property (e.g., model)' \
+'help:Print this message or the help of the given subcommand(s)' \
+    )
+    _describe -t commands 'openfang agent help commands' commands "$@"
+}
+(( $+functions[_openfang__agent__help__chat_commands] )) ||
+_openfang__agent__help__chat_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang agent help chat commands' commands "$@"
+}
+(( $+functions[_openfang__agent__help__help_commands] )) ||
+_openfang__agent__help__help_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang agent help help commands' commands "$@"
+}
+(( $+functions[_openfang__agent__help__kill_commands] )) ||
+_openfang__agent__help__kill_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang agent help kill commands' commands "$@"
+}
+(( $+functions[_openfang__agent__help__list_commands] )) ||
+_openfang__agent__help__list_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang agent help list commands' commands "$@"
+}
+(( $+functions[_openfang__agent__help__new_commands] )) ||
+_openfang__agent__help__new_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang agent help new commands' commands "$@"
+}
+(( $+functions[_openfang__agent__help__set_commands] )) ||
+_openfang__agent__help__set_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang agent help set commands' commands "$@"
+}
+(( $+functions[_openfang__agent__help__spawn_commands] )) ||
+_openfang__agent__help__spawn_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang agent help spawn commands' commands "$@"
+}
+(( $+functions[_openfang__agent__kill_commands] )) ||
+_openfang__agent__kill_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang agent kill commands' commands "$@"
+}
+(( $+functions[_openfang__agent__list_commands] )) ||
+_openfang__agent__list_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang agent list commands' commands "$@"
+}
+(( $+functions[_openfang__agent__new_commands] )) ||
+_openfang__agent__new_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang agent new commands' commands "$@"
+}
+(( $+functions[_openfang__agent__set_commands] )) ||
+_openfang__agent__set_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang agent set commands' commands "$@"
+}
+(( $+functions[_openfang__agent__spawn_commands] )) ||
+_openfang__agent__spawn_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang agent spawn commands' commands "$@"
+}
+(( $+functions[_openfang__approvals_commands] )) ||
+_openfang__approvals_commands() {
+    local commands; commands=(
+'list:List pending approvals' \
+'approve:Approve a pending request' \
+'reject:Reject a pending request' \
+'help:Print this message or the help of the given subcommand(s)' \
+    )
+    _describe -t commands 'openfang approvals commands' commands "$@"
+}
+(( $+functions[_openfang__approvals__approve_commands] )) ||
+_openfang__approvals__approve_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang approvals approve commands' commands "$@"
+}
+(( $+functions[_openfang__approvals__help_commands] )) ||
+_openfang__approvals__help_commands() {
+    local commands; commands=(
+'list:List pending approvals' \
+'approve:Approve a pending request' \
+'reject:Reject a pending request' \
+'help:Print this message or the help of the given subcommand(s)' \
+    )
+    _describe -t commands 'openfang approvals help commands' commands "$@"
+}
+(( $+functions[_openfang__approvals__help__approve_commands] )) ||
+_openfang__approvals__help__approve_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang approvals help approve commands' commands "$@"
+}
+(( $+functions[_openfang__approvals__help__help_commands] )) ||
+_openfang__approvals__help__help_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang approvals help help commands' commands "$@"
+}
+(( $+functions[_openfang__approvals__help__list_commands] )) ||
+_openfang__approvals__help__list_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang approvals help list commands' commands "$@"
+}
+(( $+functions[_openfang__approvals__help__reject_commands] )) ||
+_openfang__approvals__help__reject_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang approvals help reject commands' commands "$@"
+}
+(( $+functions[_openfang__approvals__list_commands] )) ||
+_openfang__approvals__list_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang approvals list commands' commands "$@"
+}
+(( $+functions[_openfang__approvals__reject_commands] )) ||
+_openfang__approvals__reject_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang approvals reject commands' commands "$@"
+}
+(( $+functions[_openfang__channel_commands] )) ||
+_openfang__channel_commands() {
+    local commands; commands=(
+'list:List configured channels and their status' \
+'setup:Interactive setup wizard for a channel' \
+'test:Test a channel by sending a test message' \
+'enable:Enable a channel' \
+'disable:Disable a channel without removing its configuration' \
+'help:Print this message or the help of the given subcommand(s)' \
+    )
+    _describe -t commands 'openfang channel commands' commands "$@"
+}
+(( $+functions[_openfang__channel__disable_commands] )) ||
+_openfang__channel__disable_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang channel disable commands' commands "$@"
+}
+(( $+functions[_openfang__channel__enable_commands] )) ||
+_openfang__channel__enable_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang channel enable commands' commands "$@"
+}
+(( $+functions[_openfang__channel__help_commands] )) ||
+_openfang__channel__help_commands() {
+    local commands; commands=(
+'list:List configured channels and their status' \
+'setup:Interactive setup wizard for a channel' \
+'test:Test a channel by sending a test message' \
+'enable:Enable a channel' \
+'disable:Disable a channel without removing its configuration' \
+'help:Print this message or the help of the given subcommand(s)' \
+    )
+    _describe -t commands 'openfang channel help commands' commands "$@"
+}
+(( $+functions[_openfang__channel__help__disable_commands] )) ||
+_openfang__channel__help__disable_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang channel help disable commands' commands "$@"
+}
+(( $+functions[_openfang__channel__help__enable_commands] )) ||
+_openfang__channel__help__enable_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang channel help enable commands' commands "$@"
+}
+(( $+functions[_openfang__channel__help__help_commands] )) ||
+_openfang__channel__help__help_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang channel help help commands' commands "$@"
+}
+(( $+functions[_openfang__channel__help__list_commands] )) ||
+_openfang__channel__help__list_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang channel help list commands' commands "$@"
+}
+(( $+functions[_openfang__channel__help__setup_commands] )) ||
+_openfang__channel__help__setup_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang channel help setup commands' commands "$@"
+}
+(( $+functions[_openfang__channel__help__test_commands] )) ||
+_openfang__channel__help__test_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang channel help test commands' commands "$@"
+}
+(( $+functions[_openfang__channel__list_commands] )) ||
+_openfang__channel__list_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang channel list commands' commands "$@"
+}
+(( $+functions[_openfang__channel__setup_commands] )) ||
+_openfang__channel__setup_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang channel setup commands' commands "$@"
+}
+(( $+functions[_openfang__channel__test_commands] )) ||
+_openfang__channel__test_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang channel test commands' commands "$@"
+}
+(( $+functions[_openfang__chat_commands] )) ||
+_openfang__chat_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang chat commands' commands "$@"
+}
+(( $+functions[_openfang__completion_commands] )) ||
+_openfang__completion_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang completion commands' commands "$@"
+}
+(( $+functions[_openfang__config_commands] )) ||
+_openfang__config_commands() {
+    local commands; commands=(
+'show:Show the current configuration' \
+'edit:Open the configuration file in your editor' \
+'get:Get a config value by dotted key path (e.g. "default_model.provider")' \
+'set:Set a config value (warning\: strips TOML comments)' \
+'unset:Remove a config key (warning\: strips TOML comments)' \
+'set-key:Save an API key to ~/.openfang/.env (prompts interactively)' \
+'delete-key:Remove an API key from ~/.openfang/.env' \
+'test-key:Test provider connectivity with the stored API key' \
+'help:Print this message or the help of the given subcommand(s)' \
+    )
+    _describe -t commands 'openfang config commands' commands "$@"
+}
+(( $+functions[_openfang__config__delete-key_commands] )) ||
+_openfang__config__delete-key_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang config delete-key commands' commands "$@"
+}
+(( $+functions[_openfang__config__edit_commands] )) ||
+_openfang__config__edit_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang config edit commands' commands "$@"
+}
+(( $+functions[_openfang__config__get_commands] )) ||
+_openfang__config__get_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang config get commands' commands "$@"
+}
+(( $+functions[_openfang__config__help_commands] )) ||
+_openfang__config__help_commands() {
+    local commands; commands=(
+'show:Show the current configuration' \
+'edit:Open the configuration file in your editor' \
+'get:Get a config value by dotted key path (e.g. "default_model.provider")' \
+'set:Set a config value (warning\: strips TOML comments)' \
+'unset:Remove a config key (warning\: strips TOML comments)' \
+'set-key:Save an API key to ~/.openfang/.env (prompts interactively)' \
+'delete-key:Remove an API key from ~/.openfang/.env' \
+'test-key:Test provider connectivity with the stored API key' \
+'help:Print this message or the help of the given subcommand(s)' \
+    )
+    _describe -t commands 'openfang config help commands' commands "$@"
+}
+(( $+functions[_openfang__config__help__delete-key_commands] )) ||
+_openfang__config__help__delete-key_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang config help delete-key commands' commands "$@"
+}
+(( $+functions[_openfang__config__help__edit_commands] )) ||
+_openfang__config__help__edit_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang config help edit commands' commands "$@"
+}
+(( $+functions[_openfang__config__help__get_commands] )) ||
+_openfang__config__help__get_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang config help get commands' commands "$@"
+}
+(( $+functions[_openfang__config__help__help_commands] )) ||
+_openfang__config__help__help_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang config help help commands' commands "$@"
+}
+(( $+functions[_openfang__config__help__set_commands] )) ||
+_openfang__config__help__set_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang config help set commands' commands "$@"
+}
+(( $+functions[_openfang__config__help__set-key_commands] )) ||
+_openfang__config__help__set-key_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang config help set-key commands' commands "$@"
+}
+(( $+functions[_openfang__config__help__show_commands] )) ||
+_openfang__config__help__show_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang config help show commands' commands "$@"
+}
+(( $+functions[_openfang__config__help__test-key_commands] )) ||
+_openfang__config__help__test-key_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang config help test-key commands' commands "$@"
+}
+(( $+functions[_openfang__config__help__unset_commands] )) ||
+_openfang__config__help__unset_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang config help unset commands' commands "$@"
+}
+(( $+functions[_openfang__config__set_commands] )) ||
+_openfang__config__set_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang config set commands' commands "$@"
+}
+(( $+functions[_openfang__config__set-key_commands] )) ||
+_openfang__config__set-key_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang config set-key commands' commands "$@"
+}
+(( $+functions[_openfang__config__show_commands] )) ||
+_openfang__config__show_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang config show commands' commands "$@"
+}
+(( $+functions[_openfang__config__test-key_commands] )) ||
+_openfang__config__test-key_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang config test-key commands' commands "$@"
+}
+(( $+functions[_openfang__config__unset_commands] )) ||
+_openfang__config__unset_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang config unset commands' commands "$@"
+}
+(( $+functions[_openfang__configure_commands] )) ||
+_openfang__configure_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang configure commands' commands "$@"
+}
+(( $+functions[_openfang__cron_commands] )) ||
+_openfang__cron_commands() {
+    local commands; commands=(
+'list:List scheduled jobs' \
+'create:Create a new scheduled job' \
+'delete:Delete a scheduled job' \
+'enable:Enable a disabled job' \
+'disable:Disable a job without deleting it' \
+'help:Print this message or the help of the given subcommand(s)' \
+    )
+    _describe -t commands 'openfang cron commands' commands "$@"
+}
+(( $+functions[_openfang__cron__create_commands] )) ||
+_openfang__cron__create_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang cron create commands' commands "$@"
+}
+(( $+functions[_openfang__cron__delete_commands] )) ||
+_openfang__cron__delete_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang cron delete commands' commands "$@"
+}
+(( $+functions[_openfang__cron__disable_commands] )) ||
+_openfang__cron__disable_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang cron disable commands' commands "$@"
+}
+(( $+functions[_openfang__cron__enable_commands] )) ||
+_openfang__cron__enable_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang cron enable commands' commands "$@"
+}
+(( $+functions[_openfang__cron__help_commands] )) ||
+_openfang__cron__help_commands() {
+    local commands; commands=(
+'list:List scheduled jobs' \
+'create:Create a new scheduled job' \
+'delete:Delete a scheduled job' \
+'enable:Enable a disabled job' \
+'disable:Disable a job without deleting it' \
+'help:Print this message or the help of the given subcommand(s)' \
+    )
+    _describe -t commands 'openfang cron help commands' commands "$@"
+}
+(( $+functions[_openfang__cron__help__create_commands] )) ||
+_openfang__cron__help__create_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang cron help create commands' commands "$@"
+}
+(( $+functions[_openfang__cron__help__delete_commands] )) ||
+_openfang__cron__help__delete_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang cron help delete commands' commands "$@"
+}
+(( $+functions[_openfang__cron__help__disable_commands] )) ||
+_openfang__cron__help__disable_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang cron help disable commands' commands "$@"
+}
+(( $+functions[_openfang__cron__help__enable_commands] )) ||
+_openfang__cron__help__enable_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang cron help enable commands' commands "$@"
+}
+(( $+functions[_openfang__cron__help__help_commands] )) ||
+_openfang__cron__help__help_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang cron help help commands' commands "$@"
+}
+(( $+functions[_openfang__cron__help__list_commands] )) ||
+_openfang__cron__help__list_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang cron help list commands' commands "$@"
+}
+(( $+functions[_openfang__cron__list_commands] )) ||
+_openfang__cron__list_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang cron list commands' commands "$@"
+}
+(( $+functions[_openfang__dashboard_commands] )) ||
+_openfang__dashboard_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang dashboard commands' commands "$@"
+}
+(( $+functions[_openfang__devices_commands] )) ||
+_openfang__devices_commands() {
+    local commands; commands=(
+'list:List paired devices' \
+'pair:Start a new device pairing flow' \
+'remove:Remove a paired device' \
+'help:Print this message or the help of the given subcommand(s)' \
+    )
+    _describe -t commands 'openfang devices commands' commands "$@"
+}
+(( $+functions[_openfang__devices__help_commands] )) ||
+_openfang__devices__help_commands() {
+    local commands; commands=(
+'list:List paired devices' \
+'pair:Start a new device pairing flow' \
+'remove:Remove a paired device' \
+'help:Print this message or the help of the given subcommand(s)' \
+    )
+    _describe -t commands 'openfang devices help commands' commands "$@"
+}
+(( $+functions[_openfang__devices__help__help_commands] )) ||
+_openfang__devices__help__help_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang devices help help commands' commands "$@"
+}
+(( $+functions[_openfang__devices__help__list_commands] )) ||
+_openfang__devices__help__list_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang devices help list commands' commands "$@"
+}
+(( $+functions[_openfang__devices__help__pair_commands] )) ||
+_openfang__devices__help__pair_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang devices help pair commands' commands "$@"
+}
+(( $+functions[_openfang__devices__help__remove_commands] )) ||
+_openfang__devices__help__remove_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang devices help remove commands' commands "$@"
+}
+(( $+functions[_openfang__devices__list_commands] )) ||
+_openfang__devices__list_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang devices list commands' commands "$@"
+}
+(( $+functions[_openfang__devices__pair_commands] )) ||
+_openfang__devices__pair_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang devices pair commands' commands "$@"
+}
+(( $+functions[_openfang__devices__remove_commands] )) ||
+_openfang__devices__remove_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang devices remove commands' commands "$@"
+}
+(( $+functions[_openfang__doctor_commands] )) ||
+_openfang__doctor_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang doctor commands' commands "$@"
+}
+(( $+functions[_openfang__gateway_commands] )) ||
+_openfang__gateway_commands() {
+    local commands; commands=(
+'start:Start the kernel daemon' \
+'stop:Stop the running daemon' \
+'status:Show daemon status' \
+'help:Print this message or the help of the given subcommand(s)' \
+    )
+    _describe -t commands 'openfang gateway commands' commands "$@"
+}
+(( $+functions[_openfang__gateway__help_commands] )) ||
+_openfang__gateway__help_commands() {
+    local commands; commands=(
+'start:Start the kernel daemon' \
+'stop:Stop the running daemon' \
+'status:Show daemon status' \
+'help:Print this message or the help of the given subcommand(s)' \
+    )
+    _describe -t commands 'openfang gateway help commands' commands "$@"
+}
+(( $+functions[_openfang__gateway__help__help_commands] )) ||
+_openfang__gateway__help__help_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang gateway help help commands' commands "$@"
+}
+(( $+functions[_openfang__gateway__help__start_commands] )) ||
+_openfang__gateway__help__start_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang gateway help start commands' commands "$@"
+}
+(( $+functions[_openfang__gateway__help__status_commands] )) ||
+_openfang__gateway__help__status_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang gateway help status commands' commands "$@"
+}
+(( $+functions[_openfang__gateway__help__stop_commands] )) ||
+_openfang__gateway__help__stop_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang gateway help stop commands' commands "$@"
+}
+(( $+functions[_openfang__gateway__start_commands] )) ||
+_openfang__gateway__start_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang gateway start commands' commands "$@"
+}
+(( $+functions[_openfang__gateway__status_commands] )) ||
+_openfang__gateway__status_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang gateway status commands' commands "$@"
+}
+(( $+functions[_openfang__gateway__stop_commands] )) ||
+_openfang__gateway__stop_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang gateway stop commands' commands "$@"
+}
+(( $+functions[_openfang__hand_commands] )) ||
+_openfang__hand_commands() {
+    local commands; commands=(
+'list:List all available hands' \
+'active:Show currently active hand instances' \
+'install:Install a hand from a local directory containing HAND.toml' \
+'activate:Activate a hand by ID' \
+'deactivate:Deactivate an active hand instance' \
+'info:Show detailed info about a hand' \
+'check-deps:Check dependency status for a hand' \
+'install-deps:Install missing dependencies for a hand' \
+'pause:Pause a running hand instance' \
+'resume:Resume a paused hand instance' \
+'help:Print this message or the help of the given subcommand(s)' \
+    )
+    _describe -t commands 'openfang hand commands' commands "$@"
+}
+(( $+functions[_openfang__hand__activate_commands] )) ||
+_openfang__hand__activate_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang hand activate commands' commands "$@"
+}
+(( $+functions[_openfang__hand__active_commands] )) ||
+_openfang__hand__active_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang hand active commands' commands "$@"
+}
+(( $+functions[_openfang__hand__check-deps_commands] )) ||
+_openfang__hand__check-deps_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang hand check-deps commands' commands "$@"
+}
+(( $+functions[_openfang__hand__deactivate_commands] )) ||
+_openfang__hand__deactivate_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang hand deactivate commands' commands "$@"
+}
+(( $+functions[_openfang__hand__help_commands] )) ||
+_openfang__hand__help_commands() {
+    local commands; commands=(
+'list:List all available hands' \
+'active:Show currently active hand instances' \
+'install:Install a hand from a local directory containing HAND.toml' \
+'activate:Activate a hand by ID' \
+'deactivate:Deactivate an active hand instance' \
+'info:Show detailed info about a hand' \
+'check-deps:Check dependency status for a hand' \
+'install-deps:Install missing dependencies for a hand' \
+'pause:Pause a running hand instance' \
+'resume:Resume a paused hand instance' \
+'help:Print this message or the help of the given subcommand(s)' \
+    )
+    _describe -t commands 'openfang hand help commands' commands "$@"
+}
+(( $+functions[_openfang__hand__help__activate_commands] )) ||
+_openfang__hand__help__activate_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang hand help activate commands' commands "$@"
+}
+(( $+functions[_openfang__hand__help__active_commands] )) ||
+_openfang__hand__help__active_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang hand help active commands' commands "$@"
+}
+(( $+functions[_openfang__hand__help__check-deps_commands] )) ||
+_openfang__hand__help__check-deps_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang hand help check-deps commands' commands "$@"
+}
+(( $+functions[_openfang__hand__help__deactivate_commands] )) ||
+_openfang__hand__help__deactivate_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang hand help deactivate commands' commands "$@"
+}
+(( $+functions[_openfang__hand__help__help_commands] )) ||
+_openfang__hand__help__help_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang hand help help commands' commands "$@"
+}
+(( $+functions[_openfang__hand__help__info_commands] )) ||
+_openfang__hand__help__info_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang hand help info commands' commands "$@"
+}
+(( $+functions[_openfang__hand__help__install_commands] )) ||
+_openfang__hand__help__install_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang hand help install commands' commands "$@"
+}
+(( $+functions[_openfang__hand__help__install-deps_commands] )) ||
+_openfang__hand__help__install-deps_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang hand help install-deps commands' commands "$@"
+}
+(( $+functions[_openfang__hand__help__list_commands] )) ||
+_openfang__hand__help__list_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang hand help list commands' commands "$@"
+}
+(( $+functions[_openfang__hand__help__pause_commands] )) ||
+_openfang__hand__help__pause_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang hand help pause commands' commands "$@"
+}
+(( $+functions[_openfang__hand__help__resume_commands] )) ||
+_openfang__hand__help__resume_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang hand help resume commands' commands "$@"
+}
+(( $+functions[_openfang__hand__info_commands] )) ||
+_openfang__hand__info_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang hand info commands' commands "$@"
+}
+(( $+functions[_openfang__hand__install_commands] )) ||
+_openfang__hand__install_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang hand install commands' commands "$@"
+}
+(( $+functions[_openfang__hand__install-deps_commands] )) ||
+_openfang__hand__install-deps_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang hand install-deps commands' commands "$@"
+}
+(( $+functions[_openfang__hand__list_commands] )) ||
+_openfang__hand__list_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang hand list commands' commands "$@"
+}
+(( $+functions[_openfang__hand__pause_commands] )) ||
+_openfang__hand__pause_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang hand pause commands' commands "$@"
+}
+(( $+functions[_openfang__hand__resume_commands] )) ||
+_openfang__hand__resume_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang hand resume commands' commands "$@"
+}
+(( $+functions[_openfang__health_commands] )) ||
+_openfang__health_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang health commands' commands "$@"
+}
+(( $+functions[_openfang__help_commands] )) ||
+_openfang__help_commands() {
+    local commands; commands=(
+'init:Initialize OpenFang (create ~/.openfang/ and default config)' \
+'start:Start the OpenFang kernel daemon (API server + kernel)' \
+'stop:Stop the running daemon' \
+'agent:Manage agents (new, list, chat, kill, spawn) \[*\]' \
+'workflow:Manage workflows (list, create, run) \[*\]' \
+'trigger:Manage event triggers (list, create, delete) \[*\]' \
+'migrate:Migrate from another agent framework to OpenFang' \
+'skill:Manage skills (install, list, search, create, remove) \[*\]' \
+'channel:Manage channel integrations (setup, test, enable, disable) \[*\]' \
+'hand:Manage hands (list, activate, deactivate, info) \[*\]' \
+'config:Show or edit configuration (show, edit, get, set, keys) \[*\]' \
+'chat:Quick chat with the default agent' \
+'status:Show kernel status' \
+'doctor:Run diagnostic health checks' \
+'dashboard:Open the web dashboard in the default browser' \
+'completion:Generate shell completion scripts' \
+'mcp:Start MCP (Model Context Protocol) server over stdio' \
+'add:Add an integration (one-click MCP server setup)' \
+'remove:Remove an installed integration' \
+'integrations:List or search integrations' \
+'vault:Manage the credential vault (init, set, list, remove) \[*\]' \
+'new:Scaffold a new skill or integration template' \
+'tui:Launch the interactive terminal dashboard' \
+'models:Browse models, aliases, and providers \[*\]' \
+'gateway:Daemon control (start, stop, status) \[*\]' \
+'approvals:Manage execution approvals (list, approve, reject) \[*\]' \
+'cron:Manage scheduled jobs (list, create, delete, enable, disable) \[*\]' \
+'sessions:List conversation sessions' \
+'logs:Tail the OpenFang log file' \
+'health:Quick daemon health check' \
+'security:Security tools and audit trail \[*\]' \
+'memory:Search and manage agent memory (KV store) \[*\]' \
+'devices:Device pairing and token management \[*\]' \
+'qr:Generate device pairing QR code' \
+'webhooks:Webhook helpers and trigger management \[*\]' \
+'onboard:Interactive onboarding wizard' \
+'setup:Quick non-interactive initialization' \
+'configure:Interactive setup wizard for credentials and channels' \
+'message:Send a one-shot message to an agent' \
+'system:System info and version \[*\]' \
+'reset:Reset local config and state' \
+'uninstall:Completely uninstall OpenFang from your system' \
+'help:Print this message or the help of the given subcommand(s)' \
+    )
+    _describe -t commands 'openfang help commands' commands "$@"
+}
+(( $+functions[_openfang__help__add_commands] )) ||
+_openfang__help__add_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang help add commands' commands "$@"
+}
+(( $+functions[_openfang__help__agent_commands] )) ||
+_openfang__help__agent_commands() {
+    local commands; commands=(
+'new:Spawn a new agent from a template (interactive or by name)' \
+'spawn:Spawn a new agent from a manifest file' \
+'list:List all running agents' \
+'chat:Interactive chat with an agent' \
+'kill:Kill an agent' \
+'set:Set an agent property (e.g., model)' \
+    )
+    _describe -t commands 'openfang help agent commands' commands "$@"
+}
+(( $+functions[_openfang__help__agent__chat_commands] )) ||
+_openfang__help__agent__chat_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang help agent chat commands' commands "$@"
+}
+(( $+functions[_openfang__help__agent__kill_commands] )) ||
+_openfang__help__agent__kill_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang help agent kill commands' commands "$@"
+}
+(( $+functions[_openfang__help__agent__list_commands] )) ||
+_openfang__help__agent__list_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang help agent list commands' commands "$@"
+}
+(( $+functions[_openfang__help__agent__new_commands] )) ||
+_openfang__help__agent__new_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang help agent new commands' commands "$@"
+}
+(( $+functions[_openfang__help__agent__set_commands] )) ||
+_openfang__help__agent__set_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang help agent set commands' commands "$@"
+}
+(( $+functions[_openfang__help__agent__spawn_commands] )) ||
+_openfang__help__agent__spawn_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang help agent spawn commands' commands "$@"
+}
+(( $+functions[_openfang__help__approvals_commands] )) ||
+_openfang__help__approvals_commands() {
+    local commands; commands=(
+'list:List pending approvals' \
+'approve:Approve a pending request' \
+'reject:Reject a pending request' \
+    )
+    _describe -t commands 'openfang help approvals commands' commands "$@"
+}
+(( $+functions[_openfang__help__approvals__approve_commands] )) ||
+_openfang__help__approvals__approve_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang help approvals approve commands' commands "$@"
+}
+(( $+functions[_openfang__help__approvals__list_commands] )) ||
+_openfang__help__approvals__list_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang help approvals list commands' commands "$@"
+}
+(( $+functions[_openfang__help__approvals__reject_commands] )) ||
+_openfang__help__approvals__reject_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang help approvals reject commands' commands "$@"
+}
+(( $+functions[_openfang__help__channel_commands] )) ||
+_openfang__help__channel_commands() {
+    local commands; commands=(
+'list:List configured channels and their status' \
+'setup:Interactive setup wizard for a channel' \
+'test:Test a channel by sending a test message' \
+'enable:Enable a channel' \
+'disable:Disable a channel without removing its configuration' \
+    )
+    _describe -t commands 'openfang help channel commands' commands "$@"
+}
+(( $+functions[_openfang__help__channel__disable_commands] )) ||
+_openfang__help__channel__disable_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang help channel disable commands' commands "$@"
+}
+(( $+functions[_openfang__help__channel__enable_commands] )) ||
+_openfang__help__channel__enable_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang help channel enable commands' commands "$@"
+}
+(( $+functions[_openfang__help__channel__list_commands] )) ||
+_openfang__help__channel__list_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang help channel list commands' commands "$@"
+}
+(( $+functions[_openfang__help__channel__setup_commands] )) ||
+_openfang__help__channel__setup_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang help channel setup commands' commands "$@"
+}
+(( $+functions[_openfang__help__channel__test_commands] )) ||
+_openfang__help__channel__test_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang help channel test commands' commands "$@"
+}
+(( $+functions[_openfang__help__chat_commands] )) ||
+_openfang__help__chat_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang help chat commands' commands "$@"
+}
+(( $+functions[_openfang__help__completion_commands] )) ||
+_openfang__help__completion_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang help completion commands' commands "$@"
+}
+(( $+functions[_openfang__help__config_commands] )) ||
+_openfang__help__config_commands() {
+    local commands; commands=(
+'show:Show the current configuration' \
+'edit:Open the configuration file in your editor' \
+'get:Get a config value by dotted key path (e.g. "default_model.provider")' \
+'set:Set a config value (warning\: strips TOML comments)' \
+'unset:Remove a config key (warning\: strips TOML comments)' \
+'set-key:Save an API key to ~/.openfang/.env (prompts interactively)' \
+'delete-key:Remove an API key from ~/.openfang/.env' \
+'test-key:Test provider connectivity with the stored API key' \
+    )
+    _describe -t commands 'openfang help config commands' commands "$@"
+}
+(( $+functions[_openfang__help__config__delete-key_commands] )) ||
+_openfang__help__config__delete-key_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang help config delete-key commands' commands "$@"
+}
+(( $+functions[_openfang__help__config__edit_commands] )) ||
+_openfang__help__config__edit_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang help config edit commands' commands "$@"
+}
+(( $+functions[_openfang__help__config__get_commands] )) ||
+_openfang__help__config__get_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang help config get commands' commands "$@"
+}
+(( $+functions[_openfang__help__config__set_commands] )) ||
+_openfang__help__config__set_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang help config set commands' commands "$@"
+}
+(( $+functions[_openfang__help__config__set-key_commands] )) ||
+_openfang__help__config__set-key_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang help config set-key commands' commands "$@"
+}
+(( $+functions[_openfang__help__config__show_commands] )) ||
+_openfang__help__config__show_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang help config show commands' commands "$@"
+}
+(( $+functions[_openfang__help__config__test-key_commands] )) ||
+_openfang__help__config__test-key_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang help config test-key commands' commands "$@"
+}
+(( $+functions[_openfang__help__config__unset_commands] )) ||
+_openfang__help__config__unset_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang help config unset commands' commands "$@"
+}
+(( $+functions[_openfang__help__configure_commands] )) ||
+_openfang__help__configure_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang help configure commands' commands "$@"
+}
+(( $+functions[_openfang__help__cron_commands] )) ||
+_openfang__help__cron_commands() {
+    local commands; commands=(
+'list:List scheduled jobs' \
+'create:Create a new scheduled job' \
+'delete:Delete a scheduled job' \
+'enable:Enable a disabled job' \
+'disable:Disable a job without deleting it' \
+    )
+    _describe -t commands 'openfang help cron commands' commands "$@"
+}
+(( $+functions[_openfang__help__cron__create_commands] )) ||
+_openfang__help__cron__create_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang help cron create commands' commands "$@"
+}
+(( $+functions[_openfang__help__cron__delete_commands] )) ||
+_openfang__help__cron__delete_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang help cron delete commands' commands "$@"
+}
+(( $+functions[_openfang__help__cron__disable_commands] )) ||
+_openfang__help__cron__disable_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang help cron disable commands' commands "$@"
+}
+(( $+functions[_openfang__help__cron__enable_commands] )) ||
+_openfang__help__cron__enable_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang help cron enable commands' commands "$@"
+}
+(( $+functions[_openfang__help__cron__list_commands] )) ||
+_openfang__help__cron__list_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang help cron list commands' commands "$@"
+}
+(( $+functions[_openfang__help__dashboard_commands] )) ||
+_openfang__help__dashboard_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang help dashboard commands' commands "$@"
+}
+(( $+functions[_openfang__help__devices_commands] )) ||
+_openfang__help__devices_commands() {
+    local commands; commands=(
+'list:List paired devices' \
+'pair:Start a new device pairing flow' \
+'remove:Remove a paired device' \
+    )
+    _describe -t commands 'openfang help devices commands' commands "$@"
+}
+(( $+functions[_openfang__help__devices__list_commands] )) ||
+_openfang__help__devices__list_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang help devices list commands' commands "$@"
+}
+(( $+functions[_openfang__help__devices__pair_commands] )) ||
+_openfang__help__devices__pair_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang help devices pair commands' commands "$@"
+}
+(( $+functions[_openfang__help__devices__remove_commands] )) ||
+_openfang__help__devices__remove_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang help devices remove commands' commands "$@"
+}
+(( $+functions[_openfang__help__doctor_commands] )) ||
+_openfang__help__doctor_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang help doctor commands' commands "$@"
+}
+(( $+functions[_openfang__help__gateway_commands] )) ||
+_openfang__help__gateway_commands() {
+    local commands; commands=(
+'start:Start the kernel daemon' \
+'stop:Stop the running daemon' \
+'status:Show daemon status' \
+    )
+    _describe -t commands 'openfang help gateway commands' commands "$@"
+}
+(( $+functions[_openfang__help__gateway__start_commands] )) ||
+_openfang__help__gateway__start_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang help gateway start commands' commands "$@"
+}
+(( $+functions[_openfang__help__gateway__status_commands] )) ||
+_openfang__help__gateway__status_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang help gateway status commands' commands "$@"
+}
+(( $+functions[_openfang__help__gateway__stop_commands] )) ||
+_openfang__help__gateway__stop_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang help gateway stop commands' commands "$@"
+}
+(( $+functions[_openfang__help__hand_commands] )) ||
+_openfang__help__hand_commands() {
+    local commands; commands=(
+'list:List all available hands' \
+'active:Show currently active hand instances' \
+'install:Install a hand from a local directory containing HAND.toml' \
+'activate:Activate a hand by ID' \
+'deactivate:Deactivate an active hand instance' \
+'info:Show detailed info about a hand' \
+'check-deps:Check dependency status for a hand' \
+'install-deps:Install missing dependencies for a hand' \
+'pause:Pause a running hand instance' \
+'resume:Resume a paused hand instance' \
+    )
+    _describe -t commands 'openfang help hand commands' commands "$@"
+}
+(( $+functions[_openfang__help__hand__activate_commands] )) ||
+_openfang__help__hand__activate_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang help hand activate commands' commands "$@"
+}
+(( $+functions[_openfang__help__hand__active_commands] )) ||
+_openfang__help__hand__active_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang help hand active commands' commands "$@"
+}
+(( $+functions[_openfang__help__hand__check-deps_commands] )) ||
+_openfang__help__hand__check-deps_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang help hand check-deps commands' commands "$@"
+}
+(( $+functions[_openfang__help__hand__deactivate_commands] )) ||
+_openfang__help__hand__deactivate_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang help hand deactivate commands' commands "$@"
+}
+(( $+functions[_openfang__help__hand__info_commands] )) ||
+_openfang__help__hand__info_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang help hand info commands' commands "$@"
+}
+(( $+functions[_openfang__help__hand__install_commands] )) ||
+_openfang__help__hand__install_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang help hand install commands' commands "$@"
+}
+(( $+functions[_openfang__help__hand__install-deps_commands] )) ||
+_openfang__help__hand__install-deps_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang help hand install-deps commands' commands "$@"
+}
+(( $+functions[_openfang__help__hand__list_commands] )) ||
+_openfang__help__hand__list_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang help hand list commands' commands "$@"
+}
+(( $+functions[_openfang__help__hand__pause_commands] )) ||
+_openfang__help__hand__pause_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang help hand pause commands' commands "$@"
+}
+(( $+functions[_openfang__help__hand__resume_commands] )) ||
+_openfang__help__hand__resume_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang help hand resume commands' commands "$@"
+}
+(( $+functions[_openfang__help__health_commands] )) ||
+_openfang__help__health_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang help health commands' commands "$@"
+}
+(( $+functions[_openfang__help__help_commands] )) ||
+_openfang__help__help_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang help help commands' commands "$@"
+}
+(( $+functions[_openfang__help__init_commands] )) ||
+_openfang__help__init_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang help init commands' commands "$@"
+}
+(( $+functions[_openfang__help__integrations_commands] )) ||
+_openfang__help__integrations_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang help integrations commands' commands "$@"
+}
+(( $+functions[_openfang__help__logs_commands] )) ||
+_openfang__help__logs_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang help logs commands' commands "$@"
+}
+(( $+functions[_openfang__help__mcp_commands] )) ||
+_openfang__help__mcp_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang help mcp commands' commands "$@"
+}
+(( $+functions[_openfang__help__memory_commands] )) ||
+_openfang__help__memory_commands() {
+    local commands; commands=(
+'list:List KV pairs for an agent' \
+'get:Get a specific KV value' \
+'set:Set a KV value' \
+'delete:Delete a KV pair' \
+    )
+    _describe -t commands 'openfang help memory commands' commands "$@"
+}
+(( $+functions[_openfang__help__memory__delete_commands] )) ||
+_openfang__help__memory__delete_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang help memory delete commands' commands "$@"
+}
+(( $+functions[_openfang__help__memory__get_commands] )) ||
+_openfang__help__memory__get_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang help memory get commands' commands "$@"
+}
+(( $+functions[_openfang__help__memory__list_commands] )) ||
+_openfang__help__memory__list_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang help memory list commands' commands "$@"
+}
+(( $+functions[_openfang__help__memory__set_commands] )) ||
+_openfang__help__memory__set_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang help memory set commands' commands "$@"
+}
+(( $+functions[_openfang__help__message_commands] )) ||
+_openfang__help__message_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang help message commands' commands "$@"
+}
+(( $+functions[_openfang__help__migrate_commands] )) ||
+_openfang__help__migrate_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang help migrate commands' commands "$@"
+}
+(( $+functions[_openfang__help__models_commands] )) ||
+_openfang__help__models_commands() {
+    local commands; commands=(
+'list:List available models (optionally filter by provider)' \
+'aliases:Show model aliases (shorthand names)' \
+'providers:List known LLM providers and their auth status' \
+'set:Set the default model for the daemon' \
+    )
+    _describe -t commands 'openfang help models commands' commands "$@"
+}
+(( $+functions[_openfang__help__models__aliases_commands] )) ||
+_openfang__help__models__aliases_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang help models aliases commands' commands "$@"
+}
+(( $+functions[_openfang__help__models__list_commands] )) ||
+_openfang__help__models__list_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang help models list commands' commands "$@"
+}
+(( $+functions[_openfang__help__models__providers_commands] )) ||
+_openfang__help__models__providers_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang help models providers commands' commands "$@"
+}
+(( $+functions[_openfang__help__models__set_commands] )) ||
+_openfang__help__models__set_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang help models set commands' commands "$@"
+}
+(( $+functions[_openfang__help__new_commands] )) ||
+_openfang__help__new_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang help new commands' commands "$@"
+}
+(( $+functions[_openfang__help__onboard_commands] )) ||
+_openfang__help__onboard_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang help onboard commands' commands "$@"
+}
+(( $+functions[_openfang__help__qr_commands] )) ||
+_openfang__help__qr_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang help qr commands' commands "$@"
+}
+(( $+functions[_openfang__help__remove_commands] )) ||
+_openfang__help__remove_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang help remove commands' commands "$@"
+}
+(( $+functions[_openfang__help__reset_commands] )) ||
+_openfang__help__reset_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang help reset commands' commands "$@"
+}
+(( $+functions[_openfang__help__security_commands] )) ||
+_openfang__help__security_commands() {
+    local commands; commands=(
+'status:Show security status summary' \
+'audit:Show recent audit trail entries' \
+'verify:Verify audit trail integrity (Merkle chain)' \
+    )
+    _describe -t commands 'openfang help security commands' commands "$@"
+}
+(( $+functions[_openfang__help__security__audit_commands] )) ||
+_openfang__help__security__audit_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang help security audit commands' commands "$@"
+}
+(( $+functions[_openfang__help__security__status_commands] )) ||
+_openfang__help__security__status_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang help security status commands' commands "$@"
+}
+(( $+functions[_openfang__help__security__verify_commands] )) ||
+_openfang__help__security__verify_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang help security verify commands' commands "$@"
+}
+(( $+functions[_openfang__help__sessions_commands] )) ||
+_openfang__help__sessions_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang help sessions commands' commands "$@"
+}
+(( $+functions[_openfang__help__setup_commands] )) ||
+_openfang__help__setup_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang help setup commands' commands "$@"
+}
+(( $+functions[_openfang__help__skill_commands] )) ||
+_openfang__help__skill_commands() {
+    local commands; commands=(
+'install:Install a skill from FangHub or a local directory' \
+'list:List installed skills' \
+'remove:Remove an installed skill' \
+'search:Search FangHub for skills' \
+'create:Create a new skill scaffold' \
+    )
+    _describe -t commands 'openfang help skill commands' commands "$@"
+}
+(( $+functions[_openfang__help__skill__create_commands] )) ||
+_openfang__help__skill__create_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang help skill create commands' commands "$@"
+}
+(( $+functions[_openfang__help__skill__install_commands] )) ||
+_openfang__help__skill__install_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang help skill install commands' commands "$@"
+}
+(( $+functions[_openfang__help__skill__list_commands] )) ||
+_openfang__help__skill__list_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang help skill list commands' commands "$@"
+}
+(( $+functions[_openfang__help__skill__remove_commands] )) ||
+_openfang__help__skill__remove_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang help skill remove commands' commands "$@"
+}
+(( $+functions[_openfang__help__skill__search_commands] )) ||
+_openfang__help__skill__search_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang help skill search commands' commands "$@"
+}
+(( $+functions[_openfang__help__start_commands] )) ||
+_openfang__help__start_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang help start commands' commands "$@"
+}
+(( $+functions[_openfang__help__status_commands] )) ||
+_openfang__help__status_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang help status commands' commands "$@"
+}
+(( $+functions[_openfang__help__stop_commands] )) ||
+_openfang__help__stop_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang help stop commands' commands "$@"
+}
+(( $+functions[_openfang__help__system_commands] )) ||
+_openfang__help__system_commands() {
+    local commands; commands=(
+'info:Show detailed system info' \
+'version:Show version information' \
+    )
+    _describe -t commands 'openfang help system commands' commands "$@"
+}
+(( $+functions[_openfang__help__system__info_commands] )) ||
+_openfang__help__system__info_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang help system info commands' commands "$@"
+}
+(( $+functions[_openfang__help__system__version_commands] )) ||
+_openfang__help__system__version_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang help system version commands' commands "$@"
+}
+(( $+functions[_openfang__help__trigger_commands] )) ||
+_openfang__help__trigger_commands() {
+    local commands; commands=(
+'list:List all triggers (optionally filtered by agent)' \
+'create:Create a trigger for an agent' \
+'delete:Delete a trigger by ID' \
+    )
+    _describe -t commands 'openfang help trigger commands' commands "$@"
+}
+(( $+functions[_openfang__help__trigger__create_commands] )) ||
+_openfang__help__trigger__create_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang help trigger create commands' commands "$@"
+}
+(( $+functions[_openfang__help__trigger__delete_commands] )) ||
+_openfang__help__trigger__delete_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang help trigger delete commands' commands "$@"
+}
+(( $+functions[_openfang__help__trigger__list_commands] )) ||
+_openfang__help__trigger__list_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang help trigger list commands' commands "$@"
+}
+(( $+functions[_openfang__help__tui_commands] )) ||
+_openfang__help__tui_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang help tui commands' commands "$@"
+}
+(( $+functions[_openfang__help__uninstall_commands] )) ||
+_openfang__help__uninstall_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang help uninstall commands' commands "$@"
+}
+(( $+functions[_openfang__help__vault_commands] )) ||
+_openfang__help__vault_commands() {
+    local commands; commands=(
+'init:Initialize the credential vault' \
+'set:Store a credential in the vault' \
+'list:List all keys in the vault (values are hidden)' \
+'remove:Remove a credential from the vault' \
+    )
+    _describe -t commands 'openfang help vault commands' commands "$@"
+}
+(( $+functions[_openfang__help__vault__init_commands] )) ||
+_openfang__help__vault__init_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang help vault init commands' commands "$@"
+}
+(( $+functions[_openfang__help__vault__list_commands] )) ||
+_openfang__help__vault__list_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang help vault list commands' commands "$@"
+}
+(( $+functions[_openfang__help__vault__remove_commands] )) ||
+_openfang__help__vault__remove_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang help vault remove commands' commands "$@"
+}
+(( $+functions[_openfang__help__vault__set_commands] )) ||
+_openfang__help__vault__set_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang help vault set commands' commands "$@"
+}
+(( $+functions[_openfang__help__webhooks_commands] )) ||
+_openfang__help__webhooks_commands() {
+    local commands; commands=(
+'list:List configured webhooks' \
+'create:Create a new webhook trigger' \
+'delete:Delete a webhook' \
+'test:Send a test payload to a webhook' \
+    )
+    _describe -t commands 'openfang help webhooks commands' commands "$@"
+}
+(( $+functions[_openfang__help__webhooks__create_commands] )) ||
+_openfang__help__webhooks__create_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang help webhooks create commands' commands "$@"
+}
+(( $+functions[_openfang__help__webhooks__delete_commands] )) ||
+_openfang__help__webhooks__delete_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang help webhooks delete commands' commands "$@"
+}
+(( $+functions[_openfang__help__webhooks__list_commands] )) ||
+_openfang__help__webhooks__list_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang help webhooks list commands' commands "$@"
+}
+(( $+functions[_openfang__help__webhooks__test_commands] )) ||
+_openfang__help__webhooks__test_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang help webhooks test commands' commands "$@"
+}
+(( $+functions[_openfang__help__workflow_commands] )) ||
+_openfang__help__workflow_commands() {
+    local commands; commands=(
+'list:List all registered workflows' \
+'create:Create a workflow from a JSON file' \
+'get:Get a workflow by ID' \
+'update:Update a workflow from a JSON file' \
+'delete:Delete a workflow by ID' \
+'run:Run a workflow by ID' \
+    )
+    _describe -t commands 'openfang help workflow commands' commands "$@"
+}
+(( $+functions[_openfang__help__workflow__create_commands] )) ||
+_openfang__help__workflow__create_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang help workflow create commands' commands "$@"
+}
+(( $+functions[_openfang__help__workflow__delete_commands] )) ||
+_openfang__help__workflow__delete_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang help workflow delete commands' commands "$@"
+}
+(( $+functions[_openfang__help__workflow__get_commands] )) ||
+_openfang__help__workflow__get_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang help workflow get commands' commands "$@"
+}
+(( $+functions[_openfang__help__workflow__list_commands] )) ||
+_openfang__help__workflow__list_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang help workflow list commands' commands "$@"
+}
+(( $+functions[_openfang__help__workflow__run_commands] )) ||
+_openfang__help__workflow__run_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang help workflow run commands' commands "$@"
+}
+(( $+functions[_openfang__help__workflow__update_commands] )) ||
+_openfang__help__workflow__update_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang help workflow update commands' commands "$@"
+}
+(( $+functions[_openfang__init_commands] )) ||
+_openfang__init_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang init commands' commands "$@"
+}
+(( $+functions[_openfang__integrations_commands] )) ||
+_openfang__integrations_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang integrations commands' commands "$@"
+}
+(( $+functions[_openfang__logs_commands] )) ||
+_openfang__logs_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang logs commands' commands "$@"
+}
+(( $+functions[_openfang__mcp_commands] )) ||
+_openfang__mcp_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang mcp commands' commands "$@"
+}
+(( $+functions[_openfang__memory_commands] )) ||
+_openfang__memory_commands() {
+    local commands; commands=(
+'list:List KV pairs for an agent' \
+'get:Get a specific KV value' \
+'set:Set a KV value' \
+'delete:Delete a KV pair' \
+'help:Print this message or the help of the given subcommand(s)' \
+    )
+    _describe -t commands 'openfang memory commands' commands "$@"
+}
+(( $+functions[_openfang__memory__delete_commands] )) ||
+_openfang__memory__delete_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang memory delete commands' commands "$@"
+}
+(( $+functions[_openfang__memory__get_commands] )) ||
+_openfang__memory__get_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang memory get commands' commands "$@"
+}
+(( $+functions[_openfang__memory__help_commands] )) ||
+_openfang__memory__help_commands() {
+    local commands; commands=(
+'list:List KV pairs for an agent' \
+'get:Get a specific KV value' \
+'set:Set a KV value' \
+'delete:Delete a KV pair' \
+'help:Print this message or the help of the given subcommand(s)' \
+    )
+    _describe -t commands 'openfang memory help commands' commands "$@"
+}
+(( $+functions[_openfang__memory__help__delete_commands] )) ||
+_openfang__memory__help__delete_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang memory help delete commands' commands "$@"
+}
+(( $+functions[_openfang__memory__help__get_commands] )) ||
+_openfang__memory__help__get_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang memory help get commands' commands "$@"
+}
+(( $+functions[_openfang__memory__help__help_commands] )) ||
+_openfang__memory__help__help_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang memory help help commands' commands "$@"
+}
+(( $+functions[_openfang__memory__help__list_commands] )) ||
+_openfang__memory__help__list_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang memory help list commands' commands "$@"
+}
+(( $+functions[_openfang__memory__help__set_commands] )) ||
+_openfang__memory__help__set_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang memory help set commands' commands "$@"
+}
+(( $+functions[_openfang__memory__list_commands] )) ||
+_openfang__memory__list_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang memory list commands' commands "$@"
+}
+(( $+functions[_openfang__memory__set_commands] )) ||
+_openfang__memory__set_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang memory set commands' commands "$@"
+}
+(( $+functions[_openfang__message_commands] )) ||
+_openfang__message_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang message commands' commands "$@"
+}
+(( $+functions[_openfang__migrate_commands] )) ||
+_openfang__migrate_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang migrate commands' commands "$@"
+}
+(( $+functions[_openfang__models_commands] )) ||
+_openfang__models_commands() {
+    local commands; commands=(
+'list:List available models (optionally filter by provider)' \
+'aliases:Show model aliases (shorthand names)' \
+'providers:List known LLM providers and their auth status' \
+'set:Set the default model for the daemon' \
+'help:Print this message or the help of the given subcommand(s)' \
+    )
+    _describe -t commands 'openfang models commands' commands "$@"
+}
+(( $+functions[_openfang__models__aliases_commands] )) ||
+_openfang__models__aliases_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang models aliases commands' commands "$@"
+}
+(( $+functions[_openfang__models__help_commands] )) ||
+_openfang__models__help_commands() {
+    local commands; commands=(
+'list:List available models (optionally filter by provider)' \
+'aliases:Show model aliases (shorthand names)' \
+'providers:List known LLM providers and their auth status' \
+'set:Set the default model for the daemon' \
+'help:Print this message or the help of the given subcommand(s)' \
+    )
+    _describe -t commands 'openfang models help commands' commands "$@"
+}
+(( $+functions[_openfang__models__help__aliases_commands] )) ||
+_openfang__models__help__aliases_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang models help aliases commands' commands "$@"
+}
+(( $+functions[_openfang__models__help__help_commands] )) ||
+_openfang__models__help__help_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang models help help commands' commands "$@"
+}
+(( $+functions[_openfang__models__help__list_commands] )) ||
+_openfang__models__help__list_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang models help list commands' commands "$@"
+}
+(( $+functions[_openfang__models__help__providers_commands] )) ||
+_openfang__models__help__providers_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang models help providers commands' commands "$@"
+}
+(( $+functions[_openfang__models__help__set_commands] )) ||
+_openfang__models__help__set_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang models help set commands' commands "$@"
+}
+(( $+functions[_openfang__models__list_commands] )) ||
+_openfang__models__list_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang models list commands' commands "$@"
+}
+(( $+functions[_openfang__models__providers_commands] )) ||
+_openfang__models__providers_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang models providers commands' commands "$@"
+}
+(( $+functions[_openfang__models__set_commands] )) ||
+_openfang__models__set_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang models set commands' commands "$@"
+}
+(( $+functions[_openfang__new_commands] )) ||
+_openfang__new_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang new commands' commands "$@"
+}
+(( $+functions[_openfang__onboard_commands] )) ||
+_openfang__onboard_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang onboard commands' commands "$@"
+}
+(( $+functions[_openfang__qr_commands] )) ||
+_openfang__qr_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang qr commands' commands "$@"
+}
+(( $+functions[_openfang__remove_commands] )) ||
+_openfang__remove_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang remove commands' commands "$@"
+}
+(( $+functions[_openfang__reset_commands] )) ||
+_openfang__reset_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang reset commands' commands "$@"
+}
+(( $+functions[_openfang__security_commands] )) ||
+_openfang__security_commands() {
+    local commands; commands=(
+'status:Show security status summary' \
+'audit:Show recent audit trail entries' \
+'verify:Verify audit trail integrity (Merkle chain)' \
+'help:Print this message or the help of the given subcommand(s)' \
+    )
+    _describe -t commands 'openfang security commands' commands "$@"
+}
+(( $+functions[_openfang__security__audit_commands] )) ||
+_openfang__security__audit_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang security audit commands' commands "$@"
+}
+(( $+functions[_openfang__security__help_commands] )) ||
+_openfang__security__help_commands() {
+    local commands; commands=(
+'status:Show security status summary' \
+'audit:Show recent audit trail entries' \
+'verify:Verify audit trail integrity (Merkle chain)' \
+'help:Print this message or the help of the given subcommand(s)' \
+    )
+    _describe -t commands 'openfang security help commands' commands "$@"
+}
+(( $+functions[_openfang__security__help__audit_commands] )) ||
+_openfang__security__help__audit_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang security help audit commands' commands "$@"
+}
+(( $+functions[_openfang__security__help__help_commands] )) ||
+_openfang__security__help__help_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang security help help commands' commands "$@"
+}
+(( $+functions[_openfang__security__help__status_commands] )) ||
+_openfang__security__help__status_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang security help status commands' commands "$@"
+}
+(( $+functions[_openfang__security__help__verify_commands] )) ||
+_openfang__security__help__verify_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang security help verify commands' commands "$@"
+}
+(( $+functions[_openfang__security__status_commands] )) ||
+_openfang__security__status_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang security status commands' commands "$@"
+}
+(( $+functions[_openfang__security__verify_commands] )) ||
+_openfang__security__verify_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang security verify commands' commands "$@"
+}
+(( $+functions[_openfang__sessions_commands] )) ||
+_openfang__sessions_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang sessions commands' commands "$@"
+}
+(( $+functions[_openfang__setup_commands] )) ||
+_openfang__setup_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang setup commands' commands "$@"
+}
+(( $+functions[_openfang__skill_commands] )) ||
+_openfang__skill_commands() {
+    local commands; commands=(
+'install:Install a skill from FangHub or a local directory' \
+'list:List installed skills' \
+'remove:Remove an installed skill' \
+'search:Search FangHub for skills' \
+'create:Create a new skill scaffold' \
+'help:Print this message or the help of the given subcommand(s)' \
+    )
+    _describe -t commands 'openfang skill commands' commands "$@"
+}
+(( $+functions[_openfang__skill__create_commands] )) ||
+_openfang__skill__create_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang skill create commands' commands "$@"
+}
+(( $+functions[_openfang__skill__help_commands] )) ||
+_openfang__skill__help_commands() {
+    local commands; commands=(
+'install:Install a skill from FangHub or a local directory' \
+'list:List installed skills' \
+'remove:Remove an installed skill' \
+'search:Search FangHub for skills' \
+'create:Create a new skill scaffold' \
+'help:Print this message or the help of the given subcommand(s)' \
+    )
+    _describe -t commands 'openfang skill help commands' commands "$@"
+}
+(( $+functions[_openfang__skill__help__create_commands] )) ||
+_openfang__skill__help__create_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang skill help create commands' commands "$@"
+}
+(( $+functions[_openfang__skill__help__help_commands] )) ||
+_openfang__skill__help__help_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang skill help help commands' commands "$@"
+}
+(( $+functions[_openfang__skill__help__install_commands] )) ||
+_openfang__skill__help__install_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang skill help install commands' commands "$@"
+}
+(( $+functions[_openfang__skill__help__list_commands] )) ||
+_openfang__skill__help__list_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang skill help list commands' commands "$@"
+}
+(( $+functions[_openfang__skill__help__remove_commands] )) ||
+_openfang__skill__help__remove_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang skill help remove commands' commands "$@"
+}
+(( $+functions[_openfang__skill__help__search_commands] )) ||
+_openfang__skill__help__search_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang skill help search commands' commands "$@"
+}
+(( $+functions[_openfang__skill__install_commands] )) ||
+_openfang__skill__install_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang skill install commands' commands "$@"
+}
+(( $+functions[_openfang__skill__list_commands] )) ||
+_openfang__skill__list_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang skill list commands' commands "$@"
+}
+(( $+functions[_openfang__skill__remove_commands] )) ||
+_openfang__skill__remove_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang skill remove commands' commands "$@"
+}
+(( $+functions[_openfang__skill__search_commands] )) ||
+_openfang__skill__search_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang skill search commands' commands "$@"
+}
+(( $+functions[_openfang__start_commands] )) ||
+_openfang__start_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang start commands' commands "$@"
+}
+(( $+functions[_openfang__status_commands] )) ||
+_openfang__status_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang status commands' commands "$@"
+}
+(( $+functions[_openfang__stop_commands] )) ||
+_openfang__stop_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang stop commands' commands "$@"
+}
+(( $+functions[_openfang__system_commands] )) ||
+_openfang__system_commands() {
+    local commands; commands=(
+'info:Show detailed system info' \
+'version:Show version information' \
+'help:Print this message or the help of the given subcommand(s)' \
+    )
+    _describe -t commands 'openfang system commands' commands "$@"
+}
+(( $+functions[_openfang__system__help_commands] )) ||
+_openfang__system__help_commands() {
+    local commands; commands=(
+'info:Show detailed system info' \
+'version:Show version information' \
+'help:Print this message or the help of the given subcommand(s)' \
+    )
+    _describe -t commands 'openfang system help commands' commands "$@"
+}
+(( $+functions[_openfang__system__help__help_commands] )) ||
+_openfang__system__help__help_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang system help help commands' commands "$@"
+}
+(( $+functions[_openfang__system__help__info_commands] )) ||
+_openfang__system__help__info_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang system help info commands' commands "$@"
+}
+(( $+functions[_openfang__system__help__version_commands] )) ||
+_openfang__system__help__version_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang system help version commands' commands "$@"
+}
+(( $+functions[_openfang__system__info_commands] )) ||
+_openfang__system__info_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang system info commands' commands "$@"
+}
+(( $+functions[_openfang__system__version_commands] )) ||
+_openfang__system__version_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang system version commands' commands "$@"
+}
+(( $+functions[_openfang__trigger_commands] )) ||
+_openfang__trigger_commands() {
+    local commands; commands=(
+'list:List all triggers (optionally filtered by agent)' \
+'create:Create a trigger for an agent' \
+'delete:Delete a trigger by ID' \
+'help:Print this message or the help of the given subcommand(s)' \
+    )
+    _describe -t commands 'openfang trigger commands' commands "$@"
+}
+(( $+functions[_openfang__trigger__create_commands] )) ||
+_openfang__trigger__create_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang trigger create commands' commands "$@"
+}
+(( $+functions[_openfang__trigger__delete_commands] )) ||
+_openfang__trigger__delete_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang trigger delete commands' commands "$@"
+}
+(( $+functions[_openfang__trigger__help_commands] )) ||
+_openfang__trigger__help_commands() {
+    local commands; commands=(
+'list:List all triggers (optionally filtered by agent)' \
+'create:Create a trigger for an agent' \
+'delete:Delete a trigger by ID' \
+'help:Print this message or the help of the given subcommand(s)' \
+    )
+    _describe -t commands 'openfang trigger help commands' commands "$@"
+}
+(( $+functions[_openfang__trigger__help__create_commands] )) ||
+_openfang__trigger__help__create_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang trigger help create commands' commands "$@"
+}
+(( $+functions[_openfang__trigger__help__delete_commands] )) ||
+_openfang__trigger__help__delete_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang trigger help delete commands' commands "$@"
+}
+(( $+functions[_openfang__trigger__help__help_commands] )) ||
+_openfang__trigger__help__help_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang trigger help help commands' commands "$@"
+}
+(( $+functions[_openfang__trigger__help__list_commands] )) ||
+_openfang__trigger__help__list_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang trigger help list commands' commands "$@"
+}
+(( $+functions[_openfang__trigger__list_commands] )) ||
+_openfang__trigger__list_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang trigger list commands' commands "$@"
+}
+(( $+functions[_openfang__tui_commands] )) ||
+_openfang__tui_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang tui commands' commands "$@"
+}
+(( $+functions[_openfang__uninstall_commands] )) ||
+_openfang__uninstall_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang uninstall commands' commands "$@"
+}
+(( $+functions[_openfang__vault_commands] )) ||
+_openfang__vault_commands() {
+    local commands; commands=(
+'init:Initialize the credential vault' \
+'set:Store a credential in the vault' \
+'list:List all keys in the vault (values are hidden)' \
+'remove:Remove a credential from the vault' \
+'help:Print this message or the help of the given subcommand(s)' \
+    )
+    _describe -t commands 'openfang vault commands' commands "$@"
+}
+(( $+functions[_openfang__vault__help_commands] )) ||
+_openfang__vault__help_commands() {
+    local commands; commands=(
+'init:Initialize the credential vault' \
+'set:Store a credential in the vault' \
+'list:List all keys in the vault (values are hidden)' \
+'remove:Remove a credential from the vault' \
+'help:Print this message or the help of the given subcommand(s)' \
+    )
+    _describe -t commands 'openfang vault help commands' commands "$@"
+}
+(( $+functions[_openfang__vault__help__help_commands] )) ||
+_openfang__vault__help__help_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang vault help help commands' commands "$@"
+}
+(( $+functions[_openfang__vault__help__init_commands] )) ||
+_openfang__vault__help__init_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang vault help init commands' commands "$@"
+}
+(( $+functions[_openfang__vault__help__list_commands] )) ||
+_openfang__vault__help__list_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang vault help list commands' commands "$@"
+}
+(( $+functions[_openfang__vault__help__remove_commands] )) ||
+_openfang__vault__help__remove_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang vault help remove commands' commands "$@"
+}
+(( $+functions[_openfang__vault__help__set_commands] )) ||
+_openfang__vault__help__set_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang vault help set commands' commands "$@"
+}
+(( $+functions[_openfang__vault__init_commands] )) ||
+_openfang__vault__init_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang vault init commands' commands "$@"
+}
+(( $+functions[_openfang__vault__list_commands] )) ||
+_openfang__vault__list_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang vault list commands' commands "$@"
+}
+(( $+functions[_openfang__vault__remove_commands] )) ||
+_openfang__vault__remove_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang vault remove commands' commands "$@"
+}
+(( $+functions[_openfang__vault__set_commands] )) ||
+_openfang__vault__set_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang vault set commands' commands "$@"
+}
+(( $+functions[_openfang__webhooks_commands] )) ||
+_openfang__webhooks_commands() {
+    local commands; commands=(
+'list:List configured webhooks' \
+'create:Create a new webhook trigger' \
+'delete:Delete a webhook' \
+'test:Send a test payload to a webhook' \
+'help:Print this message or the help of the given subcommand(s)' \
+    )
+    _describe -t commands 'openfang webhooks commands' commands "$@"
+}
+(( $+functions[_openfang__webhooks__create_commands] )) ||
+_openfang__webhooks__create_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang webhooks create commands' commands "$@"
+}
+(( $+functions[_openfang__webhooks__delete_commands] )) ||
+_openfang__webhooks__delete_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang webhooks delete commands' commands "$@"
+}
+(( $+functions[_openfang__webhooks__help_commands] )) ||
+_openfang__webhooks__help_commands() {
+    local commands; commands=(
+'list:List configured webhooks' \
+'create:Create a new webhook trigger' \
+'delete:Delete a webhook' \
+'test:Send a test payload to a webhook' \
+'help:Print this message or the help of the given subcommand(s)' \
+    )
+    _describe -t commands 'openfang webhooks help commands' commands "$@"
+}
+(( $+functions[_openfang__webhooks__help__create_commands] )) ||
+_openfang__webhooks__help__create_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang webhooks help create commands' commands "$@"
+}
+(( $+functions[_openfang__webhooks__help__delete_commands] )) ||
+_openfang__webhooks__help__delete_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang webhooks help delete commands' commands "$@"
+}
+(( $+functions[_openfang__webhooks__help__help_commands] )) ||
+_openfang__webhooks__help__help_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang webhooks help help commands' commands "$@"
+}
+(( $+functions[_openfang__webhooks__help__list_commands] )) ||
+_openfang__webhooks__help__list_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang webhooks help list commands' commands "$@"
+}
+(( $+functions[_openfang__webhooks__help__test_commands] )) ||
+_openfang__webhooks__help__test_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang webhooks help test commands' commands "$@"
+}
+(( $+functions[_openfang__webhooks__list_commands] )) ||
+_openfang__webhooks__list_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang webhooks list commands' commands "$@"
+}
+(( $+functions[_openfang__webhooks__test_commands] )) ||
+_openfang__webhooks__test_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang webhooks test commands' commands "$@"
+}
+(( $+functions[_openfang__workflow_commands] )) ||
+_openfang__workflow_commands() {
+    local commands; commands=(
+'list:List all registered workflows' \
+'create:Create a workflow from a JSON file' \
+'get:Get a workflow by ID' \
+'update:Update a workflow from a JSON file' \
+'delete:Delete a workflow by ID' \
+'run:Run a workflow by ID' \
+'help:Print this message or the help of the given subcommand(s)' \
+    )
+    _describe -t commands 'openfang workflow commands' commands "$@"
+}
+(( $+functions[_openfang__workflow__create_commands] )) ||
+_openfang__workflow__create_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang workflow create commands' commands "$@"
+}
+(( $+functions[_openfang__workflow__delete_commands] )) ||
+_openfang__workflow__delete_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang workflow delete commands' commands "$@"
+}
+(( $+functions[_openfang__workflow__get_commands] )) ||
+_openfang__workflow__get_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang workflow get commands' commands "$@"
+}
+(( $+functions[_openfang__workflow__help_commands] )) ||
+_openfang__workflow__help_commands() {
+    local commands; commands=(
+'list:List all registered workflows' \
+'create:Create a workflow from a JSON file' \
+'get:Get a workflow by ID' \
+'update:Update a workflow from a JSON file' \
+'delete:Delete a workflow by ID' \
+'run:Run a workflow by ID' \
+'help:Print this message or the help of the given subcommand(s)' \
+    )
+    _describe -t commands 'openfang workflow help commands' commands "$@"
+}
+(( $+functions[_openfang__workflow__help__create_commands] )) ||
+_openfang__workflow__help__create_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang workflow help create commands' commands "$@"
+}
+(( $+functions[_openfang__workflow__help__delete_commands] )) ||
+_openfang__workflow__help__delete_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang workflow help delete commands' commands "$@"
+}
+(( $+functions[_openfang__workflow__help__get_commands] )) ||
+_openfang__workflow__help__get_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang workflow help get commands' commands "$@"
+}
+(( $+functions[_openfang__workflow__help__help_commands] )) ||
+_openfang__workflow__help__help_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang workflow help help commands' commands "$@"
+}
+(( $+functions[_openfang__workflow__help__list_commands] )) ||
+_openfang__workflow__help__list_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang workflow help list commands' commands "$@"
+}
+(( $+functions[_openfang__workflow__help__run_commands] )) ||
+_openfang__workflow__help__run_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang workflow help run commands' commands "$@"
+}
+(( $+functions[_openfang__workflow__help__update_commands] )) ||
+_openfang__workflow__help__update_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang workflow help update commands' commands "$@"
+}
+(( $+functions[_openfang__workflow__list_commands] )) ||
+_openfang__workflow__list_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang workflow list commands' commands "$@"
+}
+(( $+functions[_openfang__workflow__run_commands] )) ||
+_openfang__workflow__run_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang workflow run commands' commands "$@"
+}
+(( $+functions[_openfang__workflow__update_commands] )) ||
+_openfang__workflow__update_commands() {
+    local commands; commands=()
+    _describe -t commands 'openfang workflow update commands' commands "$@"
+}
+
+if [ "$funcstack[1]" = "_openfang" ]; then
+    _openfang "$@"
+else
+    compdef _openfang openfang
+fi
