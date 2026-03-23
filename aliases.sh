@@ -62,7 +62,7 @@ hash -d ob="$HOME/Documents/remote"
 # ----------------------
 alias b=bat
 alias c=command
-alias oc='openclaw'
+alias of=openfang
 alias ca=cursor-agent
 
 alias claudeo='() { if [[ -f ~/.claude-code-oauth-token ]]; then CLAUDE_CODE_OAUTH_TOKEN=$(<~/.claude-code-oauth-token) claude --model=opus --dangerously-skip-permissions "$@"; else ANTHROPIC_API_KEY=$(<~/.anthropic-api-key-hearai-gilad-local-dev) claude --model=opus --dangerously-skip-permissions "$@"; fi ; }'
@@ -149,6 +149,7 @@ function geminifl() {
 	:gemini --yolo --model=gemini-3-1-flash-lite-preview "$@"
 }
 compdef _gemini :gemini geminip geminif geminifl
+
 alias fdd='fd -t d'
 alias fdf='fd -t f'
 alias ds=docstring

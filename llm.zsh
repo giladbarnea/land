@@ -2016,45 +2016,6 @@ function .openrouter-model-params(){
 
 # endregion [-------- OpenRouter --------]
 
-# region [-------- Ollama --------]
-
-# # ollama-chat
-# Wrapper for: 
-# ```
-# http --stream --print=b POST http://127.0.0.1:11434/api/chat model=<MODEL> \
-# messages:='[{"role": "user", "content": "<USER MESSAGE>"}]' \
-# | jq -r --join-output --unbuffered '.message.content // empty'
-# ```
-# Escapes the user message with `jq -Rs`.
-function ollama-chat()
-{
-	setopt localoptions pipefail errreturn
-	local model
-	local user_message
-	local base_url='http://127.0.0.1:11434/api/chat'
-	while [[ $# -gt 0 ]]; do
-		case "$1" in
-			--model=*) model="${1#*=}" ;;
-			-m|--model) model="$2" ; shift ;;
-			*) user_message="$1" ;;
-		esac
-		shift
-	done
-	[[ "$user_message" ]] || {
-		log.error "No user message provided."
-		return 1
-	}
-	local escaped_user_message="$(jq -R --slurp <<< "$user_message")"
-	http --ignore-stdin --stream --print=b --check-status POST "$base_url" \
-		model="$model" \
-		messages:='[{"role": "user", "content": "'"$escaped_user_message"'"}]' \
-		| jq -r --join-output --unbuffered '.message.content // empty'
-}
-
-
-
-# endregion [-------- Ollama --------]
-
 # region [-------- General Utilities --------]
 
 # # llm-code-block [-x,--lexer LEXER] [-c,--cid CONVERSATION_ID]
@@ -2384,3 +2345,115 @@ function llm-setup(){
 	command llm install -U llm ${llm_plugins[@]}
 }
 
+# # upgrade-agents [--only-changelogs]
+# Upgrades `codex`, `claude`, `gemini-cli`, `pi`.
+function upgrade-agents(){
+	setopt localoptions pipefail errreturn
+	:stderr() { print -r -- "$@" | mdquote >&2 ; }
+	local only_changelogs=false
+	while [[ $# -gt 0 ]]; do
+		case "$1" in
+			--only-changelogs) only_changelogs=true ;;
+			*) log.error "Unknown argument: $1" ; return 1 ;;
+		esac
+		shift
+	done
+	local -A upgrade_commands=(
+		[claude]='claude update'
+		[gemini]='npm install -g @google/gemini-cli@preview'
+		[codex]='brew update && brew upgrade codex'
+		[pi]='npm install -g @mariozechner/pi-coding-agent'
+	)
+	local -A current_versions=(
+		[claude]="$(claude --version | cut -d' ' -f1)"  # E.g. 2.1.80
+		[gemini]="$(gemini --version)"  				  # E.g. 0.35.0-preview.2
+		[codex]="$(codex --version | cut -d' ' -f2)"    # E.g. 0.116.0
+		[pi]="$(pi --version)"  						  # E.g. 0.61.0
+	)
+	
+	log.notice "Current versions:"
+	local agent
+	for agent in "${(k)current_versions[@]}"; do
+		:stderr "$agent: ${current_versions[$agent]}"
+	done
+	
+	if ! $only_changelogs; then
+		log.notice "Upgrading agents..."
+		for agent in "${(k)upgrade_commands[@]}"; do
+			log.notice "Upgrading $agent..."
+			eval "${upgrade_commands[$agent]}"
+			log.notice "Upgraded $agent."
+		done
+		log.notice "Upgraded all agents."
+	
+		local -A upgraded_versions=(
+			[claude]="$(claude --version | cut -d' ' -f1)"
+			[gemini]="$(gemini --version)"
+			[codex]="$(codex --version | cut -d' ' -f2)"
+			[pi]="$(pi --version)"
+		)
+		
+		log.notice "Upgraded versions:"
+		for agent in "${(k)upgraded_versions[@]}"; do
+			:stderr "$agent: ${upgraded_versions[$agent]}"
+		done
+	fi
+	
+	
+	
+	log.notice "Scraping changelogs..."
+	
+	local scraped_gemini_changelog="
+	$(rf https://geminicli.com/docs/changelogs/preview.md | xt 'Gemini-CLI “Preview” Changelog')
+	$(rf https://geminicli.com/docs/changelogs/latest.md | xt 'Gemini-CLI “Latest” Changelog')
+	$(rf -s pw https://github.com/google-gemini/gemini-cli/releases | xt 'Gemini-CLI GitHub “Releases”')
+	"
+	scraped_gemini_changelog="$(dedent "${scraped_gemini_changelog}" | xt 'Gemini-CLI Changelog Sources')"
+
+	local scraped_claude_changelog="
+	$(rf https://raw.githubusercontent.com/anthropics/claude-code/refs/heads/main/CHANGELOG.md | xt 'Claude Code Changelog')
+	"
+	scraped_claude_changelog="$(dedent "${scraped_claude_changelog}")"
+
+	local scraped_codex_changelog="
+	$(rf 'https://developers.openai.com/codex/changelog?type=codex-cli' | xt 'OpenAI Codex CLI Changelog')
+	"
+	scraped_codex_changelog="$(dedent "${scraped_codex_changelog}")"
+
+	local scraped_pi_changelog="
+	$(rf -s pw https://github.com/badlogic/pi-mono/releases | xt 'pi-mono GitHub “Releases”')
+	"
+	scraped_pi_changelog="$(dedent "${scraped_pi_changelog}")"
+	
+	log.notice "Scraped changelogs."
+	
+	local before_versions_formatted="
+<Versions Before Upgrade>
+	Claude: ${current_versions[claude]}
+	Gemini: ${current_versions[gemini]}
+	Codex: ${current_versions[codex]}
+	pi: ${current_versions[pi]}
+</Versions Before Upgrade>
+"
+	local after_versions_formatted="
+<Versions After Upgrade>
+	Claude: ${upgraded_versions[claude]}
+	Gemini: ${upgraded_versions[gemini]}
+	Codex: ${upgraded_versions[codex]}
+	pi: ${upgraded_versions[pi]}
+</Versions After Upgrade>
+"
+	local changelogs_formatted="
+<Changelogs>
+	${scraped_gemini_changelog}
+	${scraped_claude_changelog}
+	${scraped_codex_changelog}
+	${scraped_pi_changelog}
+</Changelogs>
+	"
+	if $only_changelogs; then
+		printf "%s\n%s" "${before_versions_formatted}" "${changelogs_formatted}"
+	else
+		printf "%s\n%s\n%s" "${before_versions_formatted}" "${after_versions_formatted}" "${changelogs_formatted}"
+	fi
+}
