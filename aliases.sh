@@ -56,6 +56,8 @@ hash -d appsup="$HOME/Library/Application Support"
 hash -d llm="$HOME/Library/Application Support/io.datasette.llm"
 hash -d t="$HOME/Library/Application Support/io.datasette.llm/templates"
 hash -d ob="$HOME/Documents/remote"
+hash -d c="$HOME/.claude"
+hash -d cs="$HOME/.claude/skills"
 
 # ----------------------
 # *** Custom Aliases ***
@@ -64,27 +66,49 @@ alias b=bat
 alias c=command
 alias of=openfang
 alias ca=cursor-agent
+alias oc=openclaw
 
-alias claudeo='() { if [[ -f ~/.claude-code-oauth-token ]]; then CLAUDE_CODE_OAUTH_TOKEN=$(<~/.claude-code-oauth-token) claude --model=opus --dangerously-skip-permissions "$@"; else ANTHROPIC_API_KEY=$(<~/.anthropic-api-key-hearai-gilad-local-dev) claude --model=opus --dangerously-skip-permissions "$@"; fi ; }'
-compdef _claude claudeo
+alias :claude='CLAUDE_CODE_OAUTH_TOKEN=$(<~/.claude-code-personal-1y-oauth-token) claude --dangerously-skip-permissions'
+compdef _claude :claude
 
-alias claudes='() { if [[ -f ~/.claude-code-oauth-token ]]; then CLAUDE_CODE_OAUTH_TOKEN=$(<~/.claude-code-oauth-token) claude --model=sonnet --dangerously-skip-permissions "$@"; else ANTHROPIC_API_KEY=$(<~/.anthropic-api-key-hearai-gilad-local-dev) claude --model=sonnet --dangerously-skip-permissions "$@"; fi ; }'
-compdef _claude claudes
+alias claudeo=':claude --model=opus'
+# compdef _claude claudeo
 
-alias claudeh='() { if [[ -f ~/.claude-code-oauth-token ]]; then CLAUDE_CODE_OAUTH_TOKEN=$(<~/.claude-code-oauth-token) claude --model=haiku --dangerously-skip-permissions "$@"; else ANTHROPIC_API_KEY=$(<~/.anthropic-api-key-hearai-gilad-local-dev) claude --model=haiku --dangerously-skip-permissions "$@"; fi ; }'
-compdef _claude claudeh
+alias claudes=':claude --model=sonnet'
+# compdef _claude claudes
+
+alias claudeh=':claude --model=haiku'
+# compdef _claude claudeh
 
 alias claudeon='claudeo --no-session-persistence -p'
-compdef _claude claudeon
+# compdef _claude claudeon
 
 alias claudesn='claudes --no-session-persistence -p'
-compdef _claude claudesn
+# compdef _claude claudesn
 
 alias claudehn='claudeh --no-session-persistence -p'
-compdef _claude claudehn
+# compdef _claude claudehn
 
-alias codexd='OPENAI_API_KEY="$(<~/.openai-api-key-hear-dev)" codex --yolo'
+alias codexd='OPENAI_API_KEY="$(<~/.openai-personal-tech-news-curator-api-token)" codex --yolo'
 compdef _codex codexd
+
+alias codexn='codexd --config="model_reasoning_effort=none"'
+alias codex0=codexn
+
+alias codexmin='codexd --config="model_reasoning_effort=minimal"'
+alias codex1=codexmin
+
+alias codexl='codexd --config="model_reasoning_effort=low"'
+alias codex2=codexl
+
+alias codexmed='codexd --config="model_reasoning_effort=medium"'
+alias codex3=codexmed
+
+alias codexh='codexd --config="model_reasoning_effort=high"'
+alias codex4=codexh
+
+alias codexxh='codexd --config="model_reasoning_effort=xhigh"'
+alias codex5=codexxh
 
 function :gemini() {
 	local -a args_besides_prompt=()
@@ -132,10 +156,10 @@ function :gemini() {
 		fi
 	fi
 	if [[ "$running_interactively" = true ]]; then
-		GEMINI_API_KEY=$(<~/.gemini-api-key-vertex-hear-dev) gemini "${args_besides_prompt[@]}" "$full_prompt" < /dev/tty
+		GEMINI_API_KEY=$(<~/.gemini-api-key-personal) gemini "${args_besides_prompt[@]}" "$full_prompt" < /dev/tty
 	else
 	    log.debug 'Running non-interactively'
-		GEMINI_API_KEY=$(<~/.gemini-api-key-vertex-hear-dev) gemini "${args_besides_prompt[@]}" "$full_prompt" 2>&1 < /dev/tty \
+		GEMINI_API_KEY=$(<~/.gemini-api-key-personal) gemini "${args_besides_prompt[@]}" "$full_prompt" 2>&1 < /dev/tty \
 			| grep -v -E 'DEP0040|to show where the warning|YOLO mode is enabled|Both GOOGLE_API_KEY|Hook registry initialized'
 	fi
 }

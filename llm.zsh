@@ -1346,6 +1346,17 @@ alias claudeai='(){ llm "$@" -m claude ; }'
 alias claude+='(){ llm "$@" -m claude+ ; }'  # Should probably be '-m cluade' with '-o thinking true -o thinking_budget ...'
 
 alias geminiai='(){ llm "$@" -m gemini ; }'
+
+# # gemini [gemini-cli options...]
+# Shortcut to gemini-cli (@google/gemini-cli npm package).
+function gemini(){
+	if ! command -v gemini &>/dev/null; then
+		log.error "gemini-cli is not installed. Install it with: npm install -g @google/gemini-cli"
+		return 1
+	fi
+	command gemini "$@"
+}
+
 alias flashlite='(){ llm "$@" -m flashlite ; }'
 alias flash='(){ llm "$@" -m flash ; }'
 alias 'flash+'='(){ llm "$@" -m @flash -o thinking_budget 8000 ; }'
@@ -2347,6 +2358,8 @@ function llm-setup(){
 
 # # upgrade-agents [--only-changelogs]
 # Upgrades `codex`, `claude`, `gemini-cli`, `pi`.
+# Example:
+# `upgrade-agents --only-changelogs | geminip 'Tell me the interesting changes that have been made for each of the four CLI agents in the past week: claude-code, gemini-cli, codex-cli, and pi. I’m a power user so I’m interesting in almost everything except chores, refactors, internal stuff'`
 function upgrade-agents(){
 	setopt localoptions pipefail errreturn
 	:stderr() { print -r -- "$@" | mdquote >&2 ; }
@@ -2384,7 +2397,9 @@ function upgrade-agents(){
 			eval "${upgrade_commands[$agent]}"
 			log.notice "Upgraded $agent."
 		done
-		log.notice "Upgraded all agents."
+		log.notice "Upgraded all agents. Updating completions for codex..."
+		codex completion zsh > ~comp/_codex
+		log.notice "Updated completions for codex."
 	
 		local -A upgraded_versions=(
 			[claude]="$(claude --version | cut -d' ' -f1)"
