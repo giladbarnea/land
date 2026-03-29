@@ -20,6 +20,7 @@ _codex() {
 '*--enable=[Enable a feature (repeatable). Equivalent to \`-c features.<name>=true\`]:FEATURE:_default' \
 '*--disable=[Disable a feature (repeatable). Equivalent to \`-c features.<name>=false\`]:FEATURE:_default' \
 '--remote=[Connect the app-server-backed TUI to a remote app server websocket endpoint]:ADDR:_default' \
+'--remote-auth-token-env=[Name of the environment variable containing the bearer token to send to a remote app server websocket]:ENV_VAR:_default' \
 '*-i+[Optional image(s) to attach to the initial prompt]:FILE:_files' \
 '*--image=[Optional image(s) to attach to the initial prompt]:FILE:_files' \
 '-m+[Model the agent should use]:MODEL:_default' \
@@ -86,7 +87,6 @@ _arguments "${_arguments_options[@]}" : \
 '(--full-auto)--dangerously-bypass-approvals-and-sandbox[Skip all confirmation prompts and execute commands without sandboxing. EXTREMELY DANGEROUS. Intended solely for running in environments that are externally sandboxed]' \
 '--skip-git-repo-check[Allow running Codex outside a Git repository]' \
 '--ephemeral[Run without persisting session files to disk]' \
-'--progress-cursor[Force cursor-based progress updates in exec mode]' \
 '--json[Print events to stdout as JSONL]' \
 '-h[Print help (see more with '\''--help'\'')]' \
 '--help[Print help (see more with '\''--help'\'')]' \
@@ -211,7 +211,6 @@ _arguments "${_arguments_options[@]}" : \
 '(--full-auto)--dangerously-bypass-approvals-and-sandbox[Skip all confirmation prompts and execute commands without sandboxing. EXTREMELY DANGEROUS. Intended solely for running in environments that are externally sandboxed]' \
 '--skip-git-repo-check[Allow running Codex outside a Git repository]' \
 '--ephemeral[Run without persisting session files to disk]' \
-'--progress-cursor[Force cursor-based progress updates in exec mode]' \
 '--json[Print events to stdout as JSONL]' \
 '-h[Print help (see more with '\''--help'\'')]' \
 '--help[Print help (see more with '\''--help'\'')]' \
@@ -546,7 +545,12 @@ _arguments "${_arguments_options[@]}" : \
 (app-server)
 _arguments "${_arguments_options[@]}" : \
 '--listen=[Transport endpoint URL. Supported values\: \`stdio\://\` (default), \`ws\://IP\:PORT\`]:URL:_default' \
-'--session-source=[Session source stamped into new threads started by this app-server]:SOURCE:_default' \
+'--ws-auth=[Websocket auth mode for non-loopback listeners]:MODE:(capability-token signed-bearer-token)' \
+'--ws-token-file=[Absolute path to the capability-token file]:PATH:_files' \
+'--ws-shared-secret-file=[Absolute path to the shared secret file for signed JWT bearer tokens]:PATH:_files' \
+'--ws-issuer=[Expected issuer for signed JWT bearer tokens]:ISSUER:_default' \
+'--ws-audience=[Expected audience for signed JWT bearer tokens]:AUDIENCE:_default' \
+'--ws-max-clock-skew-seconds=[Maximum clock skew when validating signed JWT bearer tokens]:SECONDS:_default' \
 '*-c+[Override a configuration value that would otherwise be loaded from \`~/.codex/config.toml\`. Use a dotted path (\`foo.bar.baz\`) to override nested values. The \`value\` portion is parsed as TOML. If it fails to parse as TOML, the raw string is used as a literal]:key=value:_default' \
 '*--config=[Override a configuration value that would otherwise be loaded from \`~/.codex/config.toml\`. Use a dotted path (\`foo.bar.baz\`) to override nested values. The \`value\` portion is parsed as TOML. If it fails to parse as TOML, the raw string is used as a literal]:key=value:_default' \
 '*--enable=[Enable a feature (repeatable). Equivalent to \`-c features.<name>=true\`]:FEATURE:_default' \
@@ -998,6 +1002,7 @@ _arguments "${_arguments_options[@]}" : \
 (resume)
 _arguments "${_arguments_options[@]}" : \
 '--remote=[Connect the app-server-backed TUI to a remote app server websocket endpoint]:ADDR:_default' \
+'--remote-auth-token-env=[Name of the environment variable containing the bearer token to send to a remote app server websocket]:ENV_VAR:_default' \
 '*-i+[Optional image(s) to attach to the initial prompt]:FILE:_files' \
 '*--image=[Optional image(s) to attach to the initial prompt]:FILE:_files' \
 '-m+[Model the agent should use]:MODEL:_default' \
@@ -1024,6 +1029,7 @@ never\:"Never ask for user approval Execution failures are immediately returned 
 '*--disable=[Disable a feature (repeatable). Equivalent to \`-c features.<name>=false\`]:FEATURE:_default' \
 '--last[Continue the most recent session without showing the picker]' \
 '--all[Show all sessions (disables cwd filtering and shows CWD column)]' \
+'--include-non-interactive[Include non-interactive sessions in the resume picker and --last selection]' \
 '--oss[Convenience flag to select the local open source model provider. Equivalent to -c model_provider=oss; verifies a local LM Studio or Ollama server is running]' \
 '--full-auto[Convenience alias for low-friction sandboxed automatic execution (-a on-request, --sandbox workspace-write)]' \
 '(-a --ask-for-approval --full-auto)--dangerously-bypass-approvals-and-sandbox[Skip all confirmation prompts and execute commands without sandboxing. EXTREMELY DANGEROUS. Intended solely for running in environments that are externally sandboxed]' \
@@ -1040,6 +1046,7 @@ never\:"Never ask for user approval Execution failures are immediately returned 
 (fork)
 _arguments "${_arguments_options[@]}" : \
 '--remote=[Connect the app-server-backed TUI to a remote app server websocket endpoint]:ADDR:_default' \
+'--remote-auth-token-env=[Name of the environment variable containing the bearer token to send to a remote app server websocket]:ENV_VAR:_default' \
 '*-i+[Optional image(s) to attach to the initial prompt]:FILE:_files' \
 '*--image=[Optional image(s) to attach to the initial prompt]:FILE:_files' \
 '-m+[Model the agent should use]:MODEL:_default' \

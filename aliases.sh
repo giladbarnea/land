@@ -72,43 +72,45 @@ alias :claude='CLAUDE_CODE_OAUTH_TOKEN=$(<~/.claude-code-personal-1y-oauth-token
 compdef _claude :claude
 
 alias claudeo=':claude --model=opus'
-# compdef _claude claudeo
+compdef _claude claudeo
 
 alias claudes=':claude --model=sonnet'
-# compdef _claude claudes
+compdef _claude claudes
 
 alias claudeh=':claude --model=haiku'
-# compdef _claude claudeh
+compdef _claude claudeh
 
 alias claudeon='claudeo --no-session-persistence -p'
-# compdef _claude claudeon
+compdef _claude claudeon
 
 alias claudesn='claudes --no-session-persistence -p'
-# compdef _claude claudesn
+compdef _claude claudesn
 
 alias claudehn='claudeh --no-session-persistence -p'
-# compdef _claude claudehn
+compdef _claude claudehn
 
-alias codexd='OPENAI_API_KEY="$(<~/.openai-personal-tech-news-curator-api-token)" codex --yolo'
+alias codexd='codex --yolo'
 compdef _codex codexd
 
-alias codexn='codexd --config="model_reasoning_effort=none"'
-alias codex0=codexn
+alias codexm='codexd --model=gpt-5.4-mini'
 
-alias codexmin='codexd --config="model_reasoning_effort=minimal"'
-alias codex1=codexmin
+alias codex0='codexd --config="model_reasoning_effort=none"'
+alias codexm0='codexm --config="model_reasoning_effort=none"'
 
-alias codexl='codexd --config="model_reasoning_effort=low"'
-alias codex2=codexl
+alias codex1='codexd --config="model_reasoning_effort=minimal"'
+alias codexm1='codexm --config="model_reasoning_effort=minimal"'
 
-alias codexmed='codexd --config="model_reasoning_effort=medium"'
-alias codex3=codexmed
+alias codex2='codexd --config="model_reasoning_effort=low"'
+alias codexm2='codexm --config="model_reasoning_effort=low"'
 
-alias codexh='codexd --config="model_reasoning_effort=high"'
-alias codex4=codexh
+alias codex3='codexd --config="model_reasoning_effort=medium"'
+alias codexm3='codexm --config="model_reasoning_effort=medium"'
 
-alias codexxh='codexd --config="model_reasoning_effort=xhigh"'
-alias codex5=codexxh
+alias codex4='codexd --config="model_reasoning_effort=high"'
+alias codexm4='codexm --config="model_reasoning_effort=high"'
+
+alias codex5='codexd --config="model_reasoning_effort=xhigh"'
+alias codexm5='codexm --config="model_reasoning_effort=xhigh"'
 
 function :gemini() {
 	local -a args_besides_prompt=()
