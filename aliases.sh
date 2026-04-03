@@ -160,10 +160,10 @@ function :gemini() {
 		fi
 	fi
 	if [[ "$running_interactively" = true ]]; then
-		GEMINI_API_KEY=$(<~/.gemini-api-key-personal) gemini "${args_besides_prompt[@]}" "$full_prompt" < /dev/tty
+		GEMINI_API_KEY=$(<~/.gemini-api-key-free-tier-Generative-Language-Client) gemini "${args_besides_prompt[@]}" "$full_prompt" < /dev/tty
 	else
 	    log.debug 'Running non-interactively'
-		GEMINI_API_KEY=$(<~/.gemini-api-key-personal) gemini "${args_besides_prompt[@]}" "$full_prompt" 2>&1 < /dev/tty \
+		GEMINI_API_KEY=$(<~/.gemini-api-key-free-tier-Generative-Language-Client) gemini "${args_besides_prompt[@]}" "$full_prompt" 2>&1 < /dev/tty \
 			| grep -v -E 'DEP0040|to show where the warning|YOLO mode is enabled|Both GOOGLE_API_KEY|Hook registry initialized'
 	fi
 }
