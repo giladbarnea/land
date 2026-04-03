@@ -19,7 +19,7 @@ _codex() {
 '*--config=[Override a configuration value that would otherwise be loaded from \`~/.codex/config.toml\`. Use a dotted path (\`foo.bar.baz\`) to override nested values. The \`value\` portion is parsed as TOML. If it fails to parse as TOML, the raw string is used as a literal]:key=value:_default' \
 '*--enable=[Enable a feature (repeatable). Equivalent to \`-c features.<name>=true\`]:FEATURE:_default' \
 '*--disable=[Disable a feature (repeatable). Equivalent to \`-c features.<name>=false\`]:FEATURE:_default' \
-'--remote=[Connect the app-server-backed TUI to a remote app server websocket endpoint]:ADDR:_default' \
+'--remote=[Connect the TUI to a remote app server websocket endpoint]:ADDR:_default' \
 '--remote-auth-token-env=[Name of the environment variable containing the bearer token to send to a remote app server websocket]:ENV_VAR:_default' \
 '*-i+[Optional image(s) to attach to the initial prompt]:FILE:_files' \
 '*--image=[Optional image(s) to attach to the initial prompt]:FILE:_files' \
@@ -92,7 +92,7 @@ _arguments "${_arguments_options[@]}" : \
 '--help[Print help (see more with '\''--help'\'')]' \
 '-V[Print version]' \
 '--version[Print version]' \
-'::prompt -- Initial instructions for the agent. If not provided as an argument (or if `-` is used), instructions are read from stdin:' \
+'::prompt -- Initial instructions for the agent. If not provided as an argument (or if `-` is used), instructions are read from stdin. If stdin is piped and a prompt is also provided, stdin is appended as a `<stdin>` block:' \
 ":: :_codex__exec_commands" \
 "*::: :->exec" \
 && ret=0
@@ -216,7 +216,7 @@ _arguments "${_arguments_options[@]}" : \
 '--help[Print help (see more with '\''--help'\'')]' \
 '-V[Print version]' \
 '--version[Print version]' \
-'::prompt -- Initial instructions for the agent. If not provided as an argument (or if `-` is used), instructions are read from stdin:' \
+'::prompt -- Initial instructions for the agent. If not provided as an argument (or if `-` is used), instructions are read from stdin. If stdin is piped and a prompt is also provided, stdin is appended as a `<stdin>` block:' \
 ":: :_codex__exec_commands" \
 "*::: :->exec" \
 && ret=0
@@ -1001,7 +1001,7 @@ _arguments "${_arguments_options[@]}" : \
 ;;
 (resume)
 _arguments "${_arguments_options[@]}" : \
-'--remote=[Connect the app-server-backed TUI to a remote app server websocket endpoint]:ADDR:_default' \
+'--remote=[Connect the TUI to a remote app server websocket endpoint]:ADDR:_default' \
 '--remote-auth-token-env=[Name of the environment variable containing the bearer token to send to a remote app server websocket]:ENV_VAR:_default' \
 '*-i+[Optional image(s) to attach to the initial prompt]:FILE:_files' \
 '*--image=[Optional image(s) to attach to the initial prompt]:FILE:_files' \
@@ -1045,7 +1045,7 @@ never\:"Never ask for user approval Execution failures are immediately returned 
 ;;
 (fork)
 _arguments "${_arguments_options[@]}" : \
-'--remote=[Connect the app-server-backed TUI to a remote app server websocket endpoint]:ADDR:_default' \
+'--remote=[Connect the TUI to a remote app server websocket endpoint]:ADDR:_default' \
 '--remote-auth-token-env=[Name of the environment variable containing the bearer token to send to a remote app server websocket]:ENV_VAR:_default' \
 '*-i+[Optional image(s) to attach to the initial prompt]:FILE:_files' \
 '*--image=[Optional image(s) to attach to the initial prompt]:FILE:_files' \

@@ -1262,32 +1262,55 @@ function .ppx(){
 	log.debug "$(typeset model temp_response_file temp_raw_response_file temp_usage_file temp_citations_file temp_search_results_file temp_raw_metadata_file)"
 	local -i http_exit_code=0
 	local base_url='https://api.perplexity.ai/chat/completions'
-	# | tee >(jq -r '.usage.num_search_queries // empty' 2>/dev/null | grep -v '^$' | head -1 > "$temp_usage_file") \
-	# >(jq -r 'if .citations then (.citations | map("- " + .) | join("\n")) else empty end' 2>/dev/null | grep -v '^$' | head -1 > "$temp_citations_file") \
-	# >(jq -r 'if .search_results then (.search_results | map("- [" + .title + "](" + .url + ")" + (if .date then " (" + .date + ")" else "" end)) | join("\n")) else empty end' 2>/dev/null | grep -v '^$' | head -1 > "$temp_search_results_file") \
-	# Available param: search_recency_filter, search_domain_filter, return_related_questions, use_openrouter
-	http --ignore-stdin --json --body --check-status --stream POST "$base_url" \
-		accept:application/json \
-		content-type:application/json \
-		"Authorization:Bearer $(<~/.perplexity-api-key)" \
-		stream=true \
-		include_reasoning=true \
-		reasoning_effort="${reasoning_effort}" \
-		search_mode="${search_mode}" \
-		search_size="${search_size}" \
-		after="${after}" \
-		before="${before}" \
-		max_tokens=16000 \
-		temperature=0 \
-		model="${model}" \
-		'messages[0][role]=user' \
-		"messages[0][content]='${user_message}'" 2>/dev/null \
-		| tee "$temp_raw_response_file" \
-		| sed 's/^data: //g' \
-		| tee "$temp_raw_jsonlines_file" \
-		| jq -r '.choices[0].delta.content' --join-output --unbuffered \
-		| tee "$temp_response_file"
-	http_exit_code=${pipestatus[1]}
+	local last_chunk
+	if [[ ! -f ~/.perplexity-api-key && -n "$OPENROUTER_API_TOKEN" ]]; then
+		base_url='https://openrouter.ai/api/v1/chat/completions'
+		model='perplexity/sonar-pro-search'
+		curl --silent --no-buffer "$base_url" \
+			-H "Content-Type: application/json" \
+			-H "Authorization: Bearer $OPENROUTER_API_TOKEN" \
+			-d "{
+			\"model\": \"$model\",
+			\"messages\": [
+				{
+					\"role\": \"user\",
+					\"content\": $user_message
+				}
+			],
+			\"reasoning\": {
+				\"enabled\": true
+			},
+			\"stream\": false
+		}" 2>/dev/null > "$temp_raw_response_file"
+		response_message_obj="$(jq -r '.choices[0].message.content' "$temp_raw_response_file")"
+		local response_content="$(jq -r .content <<< "$response_message_obj")"
+		local annotations="$(jq -r 'if .annotations then (.annotations | map("- " + .) | join("\n")) else empty end' <<< "$response_message_obj")"
+		# choices[0][message][content]
+		# choices[0][message][annotations][*][url_citation][url,title]
+	else
+		http --ignore-stdin --json --body --check-status --stream POST "$base_url" \
+			accept:application/json \
+			content-type:application/json \
+			"Authorization:Bearer $(<~/.perplexity-api-key)" \
+			stream=true \
+			include_reasoning=true \
+			reasoning_effort="${reasoning_effort}" \
+			search_mode="${search_mode}" \
+			search_size="${search_size}" \
+			after="${after}" \
+			before="${before}" \
+			max_tokens=16000 \
+			temperature=0 \
+			model="${model}" \
+			'messages[0][role]=user' \
+			"messages[0][content]='${user_message}'" 2>/dev/null \
+				| tee "$temp_raw_response_file" \
+				| sed 's/^data: //g' \
+				| tee "$temp_raw_jsonlines_file" \
+				| jq -r '.choices[0].delta.content' --join-output --unbuffered \
+				| tee "$temp_response_file"
+		http_exit_code=${pipestatus[1]}
+	fi 
 	if [[ "$http_exit_code" != 0 ]]; then
 		log.error "POST request to $base_url failed with exit code ${http_exit_code}. Raw response file: ${temp_raw_response_file}. Response file: ${temp_response_file}. Printing raw response file:"
 		cat "$temp_raw_response_file"
@@ -1297,7 +1320,7 @@ function .ppx(){
 	
 	# Extract and display additional metadata after streaming completes
 	local metadata_output=""
-	local last_chunk="$(jq -r --slurp '.[-1]' "$temp_raw_jsonlines_file")"
+	last_chunk="$(jq -r --slurp '.[-1]' "$temp_raw_jsonlines_file")"
 	jq -r '.usage.num_search_queries // empty' <<< "$last_chunk" > "$temp_usage_file"
 	jq -r 'if .citations then (.citations | map("- " + .) | join("\n")) else empty end' <<< "$last_chunk" > "$temp_citations_file"
 	jq -r 'if .search_results then (.search_results | map("- [" + .title + "](" + .url + ")" + (if .date then " (" + .date + ")" else "" end)) | join("\n")) else empty end' <<< "$last_chunk" > "$temp_search_results_file"
