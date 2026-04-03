@@ -71,7 +71,12 @@
     targetdir="${targetdir/'~'/$HOME}"
 
     if [[ ! "$targetdir" || "$targetdir" == . ]]; then
-      targetdir="$PWD"
+      if [[ -z "$targetdir" ]]; then
+        # Bare 'cd': if exactly one subdirectory exists, use it.
+        local -a subdirs=( *(/N) )
+        [[ ${#subdirs[@]} -eq 1 ]] && targetdir="${subdirs[@]}"
+      fi
+      [[ -z "$targetdir" || "$targetdir" == . ]] && targetdir="$PWD"
     elif [[ "$targetdir" != -* && ! -e "$targetdir" ]]; then
       # * If targetdir does not exist (and is not -*), try to find it in implicit_path_prefixes
       local implicit_path_prefix
