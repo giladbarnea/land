@@ -80,6 +80,8 @@ compdef _claude claudes
 alias claudeh=':claude --model=haiku'
 compdef _claude claudeh
 
+alias claudehappy='() { if [[ -f ~/.claude-code-oauth-token ]]; then happy --claude-env CLAUDE_CODE_OAUTH_TOKEN="$(<~/.claude-code-oauth-token)" --yolo "$@"; else happy --claude-env ANTHROPIC_API_KEY="$(<~/.anthropic-api-key-hearai-gilad-local-dev)" --yolo "$@"; fi ; }'
+
 alias claudeon='claudeo --no-session-persistence -p'
 compdef _claude claudeon
 
