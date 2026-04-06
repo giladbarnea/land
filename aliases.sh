@@ -91,7 +91,7 @@ compdef _claude claudesn
 alias claudehn='claudeh --no-session-persistence -p'
 compdef _claude claudehn
 
-alias codexd='codex --yolo'
+alias codexd='unset OPENAI_API_KEY; codex --yolo'
 compdef _codex codexd
 
 alias codexm='codexd --model=gpt-5.4-mini'
@@ -99,20 +99,17 @@ alias codexm='codexd --model=gpt-5.4-mini'
 alias codex0='codexd --config="model_reasoning_effort=none"'
 alias codexm0='codexm --config="model_reasoning_effort=none"'
 
-alias codex1='codexd --config="model_reasoning_effort=minimal"'
-alias codexm1='codexm --config="model_reasoning_effort=minimal"'
+alias codex1='codexd --config="model_reasoning_effort=low"'
+alias codexm1='codexm --config="model_reasoning_effort=low"'
 
-alias codex2='codexd --config="model_reasoning_effort=low"'
-alias codexm2='codexm --config="model_reasoning_effort=low"'
+alias codex2='codexd --config="model_reasoning_effort=medium"'
+alias codexm2='codexm --config="model_reasoning_effort=medium"'
 
-alias codex3='codexd --config="model_reasoning_effort=medium"'
-alias codexm3='codexm --config="model_reasoning_effort=medium"'
+alias codex3='codexd --config="model_reasoning_effort=high"'
+alias codexm3='codexm --config="model_reasoning_effort=high"'
 
-alias codex4='codexd --config="model_reasoning_effort=high"'
-alias codexm4='codexm --config="model_reasoning_effort=high"'
-
-alias codex5='codexd --config="model_reasoning_effort=xhigh"'
-alias codexm5='codexm --config="model_reasoning_effort=xhigh"'
+alias codex4='codexd --config="model_reasoning_effort=xhigh"'
+alias codexm4='codexm --config="model_reasoning_effort=xhigh"'
 
 function :gemini() {
 	local -a args_besides_prompt=()
@@ -540,4 +537,3 @@ function define_docker_aliases(){
 
 # * Node aliases
 # --------------
-

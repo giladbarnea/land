@@ -16,9 +16,7 @@ aliases[gdt]='git difftool'
 
 # * log
 alias gpl='git pull'
-
 unalias glola gloga
-
 alias glg="git log --graph --pretty='%Cred%h%Creset -%C(auto)%d%Creset %s %Cgreen(%cr) %C(bold blue)<%an>%Creset' --all"
 aliases[gl]='git log --oneline --decorate --graph --all'
 
