@@ -101,3 +101,5 @@ Commands:
 
 Therefore, immediately run `claude plugin --help | tee -a /tmp/claude-help-all.txt` and `claude mcp --help | tee -a /tmp/claude-help-all.txt`.
 `claude plugin --help` will itself reveal more subcommands (`claude plugin marketplace`), which in turn also have nested subcommands (`claude plugin marketplace list`), and so on. Traverse exhaust the whole tree breadth-first to cultivate a complete help-all file. Only then apply the best practices in `_gemini` to the current situation and proceed to implement.
+
+Tip: use `_arguments -A '-*'` when the CLI accepts options after positional arguments, so zsh keeps completing option-like words even after free args have already appeared.
