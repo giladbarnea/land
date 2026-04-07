@@ -22,17 +22,19 @@ for file in "${scripts[@]}"; do
 done | sort -k4,4r -k6,6r;
 ```
 
-As of Feb 08, 2026, this is the script's output:
+As of Apr 07, 2026, this is the script's output:
 ```
 │ File       │ Created                   │ Modified                  │
 │ ────────── │ ───────────────────────── │ ───────────────────────── │
+│ _pi        │ 2026-04-07T11:32:03+03:00 │ 2026-04-07T11:32:03+03:00 │
+│ _openclaw  │ 2026-02-13T10:39:40+02:00 │ 2026-03-27T17:14:02+03:00 │
 │ _gemini    │ 2026-02-08T09:51:15+02:00 │ 2026-02-08T11:09:58+02:00 │
-│ _codex     │ 2026-02-08T08:44:51+02:00 │ 2026-02-08T08:44:51+02:00 │
+│ _codex     │ 2026-02-08T08:44:51+02:00 │ 2026-04-03T13:37:12+03:00 │
 │ _claude    │ 2026-01-27T13:07:39+02:00 │ 2026-01-27T13:07:39+02:00 │
 │ _opencode  │ 2026-01-27T12:37:51+02:00 │ 2026-01-27T12:37:51+02:00 │
-│ _codanna   │ 2026-01-13T17:10:52+02:00 │ 2026-01-13T19:45:15+02:00 │
 │ _scraping  │ 2025-12-17T12:11:43+02:00 │ 2025-12-17T12:11:43+02:00 │
 │ _delta     │ 2025-11-14T14:32:30+02:00 │ 2025-11-14T14:32:30+02:00 │
+│ _wacli     │ 2025-10-15T11:52:53+03:00 │ 2026-03-27T17:14:02+03:00 │
 │ _git       │ 2025-10-15T11:52:53+03:00 │ 2026-01-27T12:37:51+02:00 │
 │ _ruff      │ 2025-10-15T11:52:53+03:00 │ 2026-01-13T19:48:28+02:00 │
 │ _tools     │ 2025-10-15T11:52:53+03:00 │ 2025-11-14T14:37:34+02:00 │
@@ -51,6 +53,8 @@ As of Feb 08, 2026, this is the script's output:
 ```
 
 Therefore, good example scripts are:
+- _pi: most recently created AND updated (2026-04-07)
+- _openclaw: most recently created AND updated (137kb, heavily maintained)
 - _gemini: most recently created AND updated. I'm signing here that it's the best script in this directory. Inspired by `/Users/giladbarnea/.openclaw/completions/openclaw.zsh`. It is superior because: 
     * it leverages separation of data arrays (`local -a options`) from logic before passing them to `_arguments`, instead of a massive, unreadable `_arguments` call
     * modular dispatching (the 'Router') pattern, which uses a root function `_gemini` that acts as a router, which doesn't know *how* to complete `mcp add`, it just knows to pass control to `_gemini:mcp`, instead of nesting logic deep inside the root function 
@@ -62,6 +66,20 @@ Therefore, good example scripts are:
 Perhaps unintuitively bad examples scripts are:
 - _git: created date in the oldest bin
 - _ruff: created date in the oldest bin AND auto-generated (360kb)
+
+## Zsh Built-in Completion Files
+
+`/usr/share/zsh/5.9/functions/_*` contains thousands of high quality zsh built-in completion files. Some of them are huge (e.g., `_git` at 8503 lines, `_gcc` at 2287 lines) so not a good idea to load and clog them into the context.
+
+### 3 Recommended Files to Read
+
+Not too long but exemplify a wide variety of completion techniques:
+
+| File     | Lines | Key Techniques |
+| -------- | ----- | -------------- |
+| `_ps`    | 244   | `_call_program`, `_describe`, `_sequence`, `compset -P`, many completers (`_pids`, `_groups`, `_users`, `_ttys`) |
+| `_make`  | 273   | File parsing, helper functions, associative arrays, `zstyle`, `_guard` |
+| `_rsync` | 273   | `_wanted`/`_combination`, remote file completion, `compset -P/S`, `_call_program` |
 
 ### Know all the subcommands, options, and their sub-subcommands and options before writing the script
 
