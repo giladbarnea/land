@@ -54,14 +54,14 @@ As of Apr 07, 2026, this is the script's output:
 
 Therefore, good example scripts are:
 - _pi: most recently created AND updated (2026-04-07)
-- _openclaw: most recently created AND updated (137kb, heavily maintained)
-- _gemini: most recently created AND updated. I'm signing here that it's the best script in this directory. Inspired by `/Users/giladbarnea/.openclaw/completions/openclaw.zsh`. It is superior because: 
+- _codex: most recently modified (2026-04-03), recently created (2026-02-08)
+- _openclaw: recently created (2026-02-13), heavily maintained (137kb)
+- _gemini: older (2026-02-08), but I'm signing here that it's the best script in this directory for best practices. Inspired by `/Users/giladbarnea/.openclaw/completions/openclaw.zsh`. It is superior because: 
     * it leverages separation of data arrays (`local -a options`) from logic before passing them to `_arguments`, instead of a massive, unreadable `_arguments` call
     * modular dispatching (the 'Router') pattern, which uses a root function `_gemini` that acts as a router, which doesn't know *how* to complete `mcp add`, it just knows to pass control to `_gemini:mcp`, instead of nesting logic deep inside the root function 
     * state-based argument handling: uses `_arguments -C` with `->state` to handle complex flows where the completion needs to change based on the position (Command vs. Arguments), rather than a single complex argument specification
     * Robust registration (the footer): end with an explicit `compdef ...` rather than executing the function.
-- _codex: very recently created AND updated
-- _claude: recently created AND updated
+- _claude: recently created (2026-01-27)
 
 Perhaps unintuitively bad examples scripts are:
 - _git: created date in the oldest bin
