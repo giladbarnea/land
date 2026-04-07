@@ -1,0 +1,184 @@
+#compdef pi
+
+_pi() {
+  local curcontext="$curcontext" state line
+  local -i ret=1
+  typeset -A opt_args
+
+  local -a root_options=(
+    '--provider[Provider name]:name:_default'
+    '--model[Model pattern or ID]:pattern:_default'
+    '--api-key[API key]:key:_default'
+    '--system-prompt[System prompt]:text:_default'
+    '--append-system-prompt[Append text or file contents to the system prompt]:text:_default'
+    '--mode[Output mode]:mode:(text json rpc)'
+    '(-p --print)'{-p,--print}'[Non-interactive mode: process prompt and exit]'
+    '(-c --continue)'{-c,--continue}'[Continue previous session]'
+    '(-r --resume)'{-r,--resume}'[Select a session to resume]'
+    '--session[Use specific session file]:path:_files'
+    '--fork[Fork a specific session file or partial UUID into a new session]:path-or-uuid:_default'
+    '--session-dir[Directory for session storage and lookup]:dir:_files -/'
+    '--no-session[Do not save the session]'
+    '--models[Comma-separated model patterns for Ctrl+P cycling]:patterns:_default'
+    '--no-tools[Disable all built-in tools]'
+    '--tools[Comma-separated list of tools to enable]:tools:_pi_tools'
+    '--thinking[Set thinking level]:level:(off minimal low medium high xhigh)'
+    '*-e[Load an extension file]:path:_files'
+    '*--extension[Load an extension file]:path:_files'
+    '-ne[Disable extension discovery (explicit -e paths still work)]'
+    '--no-extensions[Disable extension discovery (explicit -e paths still work)]'
+    '*--skill[Load a skill file or directory]:path:_files'
+    '-ns[Disable skills discovery and loading]'
+    '--no-skills[Disable skills discovery and loading]'
+    '*--prompt-template[Load a prompt template file or directory]:path:_files'
+    '-np[Disable prompt template discovery and loading]'
+    '--no-prompt-templates[Disable prompt template discovery and loading]'
+    '*--theme[Load a theme file or directory]:path:_files'
+    '--no-themes[Disable theme discovery and loading]'
+    '--export[Export a session file to HTML and exit]:file:_files'
+    '--list-models=-[List available models, optionally filtered by fuzzy search]::search:_default'
+    '--verbose[Force verbose startup]'
+    '--offline[Disable startup network operations]'
+    '(-h --help)'{-h,--help}'[Show help]'
+    '(-v --version)'{-v,--version}'[Show version number]'
+  )
+
+  local -a subcommands=(
+    'install:Install extension source and add it to settings'
+    'remove:Remove extension source from settings'
+    'uninstall:Alias for remove'
+    'update:Update installed extensions'
+    'list:List installed extensions from settings'
+    'config:Open the resource configuration TUI'
+  )
+
+  _arguments -C \
+    "${root_options[@]}" \
+    '1: :->root_arg' \
+    '*:: :->root_rest' && ret=0
+
+  case $state in
+    (root_arg)
+      if [[ $words[CURRENT] == @* ]]; then
+        _pi_at_file
+        ret=$?
+      else
+        _describe -t subcommands 'pi commands' subcommands && ret=0
+      fi
+      ;;
+    (root_rest)
+      case $line[1] in
+        (install)
+          _pi:install
+          ret=$?
+          ;;
+        (remove|uninstall)
+          _pi:remove
+          ret=$?
+          ;;
+        (update)
+          _pi:update
+          ret=$?
+          ;;
+        (list)
+          _pi:list
+          ret=$?
+          ;;
+        (config)
+          _pi:config
+          ret=$?
+          ;;
+        (*)
+          if [[ $words[CURRENT] == @* ]]; then
+            _pi_at_file
+            ret=$?
+          else
+            ret=0
+          fi
+          ;;
+      esac
+      ;;
+  esac
+
+  return $ret
+}
+
+_pi:install() {
+  _arguments \
+    '--help[Show help for install]' \
+    '(-l --local)'{-l,--local}'[Install project-locally (.pi/settings.json)]' \
+    '1:source:_pi_package_source' && return 0
+}
+
+_pi:remove() {
+  _arguments \
+    '--help[Show help for remove or uninstall]' \
+    '(-l --local)'{-l,--local}'[Remove from project settings (.pi/settings.json)]' \
+    '1:source:_pi_installed_sources' && return 0
+}
+
+_pi:update() {
+  _arguments \
+    '--help[Show help for update]' \
+    '::source:_pi_installed_sources' && return 0
+}
+
+_pi:list() {
+  _arguments \
+    '--help[Show help for list]' && return 0
+}
+
+_pi:config() {
+  _message 'no arguments'
+}
+
+_pi_at_file() {
+  compset -P '@'
+  _files
+}
+
+_pi_installed_sources() {
+  local line source
+  local -a sources
+
+  while IFS= read -r line; do
+    [[ $line == '  '* ]] || continue
+    [[ $line == '    '* ]] && continue
+
+    source=${line#  }
+    source=${source% \(filtered\)}
+    sources+=("$source")
+  done < <(pi list 2>/dev/null)
+
+  (( ${#sources[@]} )) || return 1
+  sources=(${(u)sources})
+  _describe -t sources 'installed package sources' sources
+}
+
+_pi_package_source() {
+  case $PREFIX in
+    (./*|../*|/*|~*)
+      _files -/
+      ;;
+    (*)
+      _message 'extension source'
+      ;;
+  esac
+}
+
+_pi_tools() {
+  _values -s , 'tool' \
+    'read[Read file contents]' \
+    'bash[Execute bash commands]' \
+    'edit[Edit files with find/replace]' \
+    'write[Write files]' \
+    'grep[Search file contents]' \
+    'find[Find files by glob pattern]' \
+    'ls[List directory contents]'
+}
+
+if [ "${funcstack[1]}" = "_pi" ]; then
+  _pi "$@"
+else
+  compdef _pi pi
+fi
