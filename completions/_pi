@@ -6,8 +6,8 @@ _pi() {
   typeset -A opt_args
 
   local -a root_options=(
-    '--provider[Provider name]:name:_default'
-    '--model[Model pattern or ID]:pattern:_default'
+    '--provider[Provider name]:name:_pi_providers'
+    '--model[Model pattern or ID]:pattern:_pi_model_ids'
     '--api-key[API key]:key:_default'
     '--system-prompt[System prompt]:text:_default'
     '--append-system-prompt[Append text or file contents to the system prompt]:text:_default'
@@ -52,7 +52,7 @@ _pi() {
     'config:Open the resource configuration TUI'
   )
 
-  _arguments -C \
+  _arguments -A '-*' -C -s -S \
     "${root_options[@]}" \
     '1: :->root_arg' \
     '*:: :->root_rest' && ret=0
@@ -104,27 +104,27 @@ _pi() {
 }
 
 _pi:install() {
-  _arguments \
+  _arguments -A '-*' -s -S \
     '--help[Show help for install]' \
     '(-l --local)'{-l,--local}'[Install project-locally (.pi/settings.json)]' \
     '1:source:_pi_package_source' && return 0
 }
 
 _pi:remove() {
-  _arguments \
+  _arguments -A '-*' -s -S \
     '--help[Show help for remove or uninstall]' \
     '(-l --local)'{-l,--local}'[Remove from project settings (.pi/settings.json)]' \
     '1:source:_pi_installed_sources' && return 0
 }
 
 _pi:update() {
-  _arguments \
+  _arguments -A '-*' -s -S \
     '--help[Show help for update]' \
     '::source:_pi_installed_sources' && return 0
 }
 
 _pi:list() {
-  _arguments \
+  _arguments -A '-*' -s -S \
     '--help[Show help for list]' && return 0
 }
 
@@ -175,6 +175,52 @@ _pi_tools() {
     'grep[Search file contents]' \
     'find[Find files by glob pattern]' \
     'ls[List directory contents]'
+}
+
+# As of 26-04-07. Up-to-date provider list:
+# /opt/homebrew/lib/node_modules/@mariozechner/pi-coding-agent/docs/providers.md
+_pi_providers() {
+  local expl
+  local -a providers=(
+    anthropic
+    openai
+    azure-openai
+    google
+    vertex
+    bedrock
+    mistral
+    groq
+    cerebras
+    xai
+    openrouter
+    vercel-ai-gateway
+    zai
+    opencode-zen
+    opencode-go
+    huggingface
+    kimi
+    minimax
+    copilot
+    antigravity
+  )
+
+  _wanted providers expl 'provider' compadd -a providers
+}
+
+_pi_model_ids() {
+  local expl
+  local provider model rest
+  local -a models
+
+  while read -r provider model rest; do
+    [[ -n $provider && $provider != provider ]] || continue
+    [[ -n $model ]] || continue
+    models+=("${provider}/${model}")
+  done < <(pi --list-models 2>&1)
+
+  (( ${#models[@]} )) || return 1
+  models=(${(u)models})
+  _wanted models expl 'model id' compadd -a models
 }
 
 if [ "${funcstack[1]}" = "_pi" ]; then
