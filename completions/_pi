@@ -19,7 +19,7 @@ _pi() {
     '--fork[Fork a specific session file or partial UUID into a new session]:path-or-uuid:_default'
     '--session-dir[Directory for session storage and lookup]:dir:_files -/'
     '--no-session[Do not save the session]'
-    '--models[Comma-separated model patterns for Ctrl+P cycling]:patterns:_default'
+    '--models[Comma-separated model patterns for Ctrl+P cycling]:patterns:_pi_models_patterns'
     '--no-tools[Disable all built-in tools]'
     '--tools[Comma-separated list of tools to enable]:tools:_pi_tools'
     '--thinking[Set thinking level]:level:(off minimal low medium high xhigh)'
@@ -207,20 +207,40 @@ _pi_providers() {
   _wanted providers expl 'provider' compadd -a providers
 }
 
-_pi_model_ids() {
-  local expl
+_pi_model_id_lines() {
+  local cache_file=/tmp/pi-list-models
   local provider model rest
-  local -a models
+
+  if [[ ! -f $cache_file ]]; then
+    pi --list-models > /tmp/pi-list-models 2>&1
+  fi
 
   while read -r provider model rest; do
     [[ -n $provider && $provider != provider ]] || continue
     [[ -n $model ]] || continue
-    models+=("${provider}/${model}")
-  done < <(pi --list-models 2>&1)
+    print -r -- "${provider}/${model}"
+  done < "$cache_file"
+}
+
+_pi_model_ids() {
+  local expl
+  local -a models
+
+  models=(${(f)"$(_pi_model_id_lines)"})
 
   (( ${#models[@]} )) || return 1
   models=(${(u)models})
   _wanted models expl 'model id' compadd -a models
+}
+
+_pi_models_patterns() {
+  local -a models
+
+  models=(${(f)"$(_pi_model_id_lines)"})
+  (( ${#models[@]} )) || return 1
+
+  models=(${(u)models})
+  _values -s , 'model id' "${models[@]}"
 }
 
 if [ "${funcstack[1]}" = "_pi" ]; then
