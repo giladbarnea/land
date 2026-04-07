@@ -24,6 +24,15 @@ compdef _git git.my-commits=git-log
 
 compdef '_describe command "( $(git.branches) )"' grename
 
+# Completion for git.tmr
+_git_tmr() {
+  _arguments \
+    '(- *)--only-behind[show only repositories whose local branch is behind its upstream]' \
+    '(- *)--only-ahead[show only repositories whose local branch is ahead of its upstream]' \
+    '(- *)--only-changes[show only repositories with uncommitted changes]'
+}
+compdef _git_tmr git.tmr
+
 # Completion for git.download-repo-dir
 _git_download_repo_dir(){
   zstyle ':completion::complete:git.download-repo-dir:*:descriptions' format "$(docstring git.download-repo-dir ${LAND}/git.sh)"

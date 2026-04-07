@@ -1393,9 +1393,46 @@ function git.clean(){
 # # git.tmr
 # Recursively finds all git repositories and checks their status.
 # Outputs results to both stdout and /tmp/repostatuses.txt.
+# Optional mutually exclusive filters:
+#   --only-behind
+#   --only-ahead
+#   --only-changes
 function git.tmr(){
+  local only_filter=""
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --only-behind)
+        [[ -n "$only_filter" ]] && {
+          log.error "git.tmr: flags --only-behind, --only-ahead, and --only-changes are mutually exclusive"
+          return 2
+        }
+        only_filter="behind"
+        ;;
+      --only-ahead)
+        [[ -n "$only_filter" ]] && {
+          log.error "git.tmr: flags --only-behind, --only-ahead, and --only-changes are mutually exclusive"
+          return 2
+        }
+        only_filter="ahead"
+        ;;
+      --only-changes)
+        [[ -n "$only_filter" ]] && {
+          log.error "git.tmr: flags --only-behind, --only-ahead, and --only-changes are mutually exclusive"
+          return 2
+        }
+        only_filter="changes"
+        ;;
+      *)
+        log.error "git.tmr: Unexpected argument: $1"
+        return 2
+        ;;
+    esac
+    shift
+  done
+
   echo "" > /tmp/repostatuses.txt;
   fd --type d --hidden '^\.git$' --max-depth=15 --exec zsh -ic '
+    only_filter="$1"
     repo="$(dirname "{}")"
     repo_header=$'\''\033[1m'\''"$repo"$'\''\033[0m'\''
     
@@ -1411,27 +1448,20 @@ function git.tmr(){
         return
         ;;
     esac
-    {
-      echo ""
-      echo "$repo_header"
-      echo "$repo"
-    } >> /tmp/repostatuses.txt
-    echo ""
-    echo "$repo_header"
 
     if ! builtin cd "$repo"; then
-      echo "❌ N/A (cannot cd)" | tee -a /tmp/repostatuses.txt
+      {
+        echo ""
+        echo "$repo_header"
+        echo "$repo"
+        echo "❌ N/A (cannot cd)"
+      } | tee -a /tmp/repostatuses.txt
       return 1
     fi
+
     local fetch_output fetch_exit_code
     fetch_output="$(git fetch --all 2>&1)"
     fetch_exit_code=$?
-    if [[ -n "$fetch_output" ]]; then
-      while IFS= read -r line; do
-        echo "  ▍ $line" | tee -a /tmp/repostatuses.txt
-      done <<< "$fetch_output"
-    fi
-
     git_status_output="$(git status 2>&1)"
     
     # Outgoing:
@@ -1443,12 +1473,6 @@ function git.tmr(){
       :
     else
       status_unknown=true
-      {
-        echo "❔ N/A (unrecognized git status output)"
-        for line in "${(f)git_status_output}"; do
-            mdquote "$line"
-        done
-      } | tee -a /tmp/repostatuses.txt
     fi
     
     # Incoming:
@@ -1459,13 +1483,47 @@ function git.tmr(){
     elif grep -q -E "Your branch is ahead" <<< "$git_status_output"; then
       is_ahead=true
     fi
-    
+
+    local include_repo=true
+    case "$only_filter" in
+      behind)
+        $is_behind || include_repo=false
+        ;;
+      ahead)
+        $is_ahead || include_repo=false
+        ;;
+      changes)
+        $has_uncommitted_changes || include_repo=false
+        ;;
+    esac
+
+    if ! $include_repo; then
+      return 0
+    fi
+
+    {
+      echo ""
+      echo "$repo_header"
+      echo "$repo"
+    } | tee -a /tmp/repostatuses.txt
+    if [[ -n "$fetch_output" ]]; then
+      while IFS= read -r line; do
+        echo "  ▍ $line" | tee -a /tmp/repostatuses.txt
+      done <<< "$fetch_output"
+    fi
+
     if [[ "$fetch_exit_code" -ne 0 ]]; then
       echo "❌ FETCH FAILED" | tee -a /tmp/repostatuses.txt
       return "$fetch_exit_code"
     fi
 
     if $status_unknown; then
+      {
+        echo "❔ N/A (unrecognized git status output)"
+        for line in "${(f)git_status_output}"; do
+            mdquote "$line"
+        done
+      } | tee -a /tmp/repostatuses.txt
       return 1
     fi
 
@@ -1486,5 +1544,5 @@ function git.tmr(){
       message="✅ OK"
     fi
     echo "$message" | tee -a /tmp/repostatuses.txt
-  ' \;
+  ' _ "$only_filter" \;
 }
