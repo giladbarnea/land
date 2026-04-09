@@ -1441,7 +1441,7 @@ function git.tmr(){
       *.cache/uv*)
         return
         ;;
-      *.local/share/nvim*)
+      */Claude/local-agent-mode-sessions*)
         return
         ;;
       *.local/share/nvim*)
