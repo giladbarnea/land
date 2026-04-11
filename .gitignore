@@ -1,6 +1,7 @@
 .idea
 __pycache__
+*.zwc
 
-.vscodeubuntu-setup.sh
+.vscode
 ubuntu-setup.sh
 Untitled*.ipynb

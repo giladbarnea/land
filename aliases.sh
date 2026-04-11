@@ -1,16 +1,18 @@
 #!/usr/bin/env zsh
 # Sourced second after environment.sh and before log.sh
 
+: "${THIS_SCRIPT_DIR:=$(dirname -- "$0")}"
+
 # ----------------------------------
 # *** Platform-Dependent Aliases ***
 # ----------------------------------
 
 if [[ "$OS" = macos ]]; then
-	source "aliases.mac.sh"
+	source "$THIS_SCRIPT_DIR/aliases.mac.sh"
 elif [[ "$PLATFORM" == UNIX ]]; then
-	source "aliases.linux.sh"
+	source "$THIS_SCRIPT_DIR/aliases.linux.sh"
 else
-	source "aliases.win.sh"
+	source "$THIS_SCRIPT_DIR/aliases.win.sh"
 fi
 
 # ----------------------

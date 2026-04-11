@@ -2,12 +2,14 @@
 
 # Sourced after str.sh and before pretty.sh
 
+: "${THIS_SCRIPT_DIR:=$(dirname -- "$0")}"
+
 if [[ "$PLATFORM" == WIN ]]; then
-	source tools.win.sh
+	source "$THIS_SCRIPT_DIR/tools.win.sh"
 elif [[ "$OS" == Linux ]]; then
-	source tools.linux.sh
+	source "$THIS_SCRIPT_DIR/tools.linux.sh"
 else
-	source tools.mac.sh
+	source "$THIS_SCRIPT_DIR/tools.mac.sh"
 fi
 
 

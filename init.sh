@@ -43,10 +43,12 @@ source "$THIS_SCRIPT_DIR/scraping.sh"
 source "$THIS_SCRIPT_DIR/convert.sh"
 # [[ "$ZSH" ]] && source "$THIS_SCRIPT_DIR/zsh_advanced_history.zsh"
 
-# shellcheck disable=SC2188
 if is_interactive; then
-  source <(<"$THIS_SCRIPT_DIR"/completions/_*)
+  (( ${fpath[(Ie)$THIS_SCRIPT_DIR/completions]} )) || fpath=("$THIS_SCRIPT_DIR/completions" $fpath)
+  [[ -f "$THIS_SCRIPT_DIR/standalone/rebuild-zwc.zsh" ]] && \
+    command zsh "$THIS_SCRIPT_DIR/standalone/rebuild-zwc.zsh" "$THIS_SCRIPT_DIR" >/dev/null 2>&1 &!
 fi
 
-# shellcheck disable=SC2188
-source <(<"$THIS_SCRIPT_DIR"/hooks/*.zsh)
+for hook_file in "$THIS_SCRIPT_DIR"/hooks/*.zsh(N); do
+  source "$hook_file"
+done

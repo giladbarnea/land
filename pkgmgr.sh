@@ -1,4 +1,5 @@
 #!/env/bin/bash
+: "${THIS_SCRIPT_DIR:=$(dirname -- "$0")}"
 if [[ "$OS" == Linux ]]; then {
 
 # ** apt
@@ -105,6 +106,6 @@ function snap.cleanup() {
 
 }
 else {
-	source pkgmgr.mac.sh
+	source "$THIS_SCRIPT_DIR/pkgmgr.mac.sh"
 }
 fi

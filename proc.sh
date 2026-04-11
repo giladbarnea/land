@@ -1,12 +1,14 @@
 #!/usr/bin/env bash
 # sourced towards the end, after history.sh and before launch.sh
 
+: "${THIS_SCRIPT_DIR:=$(dirname -- "$0")}"
+
 if [[ "$PLATFORM" == WIN ]]; then
   :
 elif [[ "$OS" == Linux ]]; then
-  source proc.linux.sh
+  source "$THIS_SCRIPT_DIR/proc.linux.sh"
 else
-  source proc.mac.sh
+  source "$THIS_SCRIPT_DIR/proc.mac.sh"
 fi
 
 # # killverify [-s SIGNAL_NAME_OR_NUMBER=TERM] [-m,--max-attempts MAX_ATTEMPTS=10] PID_OR_PATTERN ...
