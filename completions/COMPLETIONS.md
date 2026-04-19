@@ -12,6 +12,7 @@ if [[ -d completions ]]; then
 else
   scripts=(_*)
 fi
+scripts=(${scripts:#*.zwc})
   
 echo "│ File       │ Created                   │ Modified                  │";
 echo "│ ────────── │ ───────────────────────── │ ───────────────────────── │";
@@ -22,11 +23,11 @@ for file in "${scripts[@]}"; do
 done | sort -k4,4r -k6,6r;
 ```
 
-As of Apr 07, 2026, this is the script's output:
+As of Apr 19, 2026, this is the script's output:
 ```
 │ File       │ Created                   │ Modified                  │
 │ ────────── │ ───────────────────────── │ ───────────────────────── │
-│ _pi        │ 2026-04-07T11:32:03+03:00 │ 2026-04-07T11:32:03+03:00 │
+│ _pi        │ 2026-04-07T11:32:03+03:00 │ 2026-04-07T13:44:45+03:00 │
 │ _openclaw  │ 2026-02-13T10:39:40+02:00 │ 2026-03-27T17:14:02+03:00 │
 │ _gemini    │ 2026-02-08T09:51:15+02:00 │ 2026-02-08T11:09:58+02:00 │
 │ _codex     │ 2026-02-08T08:44:51+02:00 │ 2026-04-03T13:37:12+03:00 │
@@ -34,8 +35,8 @@ As of Apr 07, 2026, this is the script's output:
 │ _opencode  │ 2026-01-27T12:37:51+02:00 │ 2026-01-27T12:37:51+02:00 │
 │ _scraping  │ 2025-12-17T12:11:43+02:00 │ 2025-12-17T12:11:43+02:00 │
 │ _delta     │ 2025-11-14T14:32:30+02:00 │ 2025-11-14T14:32:30+02:00 │
+│ _git       │ 2025-10-15T11:52:53+03:00 │ 2026-04-07T14:59:56+03:00 │
 │ _wacli     │ 2025-10-15T11:52:53+03:00 │ 2026-03-27T17:14:02+03:00 │
-│ _git       │ 2025-10-15T11:52:53+03:00 │ 2026-01-27T12:37:51+02:00 │
 │ _ruff      │ 2025-10-15T11:52:53+03:00 │ 2026-01-13T19:48:28+02:00 │
 │ _tools     │ 2025-10-15T11:52:53+03:00 │ 2025-11-14T14:37:34+02:00 │
 │ _llm       │ 2025-10-15T11:52:53+03:00 │ 2025-11-14T14:37:28+02:00 │
@@ -53,8 +54,8 @@ As of Apr 07, 2026, this is the script's output:
 ```
 
 Therefore, good example scripts are:
-- _pi: most recently created AND updated (2026-04-07)
-- _codex: most recently modified (2026-04-03), recently created (2026-02-08)
+- _pi: most recently created (2026-04-07) and still one of the freshest files overall
+- _codex: recently modified (2026-04-03), recently created (2026-02-08)
 - _openclaw: recently created (2026-02-13), heavily maintained (137kb)
 - _gemini: older (2026-02-08), but I'm signing here that it's the best script in this directory for best practices. Inspired by `/Users/giladbarnea/.openclaw/completions/openclaw.zsh`. It is superior because: 
     * it leverages separation of data arrays (`local -a options`) from logic before passing them to `_arguments`, instead of a massive, unreadable `_arguments` call
@@ -64,7 +65,7 @@ Therefore, good example scripts are:
 - _claude: recently created (2026-01-27)
 
 Perhaps unintuitively bad examples scripts are:
-- _git: created date in the oldest bin
+- _git: created date in the oldest bin and accreted from an older style, despite its recent maintenance
 - _ruff: created date in the oldest bin AND auto-generated (360kb)
 
 ## Zsh Built-in Completion Files

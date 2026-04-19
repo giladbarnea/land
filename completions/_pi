@@ -209,16 +209,21 @@ _pi_providers() {
 
 _pi_model_id_lines() {
   local cache_file=/tmp/pi-list-models
-  local provider model rest
+  local provider model rest model_id
 
   if [[ ! -f $cache_file ]]; then
-    pi --list-models > /tmp/pi-list-models 2>&1
+    pi --list-models > "$cache_file" 2>&1
   fi
 
   while read -r provider model rest; do
     [[ -n $provider && $provider != provider ]] || continue
     [[ -n $model ]] || continue
-    print -r -- "${provider}/${model}"
+    model_id="${provider}/${model}"
+    print -r -- "$model_id"
+
+    if [[ $model_id == openrouter/* ]]; then
+      print -r -- "${model_id#openrouter/}"
+    fi
   done < "$cache_file"
 }
 
