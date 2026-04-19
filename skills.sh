@@ -11,6 +11,7 @@
 # Examples:
 #   skills sync .agents .claude
 #   skills sync ~/.agents ~/.claude,~/.pi/agent,~/.codex,~/.gemini
+#   skills sync .agents claude,gemini,codex,pi
 #   skills sync .agents .claude,.pi/agent --install-githooks
 #   skills sync .agents .claude,.pi/agent --install-githooks pre-commit
 function skills() {

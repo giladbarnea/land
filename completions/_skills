@@ -1,0 +1,98 @@
+#compdef skills skills.sh
+
+typeset -ga _skills_subcommands=(
+  'sync:Symlink SOURCE/skills/* into each TARGET/skills directory'
+)
+
+typeset -ga _skills_sync_options=(
+  '--install-githooks[Install sync logic into local git hooks and configure core.hooksPath]::hook names:_skills_git_hook_names'
+  '(-h --help)'{-h,--help}'[Show help]'
+)
+
+typeset -ga _skills_target_alias_specs=(
+  'claude:Alias for .claude'
+  'gemini:Alias for .gemini'
+  'codex:Alias for .codex'
+  'pi:Alias for .pi/agent'
+)
+
+typeset -ga _skills_git_hook_values=(
+  applypatch-msg
+  pre-applypatch
+  post-applypatch
+  pre-commit
+  pre-merge-commit
+  prepare-commit-msg
+  commit-msg
+  post-commit
+  pre-rebase
+  post-checkout
+  post-merge
+  pre-push
+)
+
+_skills() {
+  local curcontext="$curcontext" state line
+  local -i ret=1
+  typeset -A opt_args
+
+  _arguments -C \
+    '1: :->subcommand' \
+    '*:: :->args' && ret=0
+
+  case $state in
+    (subcommand)
+      _describe -t subcommands 'skills commands' _skills_subcommands && ret=0
+      ;;
+    (args)
+      case $line[1] in
+        (sync)
+          _skills:sync
+          ret=$?
+          ;;
+        (*)
+          _message 'skills command'
+          ret=0
+          ;;
+      esac
+      ;;
+  esac
+
+  return $ret
+}
+
+_skills:sync() {
+  _arguments -A '-*' -s -S \
+    "${_skills_sync_options[@]}" \
+    '1:source parent directory:_skills_source_directory' \
+    '2:target directories:_skills_target_directories' && return 0
+}
+
+_skills_source_directory() {
+  _files -/
+}
+
+_skills_target_directories() {
+  compset -P '*,'
+  _alternative \
+    'aliases:convenience target:_skills_target_aliases' \
+    'directories:target directory:_skills_target_paths'
+}
+
+_skills_target_aliases() {
+  _describe -t aliases 'convenience target' _skills_target_alias_specs -S ,
+}
+
+_skills_target_paths() {
+  _files -/ -S ,
+}
+
+_skills_git_hook_names() {
+  _values -s , 'git hook' "${_skills_git_hook_values[@]}"
+}
+
+if [ "${funcstack[1]}" = "_skills" ]; then
+  _skills "$@"
+else
+  compdef _skills skills skills.sh
+fi
