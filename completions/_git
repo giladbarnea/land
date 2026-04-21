@@ -1,4 +1,53 @@
 compdef _git gd=git-diff
+
+_git_structured_diff:delegate_git_diff() {
+  local -a original_words stripped_words
+  local -i original_current stripped_current i
+
+  original_words=("${words[@]}")
+  original_current=$CURRENT
+  stripped_current=$CURRENT
+
+  for (( i = 1; i <= ${#words[@]}; i++ )); do
+    if [[ "${words[i]}" == --only-line-ranges ]]; then
+      (( i < CURRENT )) && (( stripped_current-- ))
+      continue
+    fi
+    stripped_words+=("${words[i]}")
+  done
+
+  words=("${stripped_words[@]}")
+  CURRENT=$stripped_current
+  _git git-diff
+  local ret=$?
+  words=("${original_words[@]}")
+  CURRENT=$original_current
+  return $ret
+}
+
+_git_structured_diff() {
+  local curcontext="$curcontext" state line
+  local -i ret=1
+
+  local -a options=(
+    '(- *)--only-line-ranges[emit only per-file metadata plus changed line ranges]'
+  )
+
+  _arguments -A '-*' -C \
+    "${options[@]}" \
+    '*::git diff args:->git_diff' && ret=0
+
+  case $state in
+    (git_diff)
+      _git_structured_diff:delegate_git_diff
+      ret=$?
+      ;;
+  esac
+
+  return $ret
+}
+compdef _git_structured_diff git-structured-diff gsd
+
 compdef '_cat; compadd -x "$(docstring git.beforeafter)" ""; _describe command "( $(docstring.getopts git.beforeafter) )"' git.beforeafter
 compdef '_cat; compadd -x "$(docstring gexclude)" ""; _describe command "( $(docstring.getopts gexclude) )"' gexclude
 compdef 'compadd -x "$(docstring gexcluded)" ""; _describe command "( $(docstring.getopts gexcluded) )"' gexcluded

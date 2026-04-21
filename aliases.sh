@@ -21,7 +21,9 @@ fi
 
 alias e=echo
 alias e'?'='echo $?'
-
+alias g=grep
+alias gi='grep -i'
+alias gie='_(){ local patterns=("$@"); local grep_args=(-i -P); local pattern; for pattern in "${patterns[@]}"; do grep_args+=(-e "$pattern"); done; grep "${grep_args[@]}" ; }'
 alias quit=exit
 alias qui=exit
 alias qy=exit

@@ -807,7 +807,7 @@ function git.beforeafter(){
   
 }
 
-# # git-structured-diff [STDIN DIFF] [GIT_DIFF_OPTS...] [--no-function-context]
+# # git-structured-diff [STDIN DIFF] [GIT_DIFF_OPTS...] [--no-function-context] [--only-line-ranges]
 # Wraps blocks of changes in appropriate XML-like tags.
 # Pretty diff wrapper with per-patch tags and file-level XML tags.
 # - Suppresses git metadata lines; prints '---' + <filepath> per file and closes with </filepath>.
@@ -815,24 +815,39 @@ function git.beforeafter(){
 #   <added|deleted|modified patch start: line N|lines N-M>
 #   ...changed lines without +/- prefixes...
 #   </added|deleted|modified patch end: line N|lines N-M>
+# - `--only-line-ranges` emits only per-file metadata plus changed line ranges.
 # Example:
 # `git-structured-diff`
 # `git-structured-diff --unified=20 --inter-hunk-context=10 --no-function-context -- path/to/treeish`
 function git-structured-diff(){
-  if ! is_piped && [[ -z "$1" ]]; then
+  local only_line_ranges=0
+  local -a git_diff_args
+  local arg
+  for arg in "$@"; do
+    case "$arg" in
+      --only-line-ranges) only_line_ranges=1 ;;
+      *) git_diff_args+=("$arg") ;;
+    esac
+  done
+
+  local -a self_args
+  (( only_line_ranges )) && self_args+=(--only-line-ranges)
+
+  if (( ${#git_diff_args[@]} == 0 )) && ! is_piped; then
     if is_piping || ! is_interactive; then
       log.info "No data provided and can’t ask user interactively. Defaulting to 'git --no-pager diff $(gdargs+) | $0'."
-      command git --no-pager diff "${git_diff_args[@]}" | $0
+      command git --no-pager diff "${git_diff_args[@]}" | git-structured-diff "${self_args[@]}"
       return 0
     fi
     confirm "No data in stdin. Run 'git --no-pager diff $(gdargs+) | $0'?" || return 0
-    command git --no-pager diff "${git_diff_args[@]}" | $0
+    command git --no-pager diff "${git_diff_args[@]}" | git-structured-diff "${self_args[@]}"
     return 0
   fi
   
   function .parse-diff(){
-    awk '
+    awk -v only_line_ranges="$only_line_ranges" '
     BEGIN {
+      only_line_ranges += 0;
       # Block accumulators (current patch)
       line_count = 0; add_count = 0; del_count = 0;
       delete change_lines;
@@ -850,10 +865,15 @@ function git-structured-diff(){
       patches_total = 0; added_blocks = 0; deleted_blocks = 0; modified_blocks = 0;
       delete p_start_idx; delete p_end_idx; delete p_tag; delete p_label; delete p_type_idx;
       seq_added = 0; seq_deleted = 0; seq_modified = 0;
+      files_emitted = 0;
     }
 
     function out(s) { fl[++fl_n] = s; fl_ln[fl_n] = 0; fl_is_content[fl_n] = 0; }
     function out_line(s, ln, is_content) { fl[++fl_n] = s; fl_ln[fl_n] = ln; fl_is_content[fl_n] = is_content; }
+    function range_label(start, end, always_range) {
+      if (always_range || start != end) return sprintf("lines %d-%d", start, end);
+      return sprintf("line %d", start);
+    }
 
     function flush_block() {
       if (line_count == 0) return;
@@ -862,11 +882,16 @@ function git-structured-diff(){
       tag = (add_count>0 && del_count>0) ? "modified" : (add_count>0 ? "added" : "deleted");
       start = block_after_start;
       end   = (add_count>0 ? start + add_count - 1 : start);
-      label = (start==end) ? sprintf("line %d", start) : sprintf("lines %d-%d", start, end);
+      label = range_label(start, end, 0);
       # For pure deletions, keep new-side anchor but include count if multi-line
       if (tag == "deleted" && del_count > 1) {
         label = sprintf("line %d, removed %d lines", start, del_count);
       }
+      metadata_start = (tag == "deleted") ? block_before_start : block_after_start;
+      metadata_span = (tag == "deleted") ? del_count : add_count;
+      if (metadata_span < 1) metadata_span = 1;
+      metadata_end = metadata_start + metadata_span - 1;
+      metadata_label = range_label(metadata_start, metadata_end, 0);
 
       # Detect whitespace-only patches (all changed lines empty/whitespace after stripping +/-)
       has_nonws = 0;
@@ -877,6 +902,11 @@ function git-structured-diff(){
       }
 
       if (has_nonws == 0) {
+        if (only_line_ranges) {
+          out(sprintf("%s: whitespace-only change", metadata_label));
+          delete change_lines; line_count = 0; add_count = 0; del_count = 0; in_block = 0;
+          return;
+        }
         # Emit raw lines, no patch tags, do not count towards per-file patch stats
         for (i = 1; i <= line_count; i++) {
           c = substr(change_lines[i], 1, 1);
@@ -896,6 +926,12 @@ function git-structured-diff(){
       if (tag == "added") { added_blocks++; seq_added++; seq_idx = seq_added; }
       else if (tag == "deleted") { deleted_blocks++; seq_deleted++; seq_idx = seq_deleted; }
       else { modified_blocks++; seq_modified++; seq_idx = seq_modified; }
+
+      if (only_line_ranges) {
+        out(sprintf("%s: %s", metadata_label, tag));
+        delete change_lines; line_count = 0; add_count = 0; del_count = 0; in_block = 0;
+        return;
+      }
 
       # Buffer start tag (numbering will be injected on close_file)
       out(sprintf("<%s patch start of block: %s>", tag, label));
@@ -1000,11 +1036,21 @@ function git-structured-diff(){
       }
 
       # Emit per-file header and opening tag with summary (and dissimilarity if present)
+      if (!only_line_ranges && files_emitted > 0) printf("\n");
       if (file_dissim != "") {
         printf("<%s added=%d modified=%d deleted=%d dissimilarity=%s>\n", file_path, added_blocks, modified_blocks, deleted_blocks, file_dissim);
       } else {
         printf("<%s added=%d modified=%d deleted=%d>\n", file_path, added_blocks, modified_blocks, deleted_blocks);
       }
+
+      if (only_line_ranges) {
+        for (i = 1; i <= fl_n; i++) print fl[i];
+        printf("</%s>\n", file_path);
+        files_emitted++;
+        file_open = 0; file_path = "";
+        return;
+      }
+
       # Wrap unchanged regions between patches
       fl_out_n = 0; delete fl_out;
       inside_patch = 0; uc_open = 0;
@@ -1033,6 +1079,7 @@ function git-structured-diff(){
       }
       for (i = 1; i <= fl_out_n; i++) print fl_out[i];
       printf("</%s>\n", file_path);
+      files_emitted++;
       file_open = 0; file_path = "";
     }
 
@@ -1107,7 +1154,11 @@ function git-structured-diff(){
       if (first == " ") {
         # Context line ends any pending change block
         flush_block();
-        out_line(substr($0, 2), new_line + 1, 1);
+        if (only_line_ranges) {
+          old_line++; new_line++;
+          next;
+        }
+        out_line(substr($0, 2), new_line, 1);
         old_line++; new_line++;
         next;
       }
@@ -1135,10 +1186,8 @@ function git-structured-diff(){
     '
   }
   
-  local -a git_diff_args
-
-  if [[ -n "$1" ]]; then
-    command git --no-pager diff "${git_diff_args[@]}" "$@" | .parse-diff
+  if (( ${#git_diff_args[@]} > 0 )); then
+    command git --no-pager diff "${git_diff_args[@]}" | .parse-diff
     return 0
   fi
   
