@@ -72,7 +72,7 @@ alias of=openfang
 alias ca=cursor-agent
 alias oc=openclaw
 
-alias :claude='CLAUDE_CODE_OAUTH_TOKEN=$(<~/.claude-code-personal-1y-oauth-token) claude --dangerously-skip-permissions'
+alias :claude='/usr/bin/env -u CLAUDE_CODE_OAUTH_TOKEN -u ANTHROPIC_API_KEY claude --dangerously-skip-permissions'
 compdef _claude :claude
 
 alias claudeo=':claude --model=opus'
