@@ -1,4 +1,7 @@
 #compdef ccc
+#
+# Tool filter completion implements conversations' TOOL_SPEC.md as it stood on
+# 2026-04-21 at commit 3d3a0a8.
 
 typeset -ga _ccc_subcommands=(
   'search:Search conversations with regex patterns'
