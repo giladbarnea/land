@@ -73,7 +73,7 @@
     if [[ ! "$targetdir" || "$targetdir" == . ]]; then
       if [[ -z "$targetdir" ]]; then
         # Bare 'cd': if exactly one subdirectory exists, use it.
-        local -a subdirs=( *(/N) )
+        local -a subdirs=(*(/N))
         [[ ${#subdirs[@]} -eq 1 ]] && targetdir="${subdirs[@]}"
       fi
       [[ -z "$targetdir" || "$targetdir" == . ]] && targetdir="$PWD"
@@ -203,7 +203,7 @@
 
     if [[ -n "$statusoutput" ]]; then
       printf "%b\n" "${h2}Git status:${C0}\n" 1>&2
-      printf "%s" "$raw_status_output"
+      printf "%s\n" "$raw_status_output"
 
       if [[ ! ${GIT_STATE[DIFF_TOOL]} ]]; then
         local diff_tool="$(git config diff.tool)"
@@ -344,9 +344,10 @@ function cdwhere() {
 
 # # cdroot
 # cd to the root of the current git repo
-function cdroot(){
+function cdroot() {
   local root_dir
   root_dir="$(vex git.rootpath)" || return $?
   cd "$root_dir"
   return $?
 }
+

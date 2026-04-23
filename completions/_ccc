@@ -214,14 +214,14 @@ _ccc_tool_modifier_matches() {
   local token=$1
   local prefix=$2
 
-  [[ ${token:l} == ${prefix:l}* ]]
+  [[ ${token:l} == "${prefix:l}"* ]]
 }
 
 _ccc_tool_name_matches() {
   local token=$1
   local prefix=$2
 
-  [[ $token == ${prefix}* ]]
+  [[ ${token:l} == "${prefix:l}"* ]]
 }
 
 _ccc_tool_spec_add_match() {
@@ -229,19 +229,20 @@ _ccc_tool_spec_add_match() {
   local token=$2
   local description=$3
   local match="${_ccc_tool_spec_prior_prefix}${_ccc_tool_spec_emit_prefix}${token}"
+  local display="${match} -- ${description}"
 
   case $group in
     (operators)
       operators+=("$match")
-      operator_descriptions+=("$description")
+      operator_descriptions+=("$display")
       ;;
     (modifiers)
       modifiers+=("$match")
-      modifier_descriptions+=("$description")
+      modifier_descriptions+=("$display")
       ;;
     (names)
       names+=("$match")
-      name_descriptions+=("$description")
+      name_descriptions+=("$display")
       ;;
   esac
 }
@@ -311,62 +312,24 @@ _ccc_tool_spec() {
   return ret
 }
 
-_ccc_supported_session_files() {
-  local -a roots
-
-  [[ -d $HOME/.claude/projects ]] && roots+=("$HOME/.claude/projects")
-  [[ -d $HOME/.codex/sessions ]] && roots+=("$HOME/.codex/sessions")
-  [[ -d $HOME/.pi/agent/sessions ]] && roots+=("$HOME/.pi/agent/sessions")
-  (( ${#roots[@]} )) || return 1
-
-  fd -HI -t f -g '*.jsonl' --exclude 'agent-*.jsonl' . "${roots[@]}" 2>/dev/null
-}
-
-_ccc_supported_session_identifiers() {
-  local file basename stem identifier
-
-  while IFS= read -r file; do
-    basename=${file:t}
-    stem=${basename%.jsonl}
-    print -r -- "$stem"
-
-    if [[ $stem =~ '[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$' ]]; then
-      identifier=$MATCH
-    else
-      identifier=$stem
-    fi
-
-    [[ -n $identifier && $identifier != "$stem" ]] && print -r -- "$identifier"
-  done < <(_ccc_supported_session_files)
-}
-
 _ccc_recent_indices() {
   local expl
   local -a values descriptions
 
   values=(-1 -2 -3 -4 -5 -6 -7 -8 -9)
   descriptions=(
-    'newest supported session'
-    'second newest supported session'
-    'third newest supported session'
-    'fourth newest supported session'
-    'fifth newest supported session'
-    'sixth newest supported session'
-    'seventh newest supported session'
-    'eighth newest supported session'
-    'ninth newest supported session'
+    '-1 -- newest supported session'
+    '-2 -- second newest supported session'
+    '-3 -- third newest supported session'
+    '-4 -- fourth newest supported session'
+    '-5 -- fifth newest supported session'
+    '-6 -- sixth newest supported session'
+    '-7 -- seventh newest supported session'
+    '-8 -- eighth newest supported session'
+    '-9 -- ninth newest supported session'
   )
 
   _wanted recent-indices expl 'recent session' compadd -Q -d descriptions -a values
-}
-
-_ccc_session_identifiers() {
-  local expl
-  local -a identifiers
-
-  identifiers=(${(u)${(f)"$(_ccc_supported_session_identifiers)"}})
-  (( ${#identifiers[@]} )) || return 1
-  _wanted session-ids expl 'session id' compadd -a identifiers
 }
 
 _ccc_session_selector() {
@@ -380,7 +343,6 @@ _ccc_session_selector() {
   esac
 
   _ccc_recent_indices && ret=0
-  _ccc_session_identifiers && ret=0
   [[ -n $PREFIX ]] && _files && ret=0
   return ret
 }
@@ -391,14 +353,14 @@ _ccc_slice_selector() {
 
   values=(1 -1 '2:' ':-2' '3:5' ':5' '-5:' '2:-1')
   descriptions=(
-    'first message only'
-    'last message only'
-    'from index 2 to the end'
-    'all but the last two messages'
-    'messages 3 through 5'
-    'first five messages'
-    'last five messages'
-    'from index 2 to before the last message'
+    '1 -- first message only'
+    '-1 -- last message only'
+    '2: -- from index 2 to the end'
+    ':-2 -- all but the last two messages'
+    '3:5 -- messages 3 through 5'
+    ':5 -- first five messages'
+    '-5: -- last five messages'
+    '2:-1 -- from index 2 to before the last message'
   )
 
   _wanted slices expl 'message slice' compadd -Q -d descriptions -a values
