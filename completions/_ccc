@@ -30,6 +30,7 @@ typeset -ga _ccc_parse_options=(
   '--no-paging[Disable paging]'
   '--no-plans[Hide plan content (ExitPlanMode)]'
   '--no-metadata[Disable outputting metadata frontmatter]'
+  '(-p --provider)'{-p,--provider}'[Restrict to sessions from a specific provider]:provider:(claude pi codex)'
 )
 
 typeset -ga _ccc_search_options=(
