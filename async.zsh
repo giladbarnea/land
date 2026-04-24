@@ -50,42 +50,54 @@ function background() {
 # realasync notif.generic hi -t title
 # ```
 function realasync() {
-  # Should be able to handle all of the following:
-  # $ realasync afplay /System/Library/Sounds/Ping.aiff
-  # $ realasync 'afplay /System/Library/Sounds/Ping.aiff'
-  # $ realasync 'sleep 1 && afplay /System/Library/Sounds/Ping.aiff'
-  # $ realasync one_command
+  # Handles two distinct call shapes:
+  #   Case A — shell expression string: realasync 'sleep 1 && afplay foo'
+  #   Case B — command + arguments:     realasync afplay /System/Library/Sounds/Ping.aiff
+  local notify=false
   local -a args
   local seen_double_dash=false
-  local notify=false
   while [[ $# -gt 0 ]]; do
     case "$1" in
-    --) seen_double_dash=true ;;
-    --notify)
-      if [[ "$seen_double_dash" = true ]]; then
-        notify=true
-      else
-        args+=("${1}")
-      fi
-      ;;
-    *) args+=("${1}") ;;
+      --) seen_double_dash=true ;;
+      --notify) [[ "$seen_double_dash" == true ]] && notify=true || args+=("$1") ;;
+      *) args+=("$1") ;;
     esac
     shift
   done
-  local program="function __fn() { builtin cd \"${PWD}\" || true; ${args[*]} ; };"
+
   # Note: we source ~/.zshrc instead of -i because -i messes up piping to less.
-  if [[ "$notify" = true ]]; then
-    (nohup "$SHELL" -c "
-    source ~/.zshrc;
-    notif.generic \"Running ${args[1]} in background...\" -t \"🔄\"
-    ${program}
-    if exec __fn; then 
-      notif.success \"${args[1]} completed successfully\"
+  if [[ ${#args} -eq 1 ]]; then
+    # Case A: single arg is a shell expression — pass it as the -c script body.
+    # env vars ferry the values into the single-quoted script without injection risk.
+    if [[ "$notify" == true ]]; then
+      (nohup env REALASYNC_EXPR="${args[1]}" REALASYNC_CWD="$PWD" zsh -c '
+        source ~/.zshrc; builtin cd "$REALASYNC_CWD"
+        notif.generic "Running $REALASYNC_EXPR..." -t "🔄"
+        if eval "$REALASYNC_EXPR"; then
+          notif.success "$REALASYNC_EXPR completed"
+        else
+          notif.error "$REALASYNC_EXPR failed"
+        fi
+      ' > /dev/null 2>&1 &)
     else
-      notif.error \"${args[1]} failed\"
-    fi" 1>/dev/null 2>&1 &)
+      (nohup zsh -c "source ~/.zshrc; builtin cd ${(qq)PWD}; ${args[1]}" > /dev/null 2>&1 &)
+    fi
   else
-    (nohup "$SHELL" -c "source ~/.zshrc; ${program} exec __fn" 1>/dev/null 2>&1 &)
+    # Case B: command + arguments — canonical $@ passthrough.
+    # zsh -c 'script' -- arg0 arg1... sets $1=arg0 inside the script, fully quoted.
+    if [[ "$notify" == true ]]; then
+      (nohup zsh -c '
+        source ~/.zshrc; builtin cd "$1"; shift
+        notif.generic "Running $1 in background..." -t "🔄"
+        if "$@"; then
+          notif.success "$1 completed"
+        else
+          notif.error "$1 failed"
+        fi
+      ' -- "$PWD" "${args[@]}" > /dev/null 2>&1 &)
+    else
+      (nohup zsh -c 'source ~/.zshrc; builtin cd "$1"; shift; "$@"' -- "$PWD" "${args[@]}" > /dev/null 2>&1 &)
+    fi
   fi
 }
 

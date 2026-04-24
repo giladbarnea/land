@@ -67,12 +67,13 @@ function _skills_sync() {
   )
 
   local -a targets=()
+  local t
   for t in "${(@s/,/)targets_csv}"; do
     targets+=("${_aliases[$t]:-$t}")
   done
 
   # --- 1. Sync symlinks ---
-  local skill name target_skills
+  local skill name target_skills target
   for target in "${targets[@]}"; do
     target_skills="$target/skills"
     mkdir -p "$target_skills"

@@ -68,7 +68,6 @@ hash -d cs="$HOME/.claude/skills"
 # ----------------------
 alias b=bat
 alias c=command
-alias of=openfang
 alias ca=cursor-agent
 alias oc=openclaw
 
@@ -95,7 +94,7 @@ compdef _claude claudesn
 alias claudehn='claudeh --no-session-persistence -p'
 compdef _claude claudehn
 
-alias codexd='unset OPENAI_API_KEY; codex --yolo'
+alias codexd='/usr/bin/env -u OPENAI_API_KEY codex --yolo'
 compdef _codex codexd
 
 alias codexm='codexd --model=gpt-5.4-mini'

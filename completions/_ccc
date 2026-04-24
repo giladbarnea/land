@@ -371,16 +371,42 @@ _ccc_slice_selector() {
 }
 
 _ccc_parse() {
+  local curcontext="$curcontext" state line
+  local -i ret=1
+  typeset -A opt_args
+
   _arguments -A '-*' -C \
     "${_ccc_parse_options[@]}" \
     '1:input:_ccc_session_selector' \
-    '2:slice:_ccc_slice_selector' && return 0
+    '2:slice:_ccc_slice_selector' \
+    '*:: :->parse_rest' && ret=0
+
+  case $state in
+    (parse_rest)
+      _arguments -A '-*' -C "${_ccc_parse_options[@]}" && ret=0
+      ;;
+  esac
+
+  return ret
 }
 
 _ccc_search() {
+  local curcontext="$curcontext" state line
+  local -i ret=1
+  typeset -A opt_args
+
   _arguments -A '-*' -C \
     "${_ccc_search_options[@]}" \
-    '1:pattern:_default' && return 0
+    '1:pattern:_default' \
+    '*:: :->search_rest' && ret=0
+
+  case $state in
+    (search_rest)
+      _arguments -A '-*' -C "${_ccc_search_options[@]}" && ret=0
+      ;;
+  esac
+
+  return ret
 }
 
 _ccc_rename() {
@@ -420,8 +446,10 @@ _ccc() {
 
   case $state in
     (root_arg)
-      (( CURRENT == 1 )) && _describe -t subcommands 'ccc commands' _ccc_subcommands && ret=0
-      _ccc_session_selector && ret=0
+      if (( CURRENT == 1 )); then
+        _describe -t subcommands 'ccc commands' _ccc_subcommands && ret=0
+        _ccc_session_selector && ret=0
+      fi
       ;;
     (root_rest)
       case $line[1] in
