@@ -14,6 +14,8 @@ typeset -ga _ccc_subcommands=(
 typeset -ga _ccc_parse_options=(
   '(-h --help)'{-h,--help}'[Show help and exit]'
   '(-o --out)'{-o,--out}'[Output file path]:file:_files'
+  '(-l --only-metadata)'{-l,--only-metadata}'[Show only session metadata]'
+  '(-ll --only-id)'{-ll,--only-id}'[Show only the resolved session ID]'
   '(-T --thinking)'{-T,--thinking}'::thinking mode:(short)'
   '--only-user[Show only regular user messages]'
   '--only-assistant[Show only regular assistant messages]'

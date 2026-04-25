@@ -104,3 +104,44 @@ Therefore, immediately run `claude plugin --help | tee -a /tmp/claude-help-all.t
 `claude plugin --help` will itself reveal more subcommands (`claude plugin marketplace`), which in turn also have nested subcommands (`claude plugin marketplace list`), and so on. Traverse exhaust the whole tree breadth-first to cultivate a complete help-all file. Only then apply the best practices in `_gemini` to the current situation and proceed to implement.
 
 Tip: use `_arguments -A '-*'` when the CLI accepts options after positional arguments, so zsh keeps completing option-like words even after free args have already appeared.
+
+## Gotchas
+
+### `_arguments -A '-*'` is necessary but not sufficient
+
+`_arguments -A '-*'` allows option-like words to be completed after positional arguments. It does not decide what should happen after all declared positionals are already consumed.
+
+If a command accepts options after one or more positional arguments, add an explicit rest state and complete options there:
+
+```zsh
+_arguments -A '-*' -C \
+  "${options[@]}" \
+  '1:first:...' \
+  '2:second:...' \
+  '*:: :->rest'
+
+case $state in
+  (rest)
+    _arguments -A '-*' -C "${options[@]}"
+    ;;
+esac
+```
+
+Avoid using `_default` as that rest completion unless files, commands, and other default completions are valid at that position. `_default` can mask the original "no more arguments" problem by introducing file completion where only options should be offered.
+
+### Guard root positional completions
+
+In router-style completions, first-argument completers can leak into later positions if the root state is too broad. Restrict first-argument behavior to the first command word:
+
+```zsh
+case $state in
+  (root_arg)
+    if (( CURRENT == 1 )); then
+      _describe -t subcommands 'commands' subcommands
+      _session_selector
+    fi
+    ;;
+esac
+```
+
+Without this guard, completions for the first positional argument may appear after that argument has already been supplied.
