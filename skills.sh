@@ -1,13 +1,20 @@
 #!/usr/bin/env zsh
 
 # # skills sync SOURCE TARGET[,TARGET,...] [--install-githooks [HOOKNAME[,HOOKNAME,...]]]
+# # skills unsync SOURCE [TARGET[,TARGET,...]]
 #
-# Syncs skills from SOURCE into each TARGET/skills/ as individual symlinks (ln -sfn).
-# SOURCE may be a parent directory containing skills/, the skills/ directory itself, or a specific skills/<name> directory.
-# TARGET may be a parent directory (e.g. .claude) or a skills/ directory directly.
+# skills sync:
+#   Syncs skills from SOURCE into each TARGET/skills/ as individual symlinks (ln -sfn).
+#   SOURCE may be a parent directory containing skills/, the skills/ directory itself, or a specific skills/<name> directory.
+#   TARGET may be a parent directory (e.g. .claude) or a skills/ directory directly.
 #
-# --install-githooks: writes the sync logic into .githooks/HOOKNAME (default: pre-commit,post-merge),
-#   creates .githooks/setup.sh with the git config line, and runs `git config --local core.hooksPath`.
+#   --install-githooks: writes the sync logic into .githooks/HOOKNAME (default: pre-commit,post-merge),
+#     creates .githooks/setup.sh with the git config line, and runs `git config --local core.hooksPath`.
+#
+# skills unsync:
+#   Removes symlinks that currently point at SOURCE skills.
+#   With no TARGET, it auto-discovers .*/**/skills directories under the current directory.
+#   With TARGET, each target must be a parent directory containing skills/ or the skills/ directory itself.
 #
 # Examples:
 #   skills sync .agents .claude
@@ -15,10 +22,13 @@
 #   skills sync .agents .claude,.pi/agent --install-githooks
 #   skills sync .agents/skills .claude,.pi --install-githooks pre-commit
 #   skills sync .agents/skills/my-skill .claude
+#   skills unsync .agents
+#   skills unsync .agents/skills/my-skill .claude,.pi/agent
 function skills() {
   case "${1-}" in
     sync) shift; _skills_sync "$@" ;;
-    '')   echo "Usage: skills <sync> ..." >&2; return 1 ;;
+    unsync) shift; _skills_unsync "$@" ;;
+    '')   echo "Usage: skills <sync|unsync> ..." >&2; return 1 ;;
     *)    echo "skills: unknown subcommand '$1'" >&2; return 1 ;;
   esac
 }
@@ -35,7 +45,7 @@ function _skills_escape_for_double_quotes() {
 function _skills_hook_path_expr() {
   local path="$1" repo_root="$2"
   if [[ "$path" == "$repo_root"/* ]]; then
-    local rel_path="${path#$repo_root/}"
+    local rel_path="${path#"${repo_root}"/}"
     printf '"$_repo_root/%s"' "$(_skills_escape_for_double_quotes "$rel_path")"
   else
     printf '%q' "$path"
@@ -53,7 +63,98 @@ function _skill_sync() {
   done
 }
 
+function _skills_normalize_source() {
+  local source="$1" action="$2" resolved=""
+  reply=()
+
+  if [[ -d "$source" && "${source:h:t}" == "skills" ]]; then
+    resolved="$(realpath "$source" 2>/dev/null)" || {
+      echo "$action: cannot resolve SOURCE '$source'" >&2; return 1
+    }
+    reply=(single "$resolved" "${resolved:h}" "$resolved")
+    return 0
+  fi
+
+  if [[ -d "$source" && "${source:t}" == "skills" ]]; then
+    resolved="$(realpath "$source" 2>/dev/null)" || {
+      echo "$action: cannot resolve SOURCE '$source'" >&2; return 1
+    }
+    reply=(batch "" "$resolved" "$resolved")
+    return 0
+  fi
+
+  resolved="$(realpath "$source/skills" 2>/dev/null)" || {
+    echo "$action: SOURCE '$source' is neither a skills directory, nor a parent containing skills/, nor a specific skill inside skills/" >&2
+    return 1
+  }
+  reply=(batch "" "$resolved" "$resolved")
+}
+
+function _skills_collect_source_skills() {
+  local source_skill="$1" source_skills="$2" skill=""
+  reply=()
+
+  if [[ -n "$source_skill" ]]; then
+    reply=("$source_skill")
+    return 0
+  fi
+
+  for skill in "$source_skills"/*(N/); do
+    reply+=("$skill")
+  done
+}
+
+function _skills_normalize_target_skills_dir() {
+  local target="$1" action="$2" reject_specific_skill="$3"
+
+  if $reject_specific_skill && [[ "${target:h:t}" == "skills" ]]; then
+    echo "$action: TARGET '$target' must be a directory containing skills/ or the skills/ directory itself" >&2
+    return 1
+  fi
+
+  if [[ "${target:t}" == "skills" ]]; then
+    REPLY="$target"
+    return 0
+  fi
+
+  REPLY="$target/skills"
+}
+
+function _skills_normalize_targets() {
+  local targets_csv="$1" action="$2" reject_specific_skill="${3:-false}" t=""
+  reply=()
+
+  for t in "${(@s/,/)targets_csv}"; do
+    _skills_normalize_target_skills_dir "$t" "$action" "$reject_specific_skill" || return 1
+    reply+=("$REPLY")
+  done
+}
+
+function _skills_autodiscover_target_skills_dirs() {
+  local target_skills=""
+  reply=()
+
+  for target_skills in ./.*/**/skills(N/); do
+    reply+=("$target_skills")
+  done
+}
+
+function _skills_remove_matching_symlink() {
+  local source_skill="$1" target_skills="$2" resolved=""
+  local link="$target_skills/${source_skill:t}"
+
+  [[ -L "$link" ]] || return 1
+
+  resolved="$(realpath "$link" 2>/dev/null)" || return 1
+  [[ "$resolved" == "$source_skill" ]] || return 1
+
+  rm "$link"
+  echo "✓ skills unsync: removed $link"
+}
+
 function _skills_sync() {
+  emulate -L zsh
+
   local source="" targets_csv="" install_hooks=false hooknames="pre-commit,post-merge"
 
   while [[ $# -gt 0 ]]; do
@@ -85,47 +186,22 @@ function _skills_sync() {
     return 1
   fi
 
-  # Normalize SOURCE into either:
-  # - batch mode:   source_skills=/.../skills
-  # - single mode:  source_skill=/.../skills/<skill>, source_skills=${source_skill:h}
-  local source_skills="" source_skill="" source_sync_label=""
-  if [[ -d "$source" && "${source:h:t}" == "skills" ]]; then
-    source_skill="$(realpath "$source" 2>/dev/null)" || {
-      echo "skills sync: cannot resolve SOURCE '$source'" >&2; return 1
-    }
-    source_skills="${source_skill:h}"
-    source_sync_label="$source_skill"
-  elif [[ -d "$source" && "${source:t}" == "skills" ]]; then
-    source_skills="$(realpath "$source" 2>/dev/null)" || {
-      echo "skills sync: cannot resolve SOURCE '$source'" >&2; return 1
-    }
-    source_sync_label="$source_skills"
-  elif source_skills="$(realpath "$source/skills" 2>/dev/null)"; then
-    source_sync_label="$source_skills"
-  else
-    echo "skills sync: SOURCE '$source' is neither a skills directory, nor a parent containing skills/, nor a specific skill inside skills/" >&2
-    return 1
-  fi
+  local -a source_info source_items target_skills_dirs
+  _skills_normalize_source "$source" "skills sync" || return 1
+  source_info=("${reply[@]}")
 
-  local -a target_skills_dirs=()
-  local t target_skills
-  for t in "${(@s/,/)targets_csv}"; do
-    if [[ "${t:t}" == "skills" ]]; then
-      target_skills_dirs+=("$t")
-    else
-      target_skills_dirs+=("$t/skills")
-    fi
-  done
+  local source_skill="${source_info[2]}" source_skills="${source_info[3]}" source_sync_label="${source_info[4]}"
+  _skills_collect_source_skills "$source_skill" "$source_skills"
+  source_items=("${reply[@]}")
+
+  _skills_normalize_targets "$targets_csv" "skills sync"
+  target_skills_dirs=("${reply[@]}")
 
   # --- 1. Sync symlinks ---
-  local skill
-  if [[ -n "$source_skill" ]]; then
-    _skill_sync "$source_skill" "${target_skills_dirs[@]}"
-  else
-    for skill in "$source_skills"/*(N/); do
-      _skill_sync "$skill" "${target_skills_dirs[@]}"
-    done
-  fi
+  local skill="" target_skills=""
+  for skill in "${source_items[@]}"; do
+    _skill_sync "$skill" "${target_skills_dirs[@]}"
+  done
 
   for target_skills in "${target_skills_dirs[@]}"; do
     echo "✓ skills sync: $source_sync_label → $target_skills"
@@ -226,4 +302,64 @@ HOOK
   # Run the config now
   git config --local core.hooksPath "$hooks_dir"
   echo "✓ skills sync: set core.hooksPath → $hooks_dir"
+}
+
+function _skills_unsync() {
+  emulate -L zsh
+
+  local source="" targets_csv=""
+
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      -*)
+        echo "skills unsync: unknown flag '$1'" >&2; return 1
+        ;;
+      *)
+        if [[ -z "$source" ]]; then
+          source="$1"
+        elif [[ -z "$targets_csv" ]]; then
+          targets_csv="$1"
+        else
+          echo "skills unsync: unexpected argument '$1'" >&2; return 1
+        fi
+        ;;
+    esac
+    shift
+  done
+
+  if [[ -z "$source" ]]; then
+    echo "Usage: skills unsync SOURCE [TARGET[,TARGET,...]]" >&2
+    return 1
+  fi
+
+  local -a source_info source_items target_skills_dirs
+  _skills_normalize_source "$source" "skills unsync" || return 1
+  source_info=("${reply[@]}")
+
+  local source_skill="${source_info[2]}" source_skills="${source_info[3]}"
+  _skills_collect_source_skills "$source_skill" "$source_skills"
+  source_items=("${reply[@]}")
+
+  if [[ -n "$targets_csv" ]]; then
+    _skills_normalize_targets "$targets_csv" "skills unsync" true || return 1
+    target_skills_dirs=("${reply[@]}")
+  else
+    _skills_autodiscover_target_skills_dirs
+    target_skills_dirs=("${reply[@]}")
+  fi
+
+  local source_item="" target_skills=""
+  local -i removed=0
+
+  for source_item in "${source_items[@]}"; do
+    for target_skills in "${target_skills_dirs[@]}"; do
+      if _skills_remove_matching_symlink "$source_item" "$target_skills"; then
+        ((removed += 1))
+      fi
+    done
+  done
+
+  if (( removed == 0 )); then
+    echo "skills unsync: no matching symlinks found" >&2
+  fi
 }

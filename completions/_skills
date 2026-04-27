@@ -2,6 +2,7 @@
 
 typeset -ga _skills_subcommands=(
   'sync:Symlink SOURCE skills into each TARGET/skills directory'
+  'unsync:Remove TARGET/skills symlinks that point at SOURCE skills'
 )
 
 typeset -ga _skills_sync_options=(
@@ -50,6 +51,10 @@ _skills() {
           _skills:sync
           ret=$?
           ;;
+        (unsync)
+          _skills:unsync
+          ret=$?
+          ;;
         (*)
           _message 'skills command'
           ret=0
@@ -64,6 +69,12 @@ _skills() {
 _skills:sync() {
   _arguments -A '-*' -s -S \
     "${_skills_sync_options[@]}" \
+    '1:source parent directory:_skills_source_directory' \
+    '2:target directories:_skills_target_directories' && return 0
+}
+
+_skills:unsync() {
+  _arguments -A '-*' -s -S \
     '1:source parent directory:_skills_source_directory' \
     '2:target directories:_skills_target_directories' && return 0
 }
