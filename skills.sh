@@ -2,8 +2,9 @@
 
 # # skills sync SOURCE TARGET[,TARGET,...] [--install-githooks [HOOKNAME[,HOOKNAME,...]]]
 #
-# Syncs skill directories from SOURCE/skills/* into each TARGET/skills/ as individual symlinks (ln -sfn).
-# SOURCE and TARGET are parent directories (e.g. .agents, .claude) — /skills is appended automatically.
+# Syncs skills from SOURCE into each TARGET/skills/ as individual symlinks (ln -sfn).
+# SOURCE may be a parent directory containing skills/, the skills/ directory itself, or a specific skills/<name> directory.
+# TARGET may be a parent directory (e.g. .claude) or a skills/ directory directly.
 #
 # --install-githooks: writes the sync logic into .githooks/HOOKNAME (default: pre-commit,post-merge),
 #   creates .githooks/setup.sh with the git config line, and runs `git config --local core.hooksPath`.
@@ -20,6 +21,36 @@ function skills() {
     '')   echo "Usage: skills <sync> ..." >&2; return 1 ;;
     *)    echo "skills: unknown subcommand '$1'" >&2; return 1 ;;
   esac
+}
+
+function _skills_escape_for_double_quotes() {
+  local value="$1"
+  value="${value//\\/\\\\}"
+  value="${value//\"/\\\"}"
+  value="${value//\$/\\\$}"
+  value="${value//\`/\\\`}"
+  printf '%s' "$value"
+}
+
+function _skills_hook_path_expr() {
+  local path="$1" repo_root="$2"
+  if [[ "$path" == "$repo_root"/* ]]; then
+    local rel_path="${path#$repo_root/}"
+    printf '"$_repo_root/%s"' "$(_skills_escape_for_double_quotes "$rel_path")"
+  else
+    printf '%q' "$path"
+  fi
+}
+
+function _skill_sync() {
+  local skill="$1"
+  shift
+
+  local skill_name="${skill:t}" target_skills
+  for target_skills in "$@"; do
+    mkdir -p "$target_skills"
+    ln -sfn "$skill" "$target_skills/$skill_name"
+  done
 }
 
 function _skills_sync() {
@@ -54,39 +85,50 @@ function _skills_sync() {
     return 1
   fi
 
-  # $source can either have a skills/ child or is itself a skills directory
-  local source_skills
-  if [[ "${source:t}" == "skills" && -d "$source" ]]; then
+  # Normalize SOURCE into either:
+  # - batch mode:   source_skills=/.../skills
+  # - single mode:  source_skill=/.../skills/<skill>, source_skills=${source_skill:h}
+  local source_skills="" source_skill="" source_sync_label=""
+  if [[ -d "$source" && "${source:h:t}" == "skills" ]]; then
+    source_skill="$(realpath "$source" 2>/dev/null)" || {
+      echo "skills sync: cannot resolve SOURCE '$source'" >&2; return 1
+    }
+    source_skills="${source_skill:h}"
+    source_sync_label="$source_skill"
+  elif [[ -d "$source" && "${source:t}" == "skills" ]]; then
     source_skills="$(realpath "$source" 2>/dev/null)" || {
       echo "skills sync: cannot resolve SOURCE '$source'" >&2; return 1
     }
-  elif ! source_skills="$(realpath "$source/skills" 2>/dev/null)"; then
-      echo "skills sync: cannot resolve SOURCE '$source/skills'" >&2; return 1
+    source_sync_label="$source_skills"
+  elif source_skills="$(realpath "$source/skills" 2>/dev/null)"; then
+    source_sync_label="$source_skills"
   else
-    echo "skills sync: SOURCE '$source' is not a valid skills directory" >&2
+    echo "skills sync: SOURCE '$source' is neither a skills directory, nor a parent containing skills/, nor a specific skill inside skills/" >&2
     return 1
   fi
 
-  local -a targets=()
-  local t
+  local -a target_skills_dirs=()
+  local t target_skills
   for t in "${(@s/,/)targets_csv}"; do
-    targets+=("$t")
+    if [[ "${t:t}" == "skills" ]]; then
+      target_skills_dirs+=("$t")
+    else
+      target_skills_dirs+=("$t/skills")
+    fi
   done
 
   # --- 1. Sync symlinks ---
-  local skill name target_skills target
-  for target in "${targets[@]}"; do
-    if [[ "${target:t}" == "skills" ]]; then
-      target_skills="$target"
-    else
-      target_skills="$target/skills"
-    fi
-    mkdir -p "$target_skills"
+  local skill
+  if [[ -n "$source_skill" ]]; then
+    _skill_sync "$source_skill" "${target_skills_dirs[@]}"
+  else
     for skill in "$source_skills"/*(N/); do
-      name="${skill:t}"
-      ln -sfn "$skill" "$target_skills/$name"
+      _skill_sync "$skill" "${target_skills_dirs[@]}"
     done
-    echo "✓ skills sync: $source_skills → $target_skills"
+  fi
+
+  for target_skills in "${target_skills_dirs[@]}"; do
+    echo "✓ skills sync: $source_sync_label → $target_skills"
   done
 
   # --- 2. Install git hooks if requested ---
@@ -100,13 +142,17 @@ function _skills_sync() {
   local hooks_dir="$repo_root/.githooks"
   mkdir -p "$hooks_dir"
 
-  # Source path relative to repo root, for embedding in hook scripts
-  local rel_source="${source#"${repo_root}"/}"
+  local source_hook_expr
+  if [[ -n "$source_skill" ]]; then
+    source_hook_expr="$(_skills_hook_path_expr "$source_skill" "$repo_root")"
+  else
+    source_hook_expr="$(_skills_hook_path_expr "$source_skills" "$repo_root")"
+  fi
 
-  # Build bash-syntax targets array for the hook: ("t1" "t2")
+  # Build bash-syntax targets array for the hook.
   local targets_literal="("
-  for target in "${targets[@]}"; do
-    targets_literal+="\"${target#"$repo_root"/}\" "
+  for target_skills in "${target_skills_dirs[@]}"; do
+    targets_literal+="$(_skills_hook_path_expr "$target_skills" "$repo_root") "
   done
   targets_literal="${targets_literal% })"
 
@@ -131,18 +177,29 @@ function _skills_sync() {
 
     cat >> "$hook_file" <<HOOK
 
-# --- skills-sync: $rel_source → ${targets_csv} ---
+# --- skills-sync: $source_sync_label → ${targets_csv} ---
 _repo_root="\$(git rev-parse --show-toplevel)"
-_skills_source="\$_repo_root/$rel_source/skills"
+_skills_source=$source_hook_expr
 _skills_targets=$targets_literal
 if [ -d "\$_skills_source" ]; then
   for _t in "\${_skills_targets[@]}"; do
-    _target_skills="\$_repo_root/\$_t/skills"
+    _target_skills="\$_t"
     mkdir -p "\$_target_skills"
+HOOK
+    if [[ -n "$source_skill" ]]; then
+      cat >> "$hook_file" <<HOOK
+    ln -sfn "\$_skills_source" "\$_target_skills/\$(basename "\$_skills_source")"$git_add
+HOOK
+    else
+      cat >> "$hook_file" <<HOOK
     for _skill in "\$_skills_source"/*/; do
       [ -d "\$_skill" ] || continue
       ln -sfn "\$_skill" "\$_target_skills/\$(basename "\$_skill")"
     done$git_add
+HOOK
+    fi
+
+    cat >> "$hook_file" <<HOOK
   done
 fi
 # --- end skills-sync ---

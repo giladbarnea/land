@@ -1,7 +1,7 @@
 #compdef skills skills.sh
 
 typeset -ga _skills_subcommands=(
-  'sync:Symlink SOURCE/skills/* into each TARGET/skills directory'
+  'sync:Symlink SOURCE skills into each TARGET/skills directory'
 )
 
 typeset -ga _skills_sync_options=(

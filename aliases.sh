@@ -114,6 +114,15 @@ alias codexm3='codexm --config="model_reasoning_effort=high"'
 alias codex4='codexd --config="model_reasoning_effort=xhigh"'
 alias codexm4='codexm --config="model_reasoning_effort=xhigh"'
 
+alias pig='pi --model openrouter/google/gemini-3.1-pro-preview'
+alias pigf='pi --model openrouter/google/gemini-3-flash-preview'
+alias pio='pi --model openrouter/anthropic/claude-opus-4.7'
+alias pis='pi --model openrouter/anthropic/claude-sonnet-4.6'
+alias pih='pi --model openrouter/anthropic/claude-haiku-4.5'
+alias pic55='pi --model openrouter/openai/gpt-5.5'
+alias pic54='pi --model openrouter/openai/gpt-5.4'
+alias pic5m='pi --model openrouter/openai/gpt-5.4-mini'
+
 function :gemini() {
 	local -a args_besides_prompt=()
 	local full_prompt
