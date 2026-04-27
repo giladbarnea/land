@@ -11,9 +11,9 @@
 # Examples:
 #   skills sync .agents .claude
 #   skills sync ~/.agents ~/.claude,~/.pi/agent,~/.codex,~/.gemini
-#   skills sync .agents claude,gemini,codex,pi
 #   skills sync .agents .claude,.pi/agent --install-githooks
-#   skills sync .agents .claude,.pi/agent --install-githooks pre-commit
+#   skills sync .agents/skills .claude,.pi --install-githooks pre-commit
+#   skills sync .agents/skills/my-skill .claude
 function skills() {
   case "${1-}" in
     sync) shift; _skills_sync "$@" ;;
@@ -54,34 +54,39 @@ function _skills_sync() {
     return 1
   fi
 
+  # $source can either have a skills/ child or is itself a skills directory
   local source_skills
-  source_skills="$(realpath "$source/skills" 2>/dev/null)" || {
-    echo "skills sync: $source/skills not found" >&2; return 1
-  }
-
-  local -A _aliases=(
-    claude  .claude
-    gemini  .gemini
-    codex   .codex
-    pi      .pi/agent
-  )
+  if [[ "${source:t}" == "skills" && -d "$source" ]]; then
+    source_skills="$(realpath "$source" 2>/dev/null)" || {
+      echo "skills sync: cannot resolve SOURCE '$source'" >&2; return 1
+    }
+  elif ! source_skills="$(realpath "$source/skills" 2>/dev/null)"; then
+      echo "skills sync: cannot resolve SOURCE '$source/skills'" >&2; return 1
+  else
+    echo "skills sync: SOURCE '$source' is not a valid skills directory" >&2
+    return 1
+  fi
 
   local -a targets=()
   local t
   for t in "${(@s/,/)targets_csv}"; do
-    targets+=("${_aliases[$t]:-$t}")
+    targets+=("$t")
   done
 
   # --- 1. Sync symlinks ---
   local skill name target_skills target
   for target in "${targets[@]}"; do
-    target_skills="$target/skills"
+    if [[ "${target:t}" == "skills" ]]; then
+      target_skills="$target"
+    else
+      target_skills="$target/skills"
+    fi
     mkdir -p "$target_skills"
     for skill in "$source_skills"/*(N/); do
       name="${skill:t}"
       ln -sfn "$skill" "$target_skills/$name"
     done
-    echo "skills sync: $source_skills → $target_skills"
+    echo "✓ skills sync: $source_skills → $target_skills"
   done
 
   # --- 2. Install git hooks if requested ---
@@ -96,12 +101,12 @@ function _skills_sync() {
   mkdir -p "$hooks_dir"
 
   # Source path relative to repo root, for embedding in hook scripts
-  local rel_source="${source#$repo_root/}"
+  local rel_source="${source#"${repo_root}"/}"
 
   # Build bash-syntax targets array for the hook: ("t1" "t2")
   local targets_literal="("
   for target in "${targets[@]}"; do
-    targets_literal+="\"${target#$repo_root/}\" "
+    targets_literal+="\"${target#"$repo_root"/}\" "
   done
   targets_literal="${targets_literal% })"
 
@@ -143,7 +148,7 @@ fi
 # --- end skills-sync ---
 HOOK
     chmod +x "$hook_file"
-    echo "skills sync: installed into $hook_file"
+    echo "✓ skills sync: installed into $hook_file"
   done
 
   # --- 3. setup.sh ---
@@ -156,12 +161,12 @@ HOOK
   fi
   if ! grep -qF 'core.hooksPath' "$setup_file"; then
     echo "$config_line" >> "$setup_file"
-    echo "skills sync: added hooksPath to $setup_file"
+    echo "✓ skills sync: added hooksPath to $setup_file"
   else
-    echo "skills sync: $setup_file already configured, skipping"
+    echo "✓ skills sync: $setup_file already configured, skipping"
   fi
 
   # Run the config now
   git config --local core.hooksPath "$hooks_dir"
-  echo "skills sync: set core.hooksPath → $hooks_dir"
+  echo "✓ skills sync: set core.hooksPath → $hooks_dir"
 }
