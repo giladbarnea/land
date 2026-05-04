@@ -2141,7 +2141,7 @@ function llm-search(){
 function llm-commit-msg(){
 	setopt localoptions pipefail errreturn
 	local -a diff_targets=()
-	local prompt='Generate a short commit message. If different changes serve a cohesive purpose, mention that purpose. Make sure the commit message clearly conveys what was changed and why it was changed (overarching purpose), what it was before. Do not repeat yourself; be terse and concise. Condense (compress) descriptiveness and information LOSSLESSLY; in other words, pack as much "story" into as few words as possible. Readers should be able to answer the question "What was changed, and for what purpose?" at a glance. If the changes span a single file, start the commit message with the file name. If the changes span multiple files, start with a short commit message, then a bullet list where each item starts with a file name. Do not use Markdown formatting nor straight single quotes. Do not say "No other changes." in the end of the commit message.'
+  local llm_prompt='Generate a short commit message. If different changes serve a cohesive purpose, mention that purpose. Make sure the commit message c learly conveys what was changed and why it was changed (overarching purpose), what it was before. Do not repeat yourself; be terse and concise. Condense (compress) descriptiveness and information LOSSLESSLY; in other words, pack as much "story" into as few words as possible. Readers should be able to answer the question "What was changed, and for what purpose?" at a glance. If the changes span a single file, start the commit message with the file name. If the changes span multiple files, start with a short commit message capturing the overarching purpose, then a bullet list where each item starts with a file name. Do not use Markdown formatting nor straight single quotes. No intros, no outros.'
 	local two_pass=false
 	local one_by_one=false
 	local append_prompt=''
@@ -2157,7 +2157,7 @@ function llm-commit-msg(){
 		esac
 		shift
 	done
-	[[ -n "$append_prompt" ]] && prompt="$(printf "%s\n%s" "$prompt" "$append_prompt")"
+	[[ -n "$append_prompt" ]] && llm_prompt="$(printf "%s\n%s" "$llm_prompt" "$append_prompt")"
 	if [[ "${#diff_targets[@]}" = 0 ]]; then
 		local -a staged_files
 		local -a modified_files
@@ -2246,12 +2246,12 @@ function llm-commit-msg(){
 			return 0
 		}
 		notif.info "Aggregating into a single commit message..."
-		llm "$prompt" --no-format-stdin --no-md --quiet --no-clear <<< "$(cat "$tmp_file")"
+    pi --model google/gemini-3-flash-preview --thinking medium --no-session --no-skills --no-prompt-templates --no-extensions <<< "$(cat "$tmp_file")"
 	else
 		if $two_pass; then
-			llm-what-changed --force-prompt "$prompt" --2-pass HEAD -- "${diff_targets[@]}"
+			llm-what-changed --force-prompt "$llm_prompt" --2-pass HEAD -- "${diff_targets[@]}"
 		else
-			llm-what-changed --force-prompt "$prompt" --1-pass HEAD -- "${diff_targets[@]}"
+			llm-what-changed --force-prompt "$llm_prompt" --1-pass HEAD -- "${diff_targets[@]}"
 		fi
 	fi
 	

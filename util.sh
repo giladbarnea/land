@@ -285,6 +285,12 @@ function timeit() {
   fi
 }
 
+# # cdate
+# Outputs e.g. 26-05-01
+function cdate(){
+  date +%y-%m-%d
+}
+
 if [[ "$OS" = macos ]]; then
 
   # # idletime [s, ms, us, ns] (default s)

@@ -714,6 +714,11 @@ function join(){
 # <Friendly Greeting>
 # Hello, world
 # </Friendly Greeting>
+# # Even though it's redundant, when content is piped, -t,--tag can still be specified:
+# ❯ echo "Hello, world" | xt -t 'Another Friendly Greeting'
+# <Another Friendly Greeting>
+# Hello, world
+# </Another Friendly Greeting>
 # # When -k/--kebab is passed, the tag is converted to kebab-case.
 # ❯ xt 'Friendly Greeting' --kebab <<< "Hello, world"
 # <friendly-greeting>
@@ -727,28 +732,37 @@ function xt(){
 	while [[ $# -gt 0 ]]; do
 		case "$1" in
 			--tag=*|--stdin-tag=*) tag="${1#*=}" ;;
-			-t|--tag|-st|--stdin-tag) tag="$2" ; shift ;;
+			-t|--tag|-st|--stdin-tag)
+								[[ "$2" ]] || { log.error "$0: Missing value for $1. Usage:\n$(docstring "$0")"; return 1; }
+								tag="$2"
+								shift
+								;;
 			-q|--quiet) quiet=true ;;
 			-k|--kebab) kebab=true ;;
 			*) 
-        if [[ -n "$content" ]]; then
-          log.error "Multiple positional arguments provided. Usage:\n$(docstring "$0")"
-          return 1
-        fi
-        if is_piped; then
-          content="$(<&0)"
-          tag="$1"
-        else
-          content="$1"
-        fi
+								if is_piped; then
+										[[ -n "$tag" ]] && {
+												log.error "Multiple positional arguments provided while reading content from stdin. Usage:\n$(docstring \"$0\")"
+												return 1
+										}
+										content="$(<&0)"
+										tag="$1"
+								else
+										if [[ -n "$content" ]]; then
+												log.error "Multiple positional arguments provided. Usage:\n$(docstring "$0")"
+												return 1
+										fi
+										content="$1"
+								fi
 		esac
 		shift
 	done
-  [[ ! "$tag" ]] && { log.error "No tag provided." ; return 1 ; }
+	[[ ! "$content" ]] && is_piped && content="$(<&0)"
+	[[ ! "$tag" ]] && { log.error "No tag provided." ; return 1 ; }
 	[[ ! "$content" ]] && { log.error "No content provided." ; return 1 ; }
 	[[ -f "$content" ]] && content="$(<"$content")"
 	[[ "$kebab" = true ]] && tag="$(printf "%s" "$tag" | tr ' ' '-' | tr '[:upper:]' '[:lower:]')"
-  formatted_content="$(printf "<${tag}>\n%s\n</${tag}>\n" "$content")"
+		formatted_content="$(printf "<${tag}>\n%s\n</${tag}>\n" "$content")"
 	[[ "$quiet" = false ]] && log.debug "$(shorten "$formatted_content" -m "$COLUMNS")"
 	print -r -- "$formatted_content"
 }

@@ -84,26 +84,34 @@ function tree() {
   setopt localoptions pipefail errreturn
   local git_ignore=true
   local arg
+  local -a specified_eza_args
   for arg in "$@"; do
-    if [[ arg = "-u"* || arg = "--no-git-ignore" ]]; then
+    if [[ "$arg" == "--no-git-ignore" || "$arg" = "-u"* ]]; then
       git_ignore=false
-      break
+      continue 
     fi
+    specified_eza_args+=("$arg")
   done
-  local -a eza_args=(
+  local -a default_eza_args=(
     --classify
     --tree
     --group-directories-first
     --all
   )
   if [[ "$git_ignore" = true ]]; then
-    eza_args+=(
+    default_eza_args+=(
     --git-ignore
-    --ignore-glob "$(tr $'\n' \| < ~/.gitignore_global)"
-      )
+    --ignore-glob "${(j:|:)${(f)$(<~/.gitignore_global)}}"
+    )
   fi
-  eza_args+=("$@")
-  command eza "${eza_args[@]}"
+  local dry_output
+  dry_output="$(command eza "${default_eza_args[@]}" "${specified_eza_args[@]}")"
+  if [[ "$git_ignore" = true ]] && [[ -z "$dry_output" || "$dry_output" =~ \./? ]]; then
+    confirm "Empty output. Try without honoring git ignore?" || return 1
+    tree "${specified_eza_args[@]}" --no-git-ignore
+    return $?
+  fi
+  command eza "${default_eza_args[@]}" "${specified_eza_args[@]}"
 }
 
 # -----[ $PATH ]-----
