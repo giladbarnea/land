@@ -225,6 +225,11 @@ _pi_model_id_lines() {
       print -r -- "${model_id#openrouter/}"
     fi
   done < "$cache_file"
+
+  local models_json=~/.pi/agent/models.json
+  if [[ -f $models_json ]]; then
+    jq -r '.providers[]?.modelOverrides[]?.name' "$models_json" 2>/dev/null
+  fi
 }
 
 _pi_model_ids() {
