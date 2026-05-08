@@ -30,6 +30,9 @@ _codex() {
 '--profile=[Configuration profile from config.toml to specify default options]:CONFIG_PROFILE:_default' \
 '-s+[Select the sandbox policy to use when executing model-generated shell commands]:SANDBOX_MODE:(read-only workspace-write danger-full-access)' \
 '--sandbox=[Select the sandbox policy to use when executing model-generated shell commands]:SANDBOX_MODE:(read-only workspace-write danger-full-access)' \
+'-C+[Tell the agent to use the specified directory as its working root]:DIR:_files' \
+'--cd=[Tell the agent to use the specified directory as its working root]:DIR:_files' \
+'*--add-dir=[Additional directories that should be writable alongside the primary workspace]:DIR:_files -/' \
 '-a+[Configure when the model requires human approval before executing a command]:APPROVAL_POLICY:((untrusted\:"Only run "trusted" commands (e.g. ls, cat, sed) without asking for user approval. Will escalate to the user if the model proposes a command that is not in the "trusted" set"
 on-failure\:"DEPRECATED\: Run all commands without asking for user approval. Only asks for approval if a command fails to execute, in which case it will escalate to the user to ask for un-sandboxed execution. Prefer \`on-request\` for interactive runs or \`never\` for non-interactive runs"
 on-request\:"The model decides when to ask the user for approval"
@@ -38,12 +41,8 @@ never\:"Never ask for user approval Execution failures are immediately returned 
 on-failure\:"DEPRECATED\: Run all commands without asking for user approval. Only asks for approval if a command fails to execute, in which case it will escalate to the user to ask for un-sandboxed execution. Prefer \`on-request\` for interactive runs or \`never\` for non-interactive runs"
 on-request\:"The model decides when to ask the user for approval"
 never\:"Never ask for user approval Execution failures are immediately returned to the model"))' \
-'-C+[Tell the agent to use the specified directory as its working root]:DIR:_files' \
-'--cd=[Tell the agent to use the specified directory as its working root]:DIR:_files' \
-'*--add-dir=[Additional directories that should be writable alongside the primary workspace]:DIR:_files -/' \
-'--oss[Convenience flag to select the local open source model provider. Equivalent to -c model_provider=oss; verifies a local LM Studio or Ollama server is running]' \
-'--full-auto[Convenience alias for low-friction sandboxed automatic execution (-a on-request, --sandbox workspace-write)]' \
-'(-a --ask-for-approval --full-auto)--dangerously-bypass-approvals-and-sandbox[Skip all confirmation prompts and execute commands without sandboxing. EXTREMELY DANGEROUS. Intended solely for running in environments that are externally sandboxed]' \
+'--oss[Use open-source provider]' \
+'(-a --ask-for-approval)--dangerously-bypass-approvals-and-sandbox[Skip all confirmation prompts and execute commands without sandboxing. EXTREMELY DANGEROUS. Intended solely for running in environments that are externally sandboxed]' \
 '--search[Enable live web search. When enabled, the native Responses \`web_search\` tool is available to the model (no per‑call approval)]' \
 '--no-alt-screen[Disable alternate screen mode]' \
 '-h[Print help (see more with '\''--help'\'')]' \
@@ -64,16 +63,16 @@ never\:"Never ask for user approval Execution failures are immediately returned 
 _arguments "${_arguments_options[@]}" : \
 '*-i+[Optional image(s) to attach to the initial prompt]:FILE:_files' \
 '*--image=[Optional image(s) to attach to the initial prompt]:FILE:_files' \
-'-m+[Model the agent should use]:MODEL:_default' \
-'--model=[Model the agent should use]:MODEL:_default' \
 '--local-provider=[Specify which local provider to use (lmstudio or ollama). If not specified with --oss, will use config default or show selection]:OSS_PROVIDER:_default' \
-'-s+[Select the sandbox policy to use when executing model-generated shell commands]:SANDBOX_MODE:(read-only workspace-write danger-full-access)' \
-'--sandbox=[Select the sandbox policy to use when executing model-generated shell commands]:SANDBOX_MODE:(read-only workspace-write danger-full-access)' \
 '-p+[Configuration profile from config.toml to specify default options]:CONFIG_PROFILE:_default' \
 '--profile=[Configuration profile from config.toml to specify default options]:CONFIG_PROFILE:_default' \
+'-s+[Select the sandbox policy to use when executing model-generated shell commands]:SANDBOX_MODE:(read-only workspace-write danger-full-access)' \
+'--sandbox=[Select the sandbox policy to use when executing model-generated shell commands]:SANDBOX_MODE:(read-only workspace-write danger-full-access)' \
 '-C+[Tell the agent to use the specified directory as its working root]:DIR:_files' \
 '--cd=[Tell the agent to use the specified directory as its working root]:DIR:_files' \
 '*--add-dir=[Additional directories that should be writable alongside the primary workspace]:DIR:_files -/' \
+'-m+[Model the agent should use]:MODEL:_default' \
+'--model=[Model the agent should use]:MODEL:_default' \
 '--output-schema=[Path to a JSON Schema file describing the model'\''s final response shape]:FILE:_files' \
 '--color=[Specifies color settings for use in the output]:COLOR:(always never auto)' \
 '-o+[Specifies file where the last message from the agent should be written]:FILE:_files' \
@@ -83,10 +82,12 @@ _arguments "${_arguments_options[@]}" : \
 '*--enable=[Enable a feature (repeatable). Equivalent to \`-c features.<name>=true\`]:FEATURE:_default' \
 '*--disable=[Disable a feature (repeatable). Equivalent to \`-c features.<name>=false\`]:FEATURE:_default' \
 '--oss[Use open-source provider]' \
-'--full-auto[Convenience alias for low-friction sandboxed automatic execution (-a on-request, --sandbox workspace-write)]' \
-'(--full-auto)--dangerously-bypass-approvals-and-sandbox[Skip all confirmation prompts and execute commands without sandboxing. EXTREMELY DANGEROUS. Intended solely for running in environments that are externally sandboxed]' \
+'--dangerously-bypass-approvals-and-sandbox[Skip all confirmation prompts and execute commands without sandboxing. EXTREMELY DANGEROUS. Intended solely for running in environments that are externally sandboxed]' \
 '--skip-git-repo-check[Allow running Codex outside a Git repository]' \
 '--ephemeral[Run without persisting session files to disk]' \
+'--ignore-user-config[Do not load \`\$CODEX_HOME/config.toml\`; auth still uses \`CODEX_HOME\`]' \
+'--ignore-rules[Do not load user or project execpolicy \`.rules\` files]' \
+'(--dangerously-bypass-approvals-and-sandbox)--full-auto[Legacy compatibility trap for the removed \`--full-auto\` flag]' \
 '--json[Print events to stdout as JSONL]' \
 '-h[Print help (see more with '\''--help'\'')]' \
 '--help[Print help (see more with '\''--help'\'')]' \
@@ -117,10 +118,12 @@ _arguments "${_arguments_options[@]}" : \
 '*--disable=[Disable a feature (repeatable). Equivalent to \`-c features.<name>=false\`]:FEATURE:_default' \
 '--last[Resume the most recent recorded session (newest) without specifying an id]' \
 '--all[Show all sessions (disables cwd filtering)]' \
-'--full-auto[Convenience alias for low-friction sandboxed automatic execution (-a on-request, --sandbox workspace-write)]' \
-'(--full-auto)--dangerously-bypass-approvals-and-sandbox[Skip all confirmation prompts and execute commands without sandboxing. EXTREMELY DANGEROUS. Intended solely for running in environments that are externally sandboxed]' \
+'--dangerously-bypass-approvals-and-sandbox[Skip all confirmation prompts and execute commands without sandboxing. EXTREMELY DANGEROUS. Intended solely for running in environments that are externally sandboxed]' \
 '--skip-git-repo-check[Allow running Codex outside a Git repository]' \
 '--ephemeral[Run without persisting session files to disk]' \
+'--ignore-user-config[Do not load \`\$CODEX_HOME/config.toml\`; auth still uses \`CODEX_HOME\`]' \
+'--ignore-rules[Do not load user or project execpolicy \`.rules\` files]' \
+'(--dangerously-bypass-approvals-and-sandbox)--full-auto[Legacy compatibility trap for the removed \`--full-auto\` flag]' \
 '--json[Print events to stdout as JSONL]' \
 '-h[Print help (see more with '\''--help'\'')]' \
 '--help[Print help (see more with '\''--help'\'')]' \
@@ -142,10 +145,12 @@ _arguments "${_arguments_options[@]}" : \
 '*--enable=[Enable a feature (repeatable). Equivalent to \`-c features.<name>=true\`]:FEATURE:_default' \
 '*--disable=[Disable a feature (repeatable). Equivalent to \`-c features.<name>=false\`]:FEATURE:_default' \
 '(--base --commit)--uncommitted[Review staged, unstaged, and untracked changes]' \
-'--full-auto[Convenience alias for low-friction sandboxed automatic execution (-a on-request, --sandbox workspace-write)]' \
-'(--full-auto)--dangerously-bypass-approvals-and-sandbox[Skip all confirmation prompts and execute commands without sandboxing. EXTREMELY DANGEROUS. Intended solely for running in environments that are externally sandboxed]' \
+'--dangerously-bypass-approvals-and-sandbox[Skip all confirmation prompts and execute commands without sandboxing. EXTREMELY DANGEROUS. Intended solely for running in environments that are externally sandboxed]' \
 '--skip-git-repo-check[Allow running Codex outside a Git repository]' \
 '--ephemeral[Run without persisting session files to disk]' \
+'--ignore-user-config[Do not load \`\$CODEX_HOME/config.toml\`; auth still uses \`CODEX_HOME\`]' \
+'--ignore-rules[Do not load user or project execpolicy \`.rules\` files]' \
+'(--dangerously-bypass-approvals-and-sandbox)--full-auto[Legacy compatibility trap for the removed \`--full-auto\` flag]' \
 '--json[Print events to stdout as JSONL]' \
 '-h[Print help (see more with '\''--help'\'')]' \
 '--help[Print help (see more with '\''--help'\'')]' \
@@ -188,16 +193,16 @@ esac
 _arguments "${_arguments_options[@]}" : \
 '*-i+[Optional image(s) to attach to the initial prompt]:FILE:_files' \
 '*--image=[Optional image(s) to attach to the initial prompt]:FILE:_files' \
-'-m+[Model the agent should use]:MODEL:_default' \
-'--model=[Model the agent should use]:MODEL:_default' \
 '--local-provider=[Specify which local provider to use (lmstudio or ollama). If not specified with --oss, will use config default or show selection]:OSS_PROVIDER:_default' \
-'-s+[Select the sandbox policy to use when executing model-generated shell commands]:SANDBOX_MODE:(read-only workspace-write danger-full-access)' \
-'--sandbox=[Select the sandbox policy to use when executing model-generated shell commands]:SANDBOX_MODE:(read-only workspace-write danger-full-access)' \
 '-p+[Configuration profile from config.toml to specify default options]:CONFIG_PROFILE:_default' \
 '--profile=[Configuration profile from config.toml to specify default options]:CONFIG_PROFILE:_default' \
+'-s+[Select the sandbox policy to use when executing model-generated shell commands]:SANDBOX_MODE:(read-only workspace-write danger-full-access)' \
+'--sandbox=[Select the sandbox policy to use when executing model-generated shell commands]:SANDBOX_MODE:(read-only workspace-write danger-full-access)' \
 '-C+[Tell the agent to use the specified directory as its working root]:DIR:_files' \
 '--cd=[Tell the agent to use the specified directory as its working root]:DIR:_files' \
 '*--add-dir=[Additional directories that should be writable alongside the primary workspace]:DIR:_files -/' \
+'-m+[Model the agent should use]:MODEL:_default' \
+'--model=[Model the agent should use]:MODEL:_default' \
 '--output-schema=[Path to a JSON Schema file describing the model'\''s final response shape]:FILE:_files' \
 '--color=[Specifies color settings for use in the output]:COLOR:(always never auto)' \
 '-o+[Specifies file where the last message from the agent should be written]:FILE:_files' \
@@ -207,10 +212,12 @@ _arguments "${_arguments_options[@]}" : \
 '*--enable=[Enable a feature (repeatable). Equivalent to \`-c features.<name>=true\`]:FEATURE:_default' \
 '*--disable=[Disable a feature (repeatable). Equivalent to \`-c features.<name>=false\`]:FEATURE:_default' \
 '--oss[Use open-source provider]' \
-'--full-auto[Convenience alias for low-friction sandboxed automatic execution (-a on-request, --sandbox workspace-write)]' \
-'(--full-auto)--dangerously-bypass-approvals-and-sandbox[Skip all confirmation prompts and execute commands without sandboxing. EXTREMELY DANGEROUS. Intended solely for running in environments that are externally sandboxed]' \
+'--dangerously-bypass-approvals-and-sandbox[Skip all confirmation prompts and execute commands without sandboxing. EXTREMELY DANGEROUS. Intended solely for running in environments that are externally sandboxed]' \
 '--skip-git-repo-check[Allow running Codex outside a Git repository]' \
 '--ephemeral[Run without persisting session files to disk]' \
+'--ignore-user-config[Do not load \`\$CODEX_HOME/config.toml\`; auth still uses \`CODEX_HOME\`]' \
+'--ignore-rules[Do not load user or project execpolicy \`.rules\` files]' \
+'(--dangerously-bypass-approvals-and-sandbox)--full-auto[Legacy compatibility trap for the removed \`--full-auto\` flag]' \
 '--json[Print events to stdout as JSONL]' \
 '-h[Print help (see more with '\''--help'\'')]' \
 '--help[Print help (see more with '\''--help'\'')]' \
@@ -241,10 +248,12 @@ _arguments "${_arguments_options[@]}" : \
 '*--disable=[Disable a feature (repeatable). Equivalent to \`-c features.<name>=false\`]:FEATURE:_default' \
 '--last[Resume the most recent recorded session (newest) without specifying an id]' \
 '--all[Show all sessions (disables cwd filtering)]' \
-'--full-auto[Convenience alias for low-friction sandboxed automatic execution (-a on-request, --sandbox workspace-write)]' \
-'(--full-auto)--dangerously-bypass-approvals-and-sandbox[Skip all confirmation prompts and execute commands without sandboxing. EXTREMELY DANGEROUS. Intended solely for running in environments that are externally sandboxed]' \
+'--dangerously-bypass-approvals-and-sandbox[Skip all confirmation prompts and execute commands without sandboxing. EXTREMELY DANGEROUS. Intended solely for running in environments that are externally sandboxed]' \
 '--skip-git-repo-check[Allow running Codex outside a Git repository]' \
 '--ephemeral[Run without persisting session files to disk]' \
+'--ignore-user-config[Do not load \`\$CODEX_HOME/config.toml\`; auth still uses \`CODEX_HOME\`]' \
+'--ignore-rules[Do not load user or project execpolicy \`.rules\` files]' \
+'(--dangerously-bypass-approvals-and-sandbox)--full-auto[Legacy compatibility trap for the removed \`--full-auto\` flag]' \
 '--json[Print events to stdout as JSONL]' \
 '-h[Print help (see more with '\''--help'\'')]' \
 '--help[Print help (see more with '\''--help'\'')]' \
@@ -266,10 +275,12 @@ _arguments "${_arguments_options[@]}" : \
 '*--enable=[Enable a feature (repeatable). Equivalent to \`-c features.<name>=true\`]:FEATURE:_default' \
 '*--disable=[Disable a feature (repeatable). Equivalent to \`-c features.<name>=false\`]:FEATURE:_default' \
 '(--base --commit)--uncommitted[Review staged, unstaged, and untracked changes]' \
-'--full-auto[Convenience alias for low-friction sandboxed automatic execution (-a on-request, --sandbox workspace-write)]' \
-'(--full-auto)--dangerously-bypass-approvals-and-sandbox[Skip all confirmation prompts and execute commands without sandboxing. EXTREMELY DANGEROUS. Intended solely for running in environments that are externally sandboxed]' \
+'--dangerously-bypass-approvals-and-sandbox[Skip all confirmation prompts and execute commands without sandboxing. EXTREMELY DANGEROUS. Intended solely for running in environments that are externally sandboxed]' \
 '--skip-git-repo-check[Allow running Codex outside a Git repository]' \
 '--ephemeral[Run without persisting session files to disk]' \
+'--ignore-user-config[Do not load \`\$CODEX_HOME/config.toml\`; auth still uses \`CODEX_HOME\`]' \
+'--ignore-rules[Do not load user or project execpolicy \`.rules\` files]' \
+'(--dangerously-bypass-approvals-and-sandbox)--full-auto[Legacy compatibility trap for the removed \`--full-auto\` flag]' \
 '--json[Print events to stdout as JSONL]' \
 '-h[Print help (see more with '\''--help'\'')]' \
 '--help[Print help (see more with '\''--help'\'')]' \
@@ -325,7 +336,7 @@ _arguments "${_arguments_options[@]}" : \
 ;;
 (login)
 _arguments "${_arguments_options[@]}" : \
-'--api-key=[(deprecated) Previously accepted the API key directly; now exits with guidance to use --with-api-key]:API_KEY:_default' \
+'--api-key=[(deprecated) Previously accepted the API key directly; now exits with guidance to use --with-api-key]::API_KEY:_default' \
 '--experimental_issuer=[EXPERIMENTAL\: Use custom OAuth issuer base URL (advanced) Override the OAuth issuer base URL (advanced)]:URL:_default' \
 '--experimental_client-id=[EXPERIMENTAL\: Use custom OAuth client ID (advanced)]:CLIENT_ID:_default' \
 '*-c+[Override a configuration value that would otherwise be loaded from \`~/.codex/config.toml\`. Use a dotted path (\`foo.bar.baz\`) to override nested values. The \`value\` portion is parsed as TOML. If it fails to parse as TOML, the raw string is used as a literal]:key=value:_default' \
@@ -333,6 +344,7 @@ _arguments "${_arguments_options[@]}" : \
 '*--enable=[Enable a feature (repeatable). Equivalent to \`-c features.<name>=true\`]:FEATURE:_default' \
 '*--disable=[Disable a feature (repeatable). Equivalent to \`-c features.<name>=false\`]:FEATURE:_default' \
 '--with-api-key[Read the API key from stdin (e.g. \`printenv OPENAI_API_KEY | codex login --with-api-key\`)]' \
+'--with-agent-identity[Read the experimental Agent Identity token from stdin (e.g. \`printenv CODEX_AGENT_IDENTITY | codex login --with-agent-identity\`)]' \
 '--device-auth[]' \
 '-h[Print help (see more with '\''--help'\'')]' \
 '--help[Print help (see more with '\''--help'\'')]' \
@@ -532,6 +544,165 @@ esac
     ;;
 esac
 ;;
+(plugin)
+_arguments "${_arguments_options[@]}" : \
+'*-c+[Override a configuration value that would otherwise be loaded from \`~/.codex/config.toml\`. Use a dotted path (\`foo.bar.baz\`) to override nested values. The \`value\` portion is parsed as TOML. If it fails to parse as TOML, the raw string is used as a literal]:key=value:_default' \
+'*--config=[Override a configuration value that would otherwise be loaded from \`~/.codex/config.toml\`. Use a dotted path (\`foo.bar.baz\`) to override nested values. The \`value\` portion is parsed as TOML. If it fails to parse as TOML, the raw string is used as a literal]:key=value:_default' \
+'*--enable=[Enable a feature (repeatable). Equivalent to \`-c features.<name>=true\`]:FEATURE:_default' \
+'*--disable=[Disable a feature (repeatable). Equivalent to \`-c features.<name>=false\`]:FEATURE:_default' \
+'-h[Print help (see more with '\''--help'\'')]' \
+'--help[Print help (see more with '\''--help'\'')]' \
+":: :_codex__plugin_commands" \
+"*::: :->plugin" \
+&& ret=0
+
+    case $state in
+    (plugin)
+        words=($line[1] "${words[@]}")
+        (( CURRENT += 1 ))
+        curcontext="${curcontext%:*:*}:codex-plugin-command-$line[1]:"
+        case $line[1] in
+            (marketplace)
+_arguments "${_arguments_options[@]}" : \
+'*-c+[Override a configuration value that would otherwise be loaded from \`~/.codex/config.toml\`. Use a dotted path (\`foo.bar.baz\`) to override nested values. The \`value\` portion is parsed as TOML. If it fails to parse as TOML, the raw string is used as a literal]:key=value:_default' \
+'*--config=[Override a configuration value that would otherwise be loaded from \`~/.codex/config.toml\`. Use a dotted path (\`foo.bar.baz\`) to override nested values. The \`value\` portion is parsed as TOML. If it fails to parse as TOML, the raw string is used as a literal]:key=value:_default' \
+'*--enable=[Enable a feature (repeatable). Equivalent to \`-c features.<name>=true\`]:FEATURE:_default' \
+'*--disable=[Disable a feature (repeatable). Equivalent to \`-c features.<name>=false\`]:FEATURE:_default' \
+'-h[Print help (see more with '\''--help'\'')]' \
+'--help[Print help (see more with '\''--help'\'')]' \
+":: :_codex__plugin__marketplace_commands" \
+"*::: :->marketplace" \
+&& ret=0
+
+    case $state in
+    (marketplace)
+        words=($line[1] "${words[@]}")
+        (( CURRENT += 1 ))
+        curcontext="${curcontext%:*:*}:codex-plugin-marketplace-command-$line[1]:"
+        case $line[1] in
+            (add)
+_arguments "${_arguments_options[@]}" : \
+'--ref=[]:REF:_default' \
+'*--sparse=[]:PATH:_default' \
+'*-c+[Override a configuration value that would otherwise be loaded from \`~/.codex/config.toml\`. Use a dotted path (\`foo.bar.baz\`) to override nested values. The \`value\` portion is parsed as TOML. If it fails to parse as TOML, the raw string is used as a literal]:key=value:_default' \
+'*--config=[Override a configuration value that would otherwise be loaded from \`~/.codex/config.toml\`. Use a dotted path (\`foo.bar.baz\`) to override nested values. The \`value\` portion is parsed as TOML. If it fails to parse as TOML, the raw string is used as a literal]:key=value:_default' \
+'*--enable=[Enable a feature (repeatable). Equivalent to \`-c features.<name>=true\`]:FEATURE:_default' \
+'*--disable=[Disable a feature (repeatable). Equivalent to \`-c features.<name>=false\`]:FEATURE:_default' \
+'-h[Print help (see more with '\''--help'\'')]' \
+'--help[Print help (see more with '\''--help'\'')]' \
+':source -- Marketplace source. Supports owner/repo\[@ref\], HTTP(S) Git URLs, SSH URLs, or local marketplace root directories:_default' \
+&& ret=0
+;;
+(upgrade)
+_arguments "${_arguments_options[@]}" : \
+'*-c+[Override a configuration value that would otherwise be loaded from \`~/.codex/config.toml\`. Use a dotted path (\`foo.bar.baz\`) to override nested values. The \`value\` portion is parsed as TOML. If it fails to parse as TOML, the raw string is used as a literal]:key=value:_default' \
+'*--config=[Override a configuration value that would otherwise be loaded from \`~/.codex/config.toml\`. Use a dotted path (\`foo.bar.baz\`) to override nested values. The \`value\` portion is parsed as TOML. If it fails to parse as TOML, the raw string is used as a literal]:key=value:_default' \
+'*--enable=[Enable a feature (repeatable). Equivalent to \`-c features.<name>=true\`]:FEATURE:_default' \
+'*--disable=[Disable a feature (repeatable). Equivalent to \`-c features.<name>=false\`]:FEATURE:_default' \
+'-h[Print help (see more with '\''--help'\'')]' \
+'--help[Print help (see more with '\''--help'\'')]' \
+'::marketplace_name:_default' \
+&& ret=0
+;;
+(remove)
+_arguments "${_arguments_options[@]}" : \
+'*-c+[Override a configuration value that would otherwise be loaded from \`~/.codex/config.toml\`. Use a dotted path (\`foo.bar.baz\`) to override nested values. The \`value\` portion is parsed as TOML. If it fails to parse as TOML, the raw string is used as a literal]:key=value:_default' \
+'*--config=[Override a configuration value that would otherwise be loaded from \`~/.codex/config.toml\`. Use a dotted path (\`foo.bar.baz\`) to override nested values. The \`value\` portion is parsed as TOML. If it fails to parse as TOML, the raw string is used as a literal]:key=value:_default' \
+'*--enable=[Enable a feature (repeatable). Equivalent to \`-c features.<name>=true\`]:FEATURE:_default' \
+'*--disable=[Disable a feature (repeatable). Equivalent to \`-c features.<name>=false\`]:FEATURE:_default' \
+'-h[Print help (see more with '\''--help'\'')]' \
+'--help[Print help (see more with '\''--help'\'')]' \
+':marketplace_name -- Configured marketplace name to remove:_default' \
+&& ret=0
+;;
+(help)
+_arguments "${_arguments_options[@]}" : \
+":: :_codex__plugin__marketplace__help_commands" \
+"*::: :->help" \
+&& ret=0
+
+    case $state in
+    (help)
+        words=($line[1] "${words[@]}")
+        (( CURRENT += 1 ))
+        curcontext="${curcontext%:*:*}:codex-plugin-marketplace-help-command-$line[1]:"
+        case $line[1] in
+            (add)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(upgrade)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(remove)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(help)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+        esac
+    ;;
+esac
+;;
+        esac
+    ;;
+esac
+;;
+(help)
+_arguments "${_arguments_options[@]}" : \
+":: :_codex__plugin__help_commands" \
+"*::: :->help" \
+&& ret=0
+
+    case $state in
+    (help)
+        words=($line[1] "${words[@]}")
+        (( CURRENT += 1 ))
+        curcontext="${curcontext%:*:*}:codex-plugin-help-command-$line[1]:"
+        case $line[1] in
+            (marketplace)
+_arguments "${_arguments_options[@]}" : \
+":: :_codex__plugin__help__marketplace_commands" \
+"*::: :->marketplace" \
+&& ret=0
+
+    case $state in
+    (marketplace)
+        words=($line[1] "${words[@]}")
+        (( CURRENT += 1 ))
+        curcontext="${curcontext%:*:*}:codex-plugin-help-marketplace-command-$line[1]:"
+        case $line[1] in
+            (add)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(upgrade)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(remove)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+        esac
+    ;;
+esac
+;;
+(help)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+        esac
+    ;;
+esac
+;;
+        esac
+    ;;
+esac
+;;
 (mcp-server)
 _arguments "${_arguments_options[@]}" : \
 '*-c+[Override a configuration value that would otherwise be loaded from \`~/.codex/config.toml\`. Use a dotted path (\`foo.bar.baz\`) to override nested values. The \`value\` portion is parsed as TOML. If it fails to parse as TOML, the raw string is used as a literal]:key=value:_default' \
@@ -544,9 +715,10 @@ _arguments "${_arguments_options[@]}" : \
 ;;
 (app-server)
 _arguments "${_arguments_options[@]}" : \
-'--listen=[Transport endpoint URL. Supported values\: \`stdio\://\` (default), \`ws\://IP\:PORT\`]:URL:_default' \
+'--listen=[Transport endpoint URL. Supported values\: \`stdio\://\` (default), \`unix\://\`, \`unix\://PATH\`, \`ws\://IP\:PORT\`, \`off\`]:URL:_default' \
 '--ws-auth=[Websocket auth mode for non-loopback listeners]:MODE:(capability-token signed-bearer-token)' \
 '--ws-token-file=[Absolute path to the capability-token file]:PATH:_files' \
+'--ws-token-sha256=[Hex-encoded SHA-256 digest of the capability token]:HEX:_default' \
 '--ws-shared-secret-file=[Absolute path to the shared secret file for signed JWT bearer tokens]:PATH:_files' \
 '--ws-issuer=[Expected issuer for signed JWT bearer tokens]:ISSUER:_default' \
 '--ws-audience=[Expected audience for signed JWT bearer tokens]:AUDIENCE:_default' \
@@ -568,7 +740,18 @@ _arguments "${_arguments_options[@]}" : \
         (( CURRENT += 1 ))
         curcontext="${curcontext%:*:*}:codex-app-server-command-$line[1]:"
         case $line[1] in
-            (generate-ts)
+            (proxy)
+_arguments "${_arguments_options[@]}" : \
+'--sock=[Path to the app-server Unix domain socket to connect to]:SOCKET_PATH:_default' \
+'*-c+[Override a configuration value that would otherwise be loaded from \`~/.codex/config.toml\`. Use a dotted path (\`foo.bar.baz\`) to override nested values. The \`value\` portion is parsed as TOML. If it fails to parse as TOML, the raw string is used as a literal]:key=value:_default' \
+'*--config=[Override a configuration value that would otherwise be loaded from \`~/.codex/config.toml\`. Use a dotted path (\`foo.bar.baz\`) to override nested values. The \`value\` portion is parsed as TOML. If it fails to parse as TOML, the raw string is used as a literal]:key=value:_default' \
+'*--enable=[Enable a feature (repeatable). Equivalent to \`-c features.<name>=true\`]:FEATURE:_default' \
+'*--disable=[Disable a feature (repeatable). Equivalent to \`-c features.<name>=false\`]:FEATURE:_default' \
+'-h[Print help (see more with '\''--help'\'')]' \
+'--help[Print help (see more with '\''--help'\'')]' \
+&& ret=0
+;;
+(generate-ts)
 _arguments "${_arguments_options[@]}" : \
 '-o+[Output directory where .ts files will be written]:DIR:_files' \
 '--out=[Output directory where .ts files will be written]:DIR:_files' \
@@ -620,7 +803,11 @@ _arguments "${_arguments_options[@]}" : \
         (( CURRENT += 1 ))
         curcontext="${curcontext%:*:*}:codex-app-server-help-command-$line[1]:"
         case $line[1] in
-            (generate-ts)
+            (proxy)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(generate-ts)
 _arguments "${_arguments_options[@]}" : \
 && ret=0
 ;;
@@ -646,7 +833,7 @@ esac
 ;;
 (app)
 _arguments "${_arguments_options[@]}" : \
-'--download-url=[Override the macOS DMG download URL (advanced)]:DOWNLOAD_URL:_default' \
+'--download-url=[Override the app installer download URL (advanced)]:DOWNLOAD_URL_OVERRIDE:_default' \
 '*-c+[Override a configuration value that would otherwise be loaded from \`~/.codex/config.toml\`. Use a dotted path (\`foo.bar.baz\`) to override nested values. The \`value\` portion is parsed as TOML. If it fails to parse as TOML, the raw string is used as a literal]:key=value:_default' \
 '*--config=[Override a configuration value that would otherwise be loaded from \`~/.codex/config.toml\`. Use a dotted path (\`foo.bar.baz\`) to override nested values. The \`value\` portion is parsed as TOML. If it fails to parse as TOML, the raw string is used as a literal]:key=value:_default' \
 '*--enable=[Enable a feature (repeatable). Equivalent to \`-c features.<name>=true\`]:FEATURE:_default' \
@@ -665,6 +852,16 @@ _arguments "${_arguments_options[@]}" : \
 '-h[Print help (see more with '\''--help'\'')]' \
 '--help[Print help (see more with '\''--help'\'')]' \
 '::shell -- Shell to generate completions for:(bash elvish fish powershell zsh)' \
+&& ret=0
+;;
+(update)
+_arguments "${_arguments_options[@]}" : \
+'*-c+[Override a configuration value that would otherwise be loaded from \`~/.codex/config.toml\`. Use a dotted path (\`foo.bar.baz\`) to override nested values. The \`value\` portion is parsed as TOML. If it fails to parse as TOML, the raw string is used as a literal]:key=value:_default' \
+'*--config=[Override a configuration value that would otherwise be loaded from \`~/.codex/config.toml\`. Use a dotted path (\`foo.bar.baz\`) to override nested values. The \`value\` portion is parsed as TOML. If it fails to parse as TOML, the raw string is used as a literal]:key=value:_default' \
+'*--enable=[Enable a feature (repeatable). Equivalent to \`-c features.<name>=true\`]:FEATURE:_default' \
+'*--disable=[Disable a feature (repeatable). Equivalent to \`-c features.<name>=false\`]:FEATURE:_default' \
+'-h[Print help (see more with '\''--help'\'')]' \
+'--help[Print help (see more with '\''--help'\'')]' \
 && ret=0
 ;;
 (sandbox)
@@ -687,11 +884,15 @@ _arguments "${_arguments_options[@]}" : \
         case $line[1] in
             (macos)
 _arguments "${_arguments_options[@]}" : \
+'--permissions-profile=[Named permissions profile to apply from the active configuration stack]:NAME:_default' \
+'-C+[Working directory used for profile resolution and command execution]:DIR:_files' \
+'--cd=[Working directory used for profile resolution and command execution]:DIR:_files' \
+'*--allow-unix-socket=[Allow the sandboxed command to bind/connect AF_UNIX sockets rooted at this path. Relative paths are resolved against the current directory. Repeat to allow multiple paths]:ALLOW_UNIX_SOCKETS:_default' \
 '*-c+[Override a configuration value that would otherwise be loaded from \`~/.codex/config.toml\`. Use a dotted path (\`foo.bar.baz\`) to override nested values. The \`value\` portion is parsed as TOML. If it fails to parse as TOML, the raw string is used as a literal]:key=value:_default' \
 '*--config=[Override a configuration value that would otherwise be loaded from \`~/.codex/config.toml\`. Use a dotted path (\`foo.bar.baz\`) to override nested values. The \`value\` portion is parsed as TOML. If it fails to parse as TOML, the raw string is used as a literal]:key=value:_default' \
 '*--enable=[Enable a feature (repeatable). Equivalent to \`-c features.<name>=true\`]:FEATURE:_default' \
 '*--disable=[Disable a feature (repeatable). Equivalent to \`-c features.<name>=false\`]:FEATURE:_default' \
-'--full-auto[Convenience alias for low-friction sandboxed automatic execution (network-disabled sandbox that can write to cwd and TMPDIR)]' \
+'--include-managed-config[Include managed requirements while resolving an explicit permissions profile]' \
 '--log-denials[While the command runs, capture macOS sandbox denials via \`log stream\` and print them after exit]' \
 '-h[Print help (see more with '\''--help'\'')]' \
 '--help[Print help (see more with '\''--help'\'')]' \
@@ -700,11 +901,15 @@ _arguments "${_arguments_options[@]}" : \
 ;;
 (seatbelt)
 _arguments "${_arguments_options[@]}" : \
+'--permissions-profile=[Named permissions profile to apply from the active configuration stack]:NAME:_default' \
+'-C+[Working directory used for profile resolution and command execution]:DIR:_files' \
+'--cd=[Working directory used for profile resolution and command execution]:DIR:_files' \
+'*--allow-unix-socket=[Allow the sandboxed command to bind/connect AF_UNIX sockets rooted at this path. Relative paths are resolved against the current directory. Repeat to allow multiple paths]:ALLOW_UNIX_SOCKETS:_default' \
 '*-c+[Override a configuration value that would otherwise be loaded from \`~/.codex/config.toml\`. Use a dotted path (\`foo.bar.baz\`) to override nested values. The \`value\` portion is parsed as TOML. If it fails to parse as TOML, the raw string is used as a literal]:key=value:_default' \
 '*--config=[Override a configuration value that would otherwise be loaded from \`~/.codex/config.toml\`. Use a dotted path (\`foo.bar.baz\`) to override nested values. The \`value\` portion is parsed as TOML. If it fails to parse as TOML, the raw string is used as a literal]:key=value:_default' \
 '*--enable=[Enable a feature (repeatable). Equivalent to \`-c features.<name>=true\`]:FEATURE:_default' \
 '*--disable=[Disable a feature (repeatable). Equivalent to \`-c features.<name>=false\`]:FEATURE:_default' \
-'--full-auto[Convenience alias for low-friction sandboxed automatic execution (network-disabled sandbox that can write to cwd and TMPDIR)]' \
+'--include-managed-config[Include managed requirements while resolving an explicit permissions profile]' \
 '--log-denials[While the command runs, capture macOS sandbox denials via \`log stream\` and print them after exit]' \
 '-h[Print help (see more with '\''--help'\'')]' \
 '--help[Print help (see more with '\''--help'\'')]' \
@@ -713,11 +918,14 @@ _arguments "${_arguments_options[@]}" : \
 ;;
 (linux)
 _arguments "${_arguments_options[@]}" : \
+'--permissions-profile=[Named permissions profile to apply from the active configuration stack]:NAME:_default' \
+'-C+[Working directory used for profile resolution and command execution]:DIR:_files' \
+'--cd=[Working directory used for profile resolution and command execution]:DIR:_files' \
 '*-c+[Override a configuration value that would otherwise be loaded from \`~/.codex/config.toml\`. Use a dotted path (\`foo.bar.baz\`) to override nested values. The \`value\` portion is parsed as TOML. If it fails to parse as TOML, the raw string is used as a literal]:key=value:_default' \
 '*--config=[Override a configuration value that would otherwise be loaded from \`~/.codex/config.toml\`. Use a dotted path (\`foo.bar.baz\`) to override nested values. The \`value\` portion is parsed as TOML. If it fails to parse as TOML, the raw string is used as a literal]:key=value:_default' \
 '*--enable=[Enable a feature (repeatable). Equivalent to \`-c features.<name>=true\`]:FEATURE:_default' \
 '*--disable=[Disable a feature (repeatable). Equivalent to \`-c features.<name>=false\`]:FEATURE:_default' \
-'--full-auto[Convenience alias for low-friction sandboxed automatic execution (network-disabled sandbox that can write to cwd and TMPDIR)]' \
+'--include-managed-config[Include managed requirements while resolving an explicit permissions profile]' \
 '-h[Print help (see more with '\''--help'\'')]' \
 '--help[Print help (see more with '\''--help'\'')]' \
 '*::command -- Full command args to run under the Linux sandbox:_default' \
@@ -725,11 +933,14 @@ _arguments "${_arguments_options[@]}" : \
 ;;
 (landlock)
 _arguments "${_arguments_options[@]}" : \
+'--permissions-profile=[Named permissions profile to apply from the active configuration stack]:NAME:_default' \
+'-C+[Working directory used for profile resolution and command execution]:DIR:_files' \
+'--cd=[Working directory used for profile resolution and command execution]:DIR:_files' \
 '*-c+[Override a configuration value that would otherwise be loaded from \`~/.codex/config.toml\`. Use a dotted path (\`foo.bar.baz\`) to override nested values. The \`value\` portion is parsed as TOML. If it fails to parse as TOML, the raw string is used as a literal]:key=value:_default' \
 '*--config=[Override a configuration value that would otherwise be loaded from \`~/.codex/config.toml\`. Use a dotted path (\`foo.bar.baz\`) to override nested values. The \`value\` portion is parsed as TOML. If it fails to parse as TOML, the raw string is used as a literal]:key=value:_default' \
 '*--enable=[Enable a feature (repeatable). Equivalent to \`-c features.<name>=true\`]:FEATURE:_default' \
 '*--disable=[Disable a feature (repeatable). Equivalent to \`-c features.<name>=false\`]:FEATURE:_default' \
-'--full-auto[Convenience alias for low-friction sandboxed automatic execution (network-disabled sandbox that can write to cwd and TMPDIR)]' \
+'--include-managed-config[Include managed requirements while resolving an explicit permissions profile]' \
 '-h[Print help (see more with '\''--help'\'')]' \
 '--help[Print help (see more with '\''--help'\'')]' \
 '*::command -- Full command args to run under the Linux sandbox:_default' \
@@ -737,11 +948,14 @@ _arguments "${_arguments_options[@]}" : \
 ;;
 (windows)
 _arguments "${_arguments_options[@]}" : \
+'--permissions-profile=[Named permissions profile to apply from the active configuration stack]:NAME:_default' \
+'-C+[Working directory used for profile resolution and command execution]:DIR:_files' \
+'--cd=[Working directory used for profile resolution and command execution]:DIR:_files' \
 '*-c+[Override a configuration value that would otherwise be loaded from \`~/.codex/config.toml\`. Use a dotted path (\`foo.bar.baz\`) to override nested values. The \`value\` portion is parsed as TOML. If it fails to parse as TOML, the raw string is used as a literal]:key=value:_default' \
 '*--config=[Override a configuration value that would otherwise be loaded from \`~/.codex/config.toml\`. Use a dotted path (\`foo.bar.baz\`) to override nested values. The \`value\` portion is parsed as TOML. If it fails to parse as TOML, the raw string is used as a literal]:key=value:_default' \
 '*--enable=[Enable a feature (repeatable). Equivalent to \`-c features.<name>=true\`]:FEATURE:_default' \
 '*--disable=[Disable a feature (repeatable). Equivalent to \`-c features.<name>=false\`]:FEATURE:_default' \
-'--full-auto[Convenience alias for low-friction sandboxed automatic execution (network-disabled sandbox that can write to cwd and TMPDIR)]' \
+'--include-managed-config[Include managed requirements while resolving an explicit permissions profile]' \
 '-h[Print help (see more with '\''--help'\'')]' \
 '--help[Print help (see more with '\''--help'\'')]' \
 '*::command -- Full command args to run under Windows restricted token sandbox:_default' \
@@ -801,7 +1015,18 @@ _arguments "${_arguments_options[@]}" : \
         (( CURRENT += 1 ))
         curcontext="${curcontext%:*:*}:codex-debug-command-$line[1]:"
         case $line[1] in
-            (app-server)
+            (models)
+_arguments "${_arguments_options[@]}" : \
+'*-c+[Override a configuration value that would otherwise be loaded from \`~/.codex/config.toml\`. Use a dotted path (\`foo.bar.baz\`) to override nested values. The \`value\` portion is parsed as TOML. If it fails to parse as TOML, the raw string is used as a literal]:key=value:_default' \
+'*--config=[Override a configuration value that would otherwise be loaded from \`~/.codex/config.toml\`. Use a dotted path (\`foo.bar.baz\`) to override nested values. The \`value\` portion is parsed as TOML. If it fails to parse as TOML, the raw string is used as a literal]:key=value:_default' \
+'*--enable=[Enable a feature (repeatable). Equivalent to \`-c features.<name>=true\`]:FEATURE:_default' \
+'*--disable=[Disable a feature (repeatable). Equivalent to \`-c features.<name>=false\`]:FEATURE:_default' \
+'--bundled[Skip refresh and dump only the bundled catalog shipped with this binary]' \
+'-h[Print help (see more with '\''--help'\'')]' \
+'--help[Print help (see more with '\''--help'\'')]' \
+&& ret=0
+;;
+(app-server)
 _arguments "${_arguments_options[@]}" : \
 '*-c+[Override a configuration value that would otherwise be loaded from \`~/.codex/config.toml\`. Use a dotted path (\`foo.bar.baz\`) to override nested values. The \`value\` portion is parsed as TOML. If it fails to parse as TOML, the raw string is used as a literal]:key=value:_default' \
 '*--config=[Override a configuration value that would otherwise be loaded from \`~/.codex/config.toml\`. Use a dotted path (\`foo.bar.baz\`) to override nested values. The \`value\` portion is parsed as TOML. If it fails to parse as TOML, the raw string is used as a literal]:key=value:_default' \
@@ -858,6 +1083,32 @@ esac
     ;;
 esac
 ;;
+(prompt-input)
+_arguments "${_arguments_options[@]}" : \
+'*-i+[Optional image(s) to attach to the user prompt]:FILE:_files' \
+'*--image=[Optional image(s) to attach to the user prompt]:FILE:_files' \
+'*-c+[Override a configuration value that would otherwise be loaded from \`~/.codex/config.toml\`. Use a dotted path (\`foo.bar.baz\`) to override nested values. The \`value\` portion is parsed as TOML. If it fails to parse as TOML, the raw string is used as a literal]:key=value:_default' \
+'*--config=[Override a configuration value that would otherwise be loaded from \`~/.codex/config.toml\`. Use a dotted path (\`foo.bar.baz\`) to override nested values. The \`value\` portion is parsed as TOML. If it fails to parse as TOML, the raw string is used as a literal]:key=value:_default' \
+'*--enable=[Enable a feature (repeatable). Equivalent to \`-c features.<name>=true\`]:FEATURE:_default' \
+'*--disable=[Disable a feature (repeatable). Equivalent to \`-c features.<name>=false\`]:FEATURE:_default' \
+'-h[Print help (see more with '\''--help'\'')]' \
+'--help[Print help (see more with '\''--help'\'')]' \
+'::prompt -- Optional user prompt to append after session context:_default' \
+&& ret=0
+;;
+(trace-reduce)
+_arguments "${_arguments_options[@]}" : \
+'-o+[Output path for reduced RolloutTrace JSON. Defaults to TRACE_BUNDLE/state.json]:FILE:_files' \
+'--output=[Output path for reduced RolloutTrace JSON. Defaults to TRACE_BUNDLE/state.json]:FILE:_files' \
+'*-c+[Override a configuration value that would otherwise be loaded from \`~/.codex/config.toml\`. Use a dotted path (\`foo.bar.baz\`) to override nested values. The \`value\` portion is parsed as TOML. If it fails to parse as TOML, the raw string is used as a literal]:key=value:_default' \
+'*--config=[Override a configuration value that would otherwise be loaded from \`~/.codex/config.toml\`. Use a dotted path (\`foo.bar.baz\`) to override nested values. The \`value\` portion is parsed as TOML. If it fails to parse as TOML, the raw string is used as a literal]:key=value:_default' \
+'*--enable=[Enable a feature (repeatable). Equivalent to \`-c features.<name>=true\`]:FEATURE:_default' \
+'*--disable=[Disable a feature (repeatable). Equivalent to \`-c features.<name>=false\`]:FEATURE:_default' \
+'-h[Print help (see more with '\''--help'\'')]' \
+'--help[Print help (see more with '\''--help'\'')]' \
+':trace_bundle -- Trace bundle directory containing manifest.json and trace.jsonl:_files' \
+&& ret=0
+;;
 (clear-memories)
 _arguments "${_arguments_options[@]}" : \
 '*-c+[Override a configuration value that would otherwise be loaded from \`~/.codex/config.toml\`. Use a dotted path (\`foo.bar.baz\`) to override nested values. The \`value\` portion is parsed as TOML. If it fails to parse as TOML, the raw string is used as a literal]:key=value:_default' \
@@ -880,7 +1131,11 @@ _arguments "${_arguments_options[@]}" : \
         (( CURRENT += 1 ))
         curcontext="${curcontext%:*:*}:codex-debug-help-command-$line[1]:"
         case $line[1] in
-            (app-server)
+            (models)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(app-server)
 _arguments "${_arguments_options[@]}" : \
 ":: :_codex__debug__help__app-server_commands" \
 "*::: :->app-server" \
@@ -899,6 +1154,14 @@ _arguments "${_arguments_options[@]}" : \
         esac
     ;;
 esac
+;;
+(prompt-input)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(trace-reduce)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
 ;;
 (clear-memories)
 _arguments "${_arguments_options[@]}" : \
@@ -1012,6 +1275,9 @@ _arguments "${_arguments_options[@]}" : \
 '--profile=[Configuration profile from config.toml to specify default options]:CONFIG_PROFILE:_default' \
 '-s+[Select the sandbox policy to use when executing model-generated shell commands]:SANDBOX_MODE:(read-only workspace-write danger-full-access)' \
 '--sandbox=[Select the sandbox policy to use when executing model-generated shell commands]:SANDBOX_MODE:(read-only workspace-write danger-full-access)' \
+'-C+[Tell the agent to use the specified directory as its working root]:DIR:_files' \
+'--cd=[Tell the agent to use the specified directory as its working root]:DIR:_files' \
+'*--add-dir=[Additional directories that should be writable alongside the primary workspace]:DIR:_files -/' \
 '-a+[Configure when the model requires human approval before executing a command]:APPROVAL_POLICY:((untrusted\:"Only run "trusted" commands (e.g. ls, cat, sed) without asking for user approval. Will escalate to the user if the model proposes a command that is not in the "trusted" set"
 on-failure\:"DEPRECATED\: Run all commands without asking for user approval. Only asks for approval if a command fails to execute, in which case it will escalate to the user to ask for un-sandboxed execution. Prefer \`on-request\` for interactive runs or \`never\` for non-interactive runs"
 on-request\:"The model decides when to ask the user for approval"
@@ -1020,9 +1286,6 @@ never\:"Never ask for user approval Execution failures are immediately returned 
 on-failure\:"DEPRECATED\: Run all commands without asking for user approval. Only asks for approval if a command fails to execute, in which case it will escalate to the user to ask for un-sandboxed execution. Prefer \`on-request\` for interactive runs or \`never\` for non-interactive runs"
 on-request\:"The model decides when to ask the user for approval"
 never\:"Never ask for user approval Execution failures are immediately returned to the model"))' \
-'-C+[Tell the agent to use the specified directory as its working root]:DIR:_files' \
-'--cd=[Tell the agent to use the specified directory as its working root]:DIR:_files' \
-'*--add-dir=[Additional directories that should be writable alongside the primary workspace]:DIR:_files -/' \
 '*-c+[Override a configuration value that would otherwise be loaded from \`~/.codex/config.toml\`. Use a dotted path (\`foo.bar.baz\`) to override nested values. The \`value\` portion is parsed as TOML. If it fails to parse as TOML, the raw string is used as a literal]:key=value:_default' \
 '*--config=[Override a configuration value that would otherwise be loaded from \`~/.codex/config.toml\`. Use a dotted path (\`foo.bar.baz\`) to override nested values. The \`value\` portion is parsed as TOML. If it fails to parse as TOML, the raw string is used as a literal]:key=value:_default' \
 '*--enable=[Enable a feature (repeatable). Equivalent to \`-c features.<name>=true\`]:FEATURE:_default' \
@@ -1030,9 +1293,8 @@ never\:"Never ask for user approval Execution failures are immediately returned 
 '--last[Continue the most recent session without showing the picker]' \
 '--all[Show all sessions (disables cwd filtering and shows CWD column)]' \
 '--include-non-interactive[Include non-interactive sessions in the resume picker and --last selection]' \
-'--oss[Convenience flag to select the local open source model provider. Equivalent to -c model_provider=oss; verifies a local LM Studio or Ollama server is running]' \
-'--full-auto[Convenience alias for low-friction sandboxed automatic execution (-a on-request, --sandbox workspace-write)]' \
-'(-a --ask-for-approval --full-auto)--dangerously-bypass-approvals-and-sandbox[Skip all confirmation prompts and execute commands without sandboxing. EXTREMELY DANGEROUS. Intended solely for running in environments that are externally sandboxed]' \
+'--oss[Use open-source provider]' \
+'(-a --ask-for-approval)--dangerously-bypass-approvals-and-sandbox[Skip all confirmation prompts and execute commands without sandboxing. EXTREMELY DANGEROUS. Intended solely for running in environments that are externally sandboxed]' \
 '--search[Enable live web search. When enabled, the native Responses \`web_search\` tool is available to the model (no per‑call approval)]' \
 '--no-alt-screen[Disable alternate screen mode]' \
 '-h[Print help (see more with '\''--help'\'')]' \
@@ -1056,6 +1318,9 @@ _arguments "${_arguments_options[@]}" : \
 '--profile=[Configuration profile from config.toml to specify default options]:CONFIG_PROFILE:_default' \
 '-s+[Select the sandbox policy to use when executing model-generated shell commands]:SANDBOX_MODE:(read-only workspace-write danger-full-access)' \
 '--sandbox=[Select the sandbox policy to use when executing model-generated shell commands]:SANDBOX_MODE:(read-only workspace-write danger-full-access)' \
+'-C+[Tell the agent to use the specified directory as its working root]:DIR:_files' \
+'--cd=[Tell the agent to use the specified directory as its working root]:DIR:_files' \
+'*--add-dir=[Additional directories that should be writable alongside the primary workspace]:DIR:_files -/' \
 '-a+[Configure when the model requires human approval before executing a command]:APPROVAL_POLICY:((untrusted\:"Only run "trusted" commands (e.g. ls, cat, sed) without asking for user approval. Will escalate to the user if the model proposes a command that is not in the "trusted" set"
 on-failure\:"DEPRECATED\: Run all commands without asking for user approval. Only asks for approval if a command fails to execute, in which case it will escalate to the user to ask for un-sandboxed execution. Prefer \`on-request\` for interactive runs or \`never\` for non-interactive runs"
 on-request\:"The model decides when to ask the user for approval"
@@ -1064,18 +1329,14 @@ never\:"Never ask for user approval Execution failures are immediately returned 
 on-failure\:"DEPRECATED\: Run all commands without asking for user approval. Only asks for approval if a command fails to execute, in which case it will escalate to the user to ask for un-sandboxed execution. Prefer \`on-request\` for interactive runs or \`never\` for non-interactive runs"
 on-request\:"The model decides when to ask the user for approval"
 never\:"Never ask for user approval Execution failures are immediately returned to the model"))' \
-'-C+[Tell the agent to use the specified directory as its working root]:DIR:_files' \
-'--cd=[Tell the agent to use the specified directory as its working root]:DIR:_files' \
-'*--add-dir=[Additional directories that should be writable alongside the primary workspace]:DIR:_files -/' \
 '*-c+[Override a configuration value that would otherwise be loaded from \`~/.codex/config.toml\`. Use a dotted path (\`foo.bar.baz\`) to override nested values. The \`value\` portion is parsed as TOML. If it fails to parse as TOML, the raw string is used as a literal]:key=value:_default' \
 '*--config=[Override a configuration value that would otherwise be loaded from \`~/.codex/config.toml\`. Use a dotted path (\`foo.bar.baz\`) to override nested values. The \`value\` portion is parsed as TOML. If it fails to parse as TOML, the raw string is used as a literal]:key=value:_default' \
 '*--enable=[Enable a feature (repeatable). Equivalent to \`-c features.<name>=true\`]:FEATURE:_default' \
 '*--disable=[Disable a feature (repeatable). Equivalent to \`-c features.<name>=false\`]:FEATURE:_default' \
 '()--last[Fork the most recent session without showing the picker]' \
 '--all[Show all sessions (disables cwd filtering and shows CWD column)]' \
-'--oss[Convenience flag to select the local open source model provider. Equivalent to -c model_provider=oss; verifies a local LM Studio or Ollama server is running]' \
-'--full-auto[Convenience alias for low-friction sandboxed automatic execution (-a on-request, --sandbox workspace-write)]' \
-'(-a --ask-for-approval --full-auto)--dangerously-bypass-approvals-and-sandbox[Skip all confirmation prompts and execute commands without sandboxing. EXTREMELY DANGEROUS. Intended solely for running in environments that are externally sandboxed]' \
+'--oss[Use open-source provider]' \
+'(-a --ask-for-approval)--dangerously-bypass-approvals-and-sandbox[Skip all confirmation prompts and execute commands without sandboxing. EXTREMELY DANGEROUS. Intended solely for running in environments that are externally sandboxed]' \
 '--search[Enable live web search. When enabled, the native Responses \`web_search\` tool is available to the model (no per‑call approval)]' \
 '--no-alt-screen[Disable alternate screen mode]' \
 '-h[Print help (see more with '\''--help'\'')]' \
@@ -1218,6 +1479,7 @@ _arguments "${_arguments_options[@]}" : \
 '--port=[Port to listen on. If not set, an ephemeral port is used]:PORT:_default' \
 '--server-info=[Path to a JSON file to write startup info (single line). Includes {"port"\: <u16>}]:FILE:_files' \
 '--upstream-url=[Absolute URL the proxy should forward requests to (defaults to OpenAI)]:UPSTREAM_URL:_default' \
+'--dump-dir=[Directory where request/response dumps should be written as JSON]:DIR:_files' \
 '*-c+[Override a configuration value that would otherwise be loaded from \`~/.codex/config.toml\`. Use a dotted path (\`foo.bar.baz\`) to override nested values. The \`value\` portion is parsed as TOML. If it fails to parse as TOML, the raw string is used as a literal]:key=value:_default' \
 '*--config=[Override a configuration value that would otherwise be loaded from \`~/.codex/config.toml\`. Use a dotted path (\`foo.bar.baz\`) to override nested values. The \`value\` portion is parsed as TOML. If it fails to parse as TOML, the raw string is used as a literal]:key=value:_default' \
 '*--enable=[Enable a feature (repeatable). Equivalent to \`-c features.<name>=true\`]:FEATURE:_default' \
@@ -1235,7 +1497,18 @@ _arguments "${_arguments_options[@]}" : \
 '*--disable=[Disable a feature (repeatable). Equivalent to \`-c features.<name>=false\`]:FEATURE:_default' \
 '-h[Print help (see more with '\''--help'\'')]' \
 '--help[Print help (see more with '\''--help'\'')]' \
-':socket_path -- Path to the Unix domain socket to connect to:_files' \
+':socket_path -- Path to the Unix domain socket to connect to:_default' \
+&& ret=0
+;;
+(exec-server)
+_arguments "${_arguments_options[@]}" : \
+'--listen=[Transport endpoint URL. Supported values\: \`ws\://IP\:PORT\` (default)]:URL:_default' \
+'*-c+[Override a configuration value that would otherwise be loaded from \`~/.codex/config.toml\`. Use a dotted path (\`foo.bar.baz\`) to override nested values. The \`value\` portion is parsed as TOML. If it fails to parse as TOML, the raw string is used as a literal]:key=value:_default' \
+'*--config=[Override a configuration value that would otherwise be loaded from \`~/.codex/config.toml\`. Use a dotted path (\`foo.bar.baz\`) to override nested values. The \`value\` portion is parsed as TOML. If it fails to parse as TOML, the raw string is used as a literal]:key=value:_default' \
+'*--enable=[Enable a feature (repeatable). Equivalent to \`-c features.<name>=true\`]:FEATURE:_default' \
+'*--disable=[Disable a feature (repeatable). Equivalent to \`-c features.<name>=false\`]:FEATURE:_default' \
+'-h[Print help (see more with '\''--help'\'')]' \
+'--help[Print help (see more with '\''--help'\'')]' \
 && ret=0
 ;;
 (features)
@@ -1428,6 +1701,50 @@ _arguments "${_arguments_options[@]}" : \
     ;;
 esac
 ;;
+(plugin)
+_arguments "${_arguments_options[@]}" : \
+":: :_codex__help__plugin_commands" \
+"*::: :->plugin" \
+&& ret=0
+
+    case $state in
+    (plugin)
+        words=($line[1] "${words[@]}")
+        (( CURRENT += 1 ))
+        curcontext="${curcontext%:*:*}:codex-help-plugin-command-$line[1]:"
+        case $line[1] in
+            (marketplace)
+_arguments "${_arguments_options[@]}" : \
+":: :_codex__help__plugin__marketplace_commands" \
+"*::: :->marketplace" \
+&& ret=0
+
+    case $state in
+    (marketplace)
+        words=($line[1] "${words[@]}")
+        (( CURRENT += 1 ))
+        curcontext="${curcontext%:*:*}:codex-help-plugin-marketplace-command-$line[1]:"
+        case $line[1] in
+            (add)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(upgrade)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(remove)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+        esac
+    ;;
+esac
+;;
+        esac
+    ;;
+esac
+;;
 (mcp-server)
 _arguments "${_arguments_options[@]}" : \
 && ret=0
@@ -1444,7 +1761,11 @@ _arguments "${_arguments_options[@]}" : \
         (( CURRENT += 1 ))
         curcontext="${curcontext%:*:*}:codex-help-app-server-command-$line[1]:"
         case $line[1] in
-            (generate-ts)
+            (proxy)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(generate-ts)
 _arguments "${_arguments_options[@]}" : \
 && ret=0
 ;;
@@ -1465,6 +1786,10 @@ _arguments "${_arguments_options[@]}" : \
 && ret=0
 ;;
 (completion)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(update)
 _arguments "${_arguments_options[@]}" : \
 && ret=0
 ;;
@@ -1508,7 +1833,11 @@ _arguments "${_arguments_options[@]}" : \
         (( CURRENT += 1 ))
         curcontext="${curcontext%:*:*}:codex-help-debug-command-$line[1]:"
         case $line[1] in
-            (app-server)
+            (models)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(app-server)
 _arguments "${_arguments_options[@]}" : \
 ":: :_codex__help__debug__app-server_commands" \
 "*::: :->app-server" \
@@ -1527,6 +1856,14 @@ _arguments "${_arguments_options[@]}" : \
         esac
     ;;
 esac
+;;
+(prompt-input)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(trace-reduce)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
 ;;
 (clear-memories)
 _arguments "${_arguments_options[@]}" : \
@@ -1612,6 +1949,10 @@ _arguments "${_arguments_options[@]}" : \
 _arguments "${_arguments_options[@]}" : \
 && ret=0
 ;;
+(exec-server)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
 (features)
 _arguments "${_arguments_options[@]}" : \
 ":: :_codex__help__features_commands" \
@@ -1662,10 +2003,12 @@ _codex_commands() {
 'login:Manage login' \
 'logout:Remove stored authentication credentials' \
 'mcp:Manage external MCP servers for Codex' \
+'plugin:Manage Codex plugins' \
 'mcp-server:Start Codex as an MCP server (stdio)' \
 'app-server:\[experimental\] Run the app server or related tooling' \
-'app:Launch the Codex desktop app (downloads the macOS installer if missing)' \
+'app:Launch the Codex desktop app (opens the app installer if missing)' \
 'completion:Generate shell completion scripts' \
+'update:Update Codex to the latest version' \
 'sandbox:Run commands within a Codex-provided sandbox' \
 'debug:Debugging tools' \
 'execpolicy:Execpolicy tooling' \
@@ -1676,6 +2019,7 @@ _codex_commands() {
 'cloud:\[EXPERIMENTAL\] Browse tasks from Codex Cloud and apply changes locally' \
 'responses-api-proxy:Internal\: run the responses API proxy' \
 'stdio-to-uds:Internal\: relay stdio to a Unix domain socket' \
+'exec-server:\[EXPERIMENTAL\] Run the standalone exec-server service' \
 'features:Inspect feature flags' \
 'help:Print this message or the help of the given subcommand(s)' \
     )
@@ -1689,6 +2033,7 @@ _codex__app_commands() {
 (( $+functions[_codex__app-server_commands] )) ||
 _codex__app-server_commands() {
     local commands; commands=(
+'proxy:Proxy stdio bytes to the running app-server control socket' \
 'generate-ts:\[experimental\] Generate TypeScript bindings for the app server protocol' \
 'generate-json-schema:\[experimental\] Generate JSON Schema for the app server protocol' \
 'generate-internal-json-schema:\[internal\] Generate internal JSON Schema artifacts for Codex tooling' \
@@ -1714,6 +2059,7 @@ _codex__app-server__generate-ts_commands() {
 (( $+functions[_codex__app-server__help_commands] )) ||
 _codex__app-server__help_commands() {
     local commands; commands=(
+'proxy:Proxy stdio bytes to the running app-server control socket' \
 'generate-ts:\[experimental\] Generate TypeScript bindings for the app server protocol' \
 'generate-json-schema:\[experimental\] Generate JSON Schema for the app server protocol' \
 'generate-internal-json-schema:\[internal\] Generate internal JSON Schema artifacts for Codex tooling' \
@@ -1740,6 +2086,16 @@ _codex__app-server__help__generate-ts_commands() {
 _codex__app-server__help__help_commands() {
     local commands; commands=()
     _describe -t commands 'codex app-server help help commands' commands "$@"
+}
+(( $+functions[_codex__app-server__help__proxy_commands] )) ||
+_codex__app-server__help__proxy_commands() {
+    local commands; commands=()
+    _describe -t commands 'codex app-server help proxy commands' commands "$@"
+}
+(( $+functions[_codex__app-server__proxy_commands] )) ||
+_codex__app-server__proxy_commands() {
+    local commands; commands=()
+    _describe -t commands 'codex app-server proxy commands' commands "$@"
 }
 (( $+functions[_codex__apply_commands] )) ||
 _codex__apply_commands() {
@@ -1833,7 +2189,10 @@ _codex__completion_commands() {
 (( $+functions[_codex__debug_commands] )) ||
 _codex__debug_commands() {
     local commands; commands=(
+'models:Render the raw model catalog as JSON' \
 'app-server:Tooling\: helps debug the app server' \
+'prompt-input:Render the model-visible prompt input list as JSON' \
+'trace-reduce:Replay a rollout trace bundle and write reduced state JSON' \
 'clear-memories:Internal\: reset local memory state for a fresh start' \
 'help:Print this message or the help of the given subcommand(s)' \
     )
@@ -1878,7 +2237,10 @@ _codex__debug__clear-memories_commands() {
 (( $+functions[_codex__debug__help_commands] )) ||
 _codex__debug__help_commands() {
     local commands; commands=(
+'models:Render the raw model catalog as JSON' \
 'app-server:Tooling\: helps debug the app server' \
+'prompt-input:Render the model-visible prompt input list as JSON' \
+'trace-reduce:Replay a rollout trace bundle and write reduced state JSON' \
 'clear-memories:Internal\: reset local memory state for a fresh start' \
 'help:Print this message or the help of the given subcommand(s)' \
     )
@@ -1905,6 +2267,36 @@ _codex__debug__help__clear-memories_commands() {
 _codex__debug__help__help_commands() {
     local commands; commands=()
     _describe -t commands 'codex debug help help commands' commands "$@"
+}
+(( $+functions[_codex__debug__help__models_commands] )) ||
+_codex__debug__help__models_commands() {
+    local commands; commands=()
+    _describe -t commands 'codex debug help models commands' commands "$@"
+}
+(( $+functions[_codex__debug__help__prompt-input_commands] )) ||
+_codex__debug__help__prompt-input_commands() {
+    local commands; commands=()
+    _describe -t commands 'codex debug help prompt-input commands' commands "$@"
+}
+(( $+functions[_codex__debug__help__trace-reduce_commands] )) ||
+_codex__debug__help__trace-reduce_commands() {
+    local commands; commands=()
+    _describe -t commands 'codex debug help trace-reduce commands' commands "$@"
+}
+(( $+functions[_codex__debug__models_commands] )) ||
+_codex__debug__models_commands() {
+    local commands; commands=()
+    _describe -t commands 'codex debug models commands' commands "$@"
+}
+(( $+functions[_codex__debug__prompt-input_commands] )) ||
+_codex__debug__prompt-input_commands() {
+    local commands; commands=()
+    _describe -t commands 'codex debug prompt-input commands' commands "$@"
+}
+(( $+functions[_codex__debug__trace-reduce_commands] )) ||
+_codex__debug__trace-reduce_commands() {
+    local commands; commands=()
+    _describe -t commands 'codex debug trace-reduce commands' commands "$@"
 }
 (( $+functions[_codex__exec_commands] )) ||
 _codex__exec_commands() {
@@ -1948,6 +2340,11 @@ _codex__exec__resume_commands() {
 _codex__exec__review_commands() {
     local commands; commands=()
     _describe -t commands 'codex exec review commands' commands "$@"
+}
+(( $+functions[_codex__exec-server_commands] )) ||
+_codex__exec-server_commands() {
+    local commands; commands=()
+    _describe -t commands 'codex exec-server commands' commands "$@"
 }
 (( $+functions[_codex__execpolicy_commands] )) ||
 _codex__execpolicy_commands() {
@@ -2048,10 +2445,12 @@ _codex__help_commands() {
 'login:Manage login' \
 'logout:Remove stored authentication credentials' \
 'mcp:Manage external MCP servers for Codex' \
+'plugin:Manage Codex plugins' \
 'mcp-server:Start Codex as an MCP server (stdio)' \
 'app-server:\[experimental\] Run the app server or related tooling' \
-'app:Launch the Codex desktop app (downloads the macOS installer if missing)' \
+'app:Launch the Codex desktop app (opens the app installer if missing)' \
 'completion:Generate shell completion scripts' \
+'update:Update Codex to the latest version' \
 'sandbox:Run commands within a Codex-provided sandbox' \
 'debug:Debugging tools' \
 'execpolicy:Execpolicy tooling' \
@@ -2061,6 +2460,7 @@ _codex__help_commands() {
 'cloud:\[EXPERIMENTAL\] Browse tasks from Codex Cloud and apply changes locally' \
 'responses-api-proxy:Internal\: run the responses API proxy' \
 'stdio-to-uds:Internal\: relay stdio to a Unix domain socket' \
+'exec-server:\[EXPERIMENTAL\] Run the standalone exec-server service' \
 'features:Inspect feature flags' \
 'help:Print this message or the help of the given subcommand(s)' \
     )
@@ -2074,6 +2474,7 @@ _codex__help__app_commands() {
 (( $+functions[_codex__help__app-server_commands] )) ||
 _codex__help__app-server_commands() {
     local commands; commands=(
+'proxy:Proxy stdio bytes to the running app-server control socket' \
 'generate-ts:\[experimental\] Generate TypeScript bindings for the app server protocol' \
 'generate-json-schema:\[experimental\] Generate JSON Schema for the app server protocol' \
 'generate-internal-json-schema:\[internal\] Generate internal JSON Schema artifacts for Codex tooling' \
@@ -2094,6 +2495,11 @@ _codex__help__app-server__generate-json-schema_commands() {
 _codex__help__app-server__generate-ts_commands() {
     local commands; commands=()
     _describe -t commands 'codex help app-server generate-ts commands' commands "$@"
+}
+(( $+functions[_codex__help__app-server__proxy_commands] )) ||
+_codex__help__app-server__proxy_commands() {
+    local commands; commands=()
+    _describe -t commands 'codex help app-server proxy commands' commands "$@"
 }
 (( $+functions[_codex__help__apply_commands] )) ||
 _codex__help__apply_commands() {
@@ -2144,7 +2550,10 @@ _codex__help__completion_commands() {
 (( $+functions[_codex__help__debug_commands] )) ||
 _codex__help__debug_commands() {
     local commands; commands=(
+'models:Render the raw model catalog as JSON' \
 'app-server:Tooling\: helps debug the app server' \
+'prompt-input:Render the model-visible prompt input list as JSON' \
+'trace-reduce:Replay a rollout trace bundle and write reduced state JSON' \
 'clear-memories:Internal\: reset local memory state for a fresh start' \
     )
     _describe -t commands 'codex help debug commands' commands "$@"
@@ -2166,6 +2575,21 @@ _codex__help__debug__clear-memories_commands() {
     local commands; commands=()
     _describe -t commands 'codex help debug clear-memories commands' commands "$@"
 }
+(( $+functions[_codex__help__debug__models_commands] )) ||
+_codex__help__debug__models_commands() {
+    local commands; commands=()
+    _describe -t commands 'codex help debug models commands' commands "$@"
+}
+(( $+functions[_codex__help__debug__prompt-input_commands] )) ||
+_codex__help__debug__prompt-input_commands() {
+    local commands; commands=()
+    _describe -t commands 'codex help debug prompt-input commands' commands "$@"
+}
+(( $+functions[_codex__help__debug__trace-reduce_commands] )) ||
+_codex__help__debug__trace-reduce_commands() {
+    local commands; commands=()
+    _describe -t commands 'codex help debug trace-reduce commands' commands "$@"
+}
 (( $+functions[_codex__help__exec_commands] )) ||
 _codex__help__exec_commands() {
     local commands; commands=(
@@ -2183,6 +2607,11 @@ _codex__help__exec__resume_commands() {
 _codex__help__exec__review_commands() {
     local commands; commands=()
     _describe -t commands 'codex help exec review commands' commands "$@"
+}
+(( $+functions[_codex__help__exec-server_commands] )) ||
+_codex__help__exec-server_commands() {
+    local commands; commands=()
+    _describe -t commands 'codex help exec-server commands' commands "$@"
 }
 (( $+functions[_codex__help__execpolicy_commands] )) ||
 _codex__help__execpolicy_commands() {
@@ -2294,6 +2723,37 @@ _codex__help__mcp-server_commands() {
     local commands; commands=()
     _describe -t commands 'codex help mcp-server commands' commands "$@"
 }
+(( $+functions[_codex__help__plugin_commands] )) ||
+_codex__help__plugin_commands() {
+    local commands; commands=(
+'marketplace:Manage plugin marketplaces for Codex' \
+    )
+    _describe -t commands 'codex help plugin commands' commands "$@"
+}
+(( $+functions[_codex__help__plugin__marketplace_commands] )) ||
+_codex__help__plugin__marketplace_commands() {
+    local commands; commands=(
+'add:' \
+'upgrade:' \
+'remove:' \
+    )
+    _describe -t commands 'codex help plugin marketplace commands' commands "$@"
+}
+(( $+functions[_codex__help__plugin__marketplace__add_commands] )) ||
+_codex__help__plugin__marketplace__add_commands() {
+    local commands; commands=()
+    _describe -t commands 'codex help plugin marketplace add commands' commands "$@"
+}
+(( $+functions[_codex__help__plugin__marketplace__remove_commands] )) ||
+_codex__help__plugin__marketplace__remove_commands() {
+    local commands; commands=()
+    _describe -t commands 'codex help plugin marketplace remove commands' commands "$@"
+}
+(( $+functions[_codex__help__plugin__marketplace__upgrade_commands] )) ||
+_codex__help__plugin__marketplace__upgrade_commands() {
+    local commands; commands=()
+    _describe -t commands 'codex help plugin marketplace upgrade commands' commands "$@"
+}
 (( $+functions[_codex__help__responses-api-proxy_commands] )) ||
 _codex__help__responses-api-proxy_commands() {
     local commands; commands=()
@@ -2337,6 +2797,11 @@ _codex__help__sandbox__windows_commands() {
 _codex__help__stdio-to-uds_commands() {
     local commands; commands=()
     _describe -t commands 'codex help stdio-to-uds commands' commands "$@"
+}
+(( $+functions[_codex__help__update_commands] )) ||
+_codex__help__update_commands() {
+    local commands; commands=()
+    _describe -t commands 'codex help update commands' commands "$@"
 }
 (( $+functions[_codex__login_commands] )) ||
 _codex__login_commands() {
@@ -2470,6 +2935,106 @@ _codex__mcp-server_commands() {
     local commands; commands=()
     _describe -t commands 'codex mcp-server commands' commands "$@"
 }
+(( $+functions[_codex__plugin_commands] )) ||
+_codex__plugin_commands() {
+    local commands; commands=(
+'marketplace:Manage plugin marketplaces for Codex' \
+'help:Print this message or the help of the given subcommand(s)' \
+    )
+    _describe -t commands 'codex plugin commands' commands "$@"
+}
+(( $+functions[_codex__plugin__help_commands] )) ||
+_codex__plugin__help_commands() {
+    local commands; commands=(
+'marketplace:Manage plugin marketplaces for Codex' \
+'help:Print this message or the help of the given subcommand(s)' \
+    )
+    _describe -t commands 'codex plugin help commands' commands "$@"
+}
+(( $+functions[_codex__plugin__help__help_commands] )) ||
+_codex__plugin__help__help_commands() {
+    local commands; commands=()
+    _describe -t commands 'codex plugin help help commands' commands "$@"
+}
+(( $+functions[_codex__plugin__help__marketplace_commands] )) ||
+_codex__plugin__help__marketplace_commands() {
+    local commands; commands=(
+'add:' \
+'upgrade:' \
+'remove:' \
+    )
+    _describe -t commands 'codex plugin help marketplace commands' commands "$@"
+}
+(( $+functions[_codex__plugin__help__marketplace__add_commands] )) ||
+_codex__plugin__help__marketplace__add_commands() {
+    local commands; commands=()
+    _describe -t commands 'codex plugin help marketplace add commands' commands "$@"
+}
+(( $+functions[_codex__plugin__help__marketplace__remove_commands] )) ||
+_codex__plugin__help__marketplace__remove_commands() {
+    local commands; commands=()
+    _describe -t commands 'codex plugin help marketplace remove commands' commands "$@"
+}
+(( $+functions[_codex__plugin__help__marketplace__upgrade_commands] )) ||
+_codex__plugin__help__marketplace__upgrade_commands() {
+    local commands; commands=()
+    _describe -t commands 'codex plugin help marketplace upgrade commands' commands "$@"
+}
+(( $+functions[_codex__plugin__marketplace_commands] )) ||
+_codex__plugin__marketplace_commands() {
+    local commands; commands=(
+'add:' \
+'upgrade:' \
+'remove:' \
+'help:Print this message or the help of the given subcommand(s)' \
+    )
+    _describe -t commands 'codex plugin marketplace commands' commands "$@"
+}
+(( $+functions[_codex__plugin__marketplace__add_commands] )) ||
+_codex__plugin__marketplace__add_commands() {
+    local commands; commands=()
+    _describe -t commands 'codex plugin marketplace add commands' commands "$@"
+}
+(( $+functions[_codex__plugin__marketplace__help_commands] )) ||
+_codex__plugin__marketplace__help_commands() {
+    local commands; commands=(
+'add:' \
+'upgrade:' \
+'remove:' \
+'help:Print this message or the help of the given subcommand(s)' \
+    )
+    _describe -t commands 'codex plugin marketplace help commands' commands "$@"
+}
+(( $+functions[_codex__plugin__marketplace__help__add_commands] )) ||
+_codex__plugin__marketplace__help__add_commands() {
+    local commands; commands=()
+    _describe -t commands 'codex plugin marketplace help add commands' commands "$@"
+}
+(( $+functions[_codex__plugin__marketplace__help__help_commands] )) ||
+_codex__plugin__marketplace__help__help_commands() {
+    local commands; commands=()
+    _describe -t commands 'codex plugin marketplace help help commands' commands "$@"
+}
+(( $+functions[_codex__plugin__marketplace__help__remove_commands] )) ||
+_codex__plugin__marketplace__help__remove_commands() {
+    local commands; commands=()
+    _describe -t commands 'codex plugin marketplace help remove commands' commands "$@"
+}
+(( $+functions[_codex__plugin__marketplace__help__upgrade_commands] )) ||
+_codex__plugin__marketplace__help__upgrade_commands() {
+    local commands; commands=()
+    _describe -t commands 'codex plugin marketplace help upgrade commands' commands "$@"
+}
+(( $+functions[_codex__plugin__marketplace__remove_commands] )) ||
+_codex__plugin__marketplace__remove_commands() {
+    local commands; commands=()
+    _describe -t commands 'codex plugin marketplace remove commands' commands "$@"
+}
+(( $+functions[_codex__plugin__marketplace__upgrade_commands] )) ||
+_codex__plugin__marketplace__upgrade_commands() {
+    local commands; commands=()
+    _describe -t commands 'codex plugin marketplace upgrade commands' commands "$@"
+}
 (( $+functions[_codex__responses-api-proxy_commands] )) ||
 _codex__responses-api-proxy_commands() {
     local commands; commands=()
@@ -2546,6 +3111,11 @@ _codex__sandbox__windows_commands() {
 _codex__stdio-to-uds_commands() {
     local commands; commands=()
     _describe -t commands 'codex stdio-to-uds commands' commands "$@"
+}
+(( $+functions[_codex__update_commands] )) ||
+_codex__update_commands() {
+    local commands; commands=()
+    _describe -t commands 'codex update commands' commands "$@"
 }
 
 if [ "$funcstack[1]" = "_codex" ]; then

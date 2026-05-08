@@ -114,7 +114,7 @@ alias codexm3='codexm --config="model_reasoning_effort=high"'
 alias codex4='codexd --config="model_reasoning_effort=xhigh"'
 alias codexm4='codexm --config="model_reasoning_effort=xhigh"'
 
-alias pig='pi --model google/gemini-3.1-pro-preview'
+alias pig='pi --model google/gemini-3.1-pro-preview-customtools'
 alias pigf='pi --model google/gemini-3-flash-preview'
 alias pio='pi --model anthropic/claude-opus-4.7'
 alias pis='pi --model anthropic/claude-sonnet-4.6'
@@ -125,6 +125,20 @@ alias pic5m='pi --model openai-codex/gpt-5.4-mini'
 alias pids4='pi --model openrouter/deepseek/deepseek-v4-pro'
 alias pids4f='pi --model openrouter/deepseek/deepseek-v4-flash'
 alias pim='pi --model openrouter/xiaomi/mimo-v2.5-pro'
+alias pigrok='pi --model openrouter/x-ai/grok-4.3'
+
+for _alias in ${(k)aliases[(I)pi*]}; do
+    [[ "${aliases[$_alias]}" == "pi "* ]] || continue
+    for _thinkinglevel in low medium high; do
+        alias "${_alias}${_thinkinglevel[1]}"="${_alias} --thinking ${_thinkinglevel}"
+    done
+done
+unset _alias _thinkinglevel
+
+for _alias in pio pic55 pic54; do
+    alias "${_alias}x"="${_alias} --thinking xhigh"
+done
+unset _alias
 
 function :gemini() {
 	local -a args_besides_prompt=()
@@ -502,9 +516,6 @@ function define_python_aliases(){
 	alias pyc="python3 -c"
 	alias ipy="ipython"
 
-	alias pipi="pip install"
-	alias pipl="pip list -v"
-	alias piplg="pip list -v | grep -i"
 
 }; define_python_aliases
 

@@ -26,5 +26,5 @@ function html2md(){
 #   --abort-on-error / --no-abort-on-error  Stop on first error
 #   --allow-external-plugins             Enable third-party plugins
 function pdf2md(){
-	uvx --with=docling docling --image-export-mode=placeholder --table-mode=fast --num-threads=8 "$@" --no-ocr
+  uvx --from docling-slim docling --image-export-mode=placeholder --table-mode=fast --num-threads=8 "$@" --no-ocr
 }

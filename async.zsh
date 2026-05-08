@@ -39,14 +39,15 @@ function spinner() {
 # Runs the command in the background of a subshell.
 # TODO: llm.agents does this differently and awesomely.
 function background() {
-  ($SHELL -ic "__(){ ${*} ; }; exec __" &)
+  # Note: we source ~/.zshrc instead of -i because -i messes up piping to less.
+  (zsh -c 'source ~/.zshrc; builtin cd "$1"; shift; "$@"' -- "$PWD" "${@}" & )
 }
 
 # # realasync <PROGRAM...> -- --notify
 # Launches a program in an independent process (nohup), quietly (1>/dev/null 2>&1).
 # Examples:
 # ```bash
-# realasync "sleep 1 ; notif.info hi"
+# realasync "sleep 1 -- --notify"
 # realasync notif.generic hi -t title
 # ```
 function realasync() {
@@ -80,7 +81,11 @@ function realasync() {
         fi
       ' > /dev/null 2>&1 &)
     else
-      (nohup zsh -c "source ~/.zshrc; builtin cd ${(qq)PWD}; ${args[1]}" > /dev/null 2>&1 &)
+      (nohup env REALASYNC_EXPR="${args[1]}" REALASYNC_CWD="$PWD" zsh -c '
+        source ~/.zshrc
+        builtin cd "$REALASYNC_CWD"
+        eval "$REALASYNC_EXPR"
+        ' > /dev/null 2>&1 &)
     fi
   else
     # Case B: command + arguments — canonical $@ passthrough.
