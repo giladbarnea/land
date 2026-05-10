@@ -61,7 +61,6 @@ hash -d llm="$HOME/Library/Application Support/io.datasette.llm"
 hash -d t="$HOME/Library/Application Support/io.datasette.llm/templates"
 hash -d ob="$HOME/Documents/remote"
 hash -d c="$HOME/.claude"
-hash -d cs="$HOME/.claude/skills"
 
 # ----------------------
 # *** Custom Aliases ***
@@ -71,7 +70,7 @@ alias c=command
 alias ca=cursor-agent
 alias oc=openclaw
 
-alias :claude='/usr/bin/env -u CLAUDE_CODE_OAUTH_TOKEN -u ANTHROPIC_API_KEY claude --dangerously-skip-permissions'
+alias :claude='/usr/bin/env -u CLAUDE_CODE_OAUTH_TOKEN -u ANTHROPIC_API_KEY claude --dangerously-skip-permissions --no-chrome --strict-mcp-config --plugin-dir /dev/null'
 compdef _claude :claude
 
 alias claudeo=':claude --model=opus'

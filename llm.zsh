@@ -2246,7 +2246,7 @@ function llm-commit-msg(){
 			return 0
 		}
 		notif.info "Aggregating into a single commit message..."
-    pi --model google/gemini-3-flash-preview --thinking medium --no-session --no-skills --no-prompt-templates --no-extensions <<< "$(cat "$tmp_file")"
+    pi --model google/gemini-3-flash-preview --thinking high --no-session --no-skills --no-prompt-templates --no-extensions <<< "$(cat "$tmp_file")"
 	else
 		if $two_pass; then
 			llm-what-changed --force-prompt "$llm_prompt" --2-pass HEAD -- "${diff_targets[@]}"

@@ -14,19 +14,26 @@ _claude() {
     '--allowedTools[Comma or space-separated list of tool names to allow]:tools:'
     '--allowed-tools[Comma or space-separated list of tool names to allow]:tools:'
     '--append-system-prompt[Append a system prompt to the default]:prompt:'
+    '--bare[Minimal mode: skip hooks, LSP, plugin sync, etc.]'
     '--betas[Beta headers to include in API requests]:betas:'
+    '--brief[Enable SendUserMessage tool for agent-to-user communication]'
     '--chrome[Enable Claude in Chrome integration]'
     '(-c --continue)'{-c,--continue}'[Continue the most recent conversation in the current directory]'
     '--dangerously-skip-permissions[Bypass all permission checks]'
     '(-d --debug)'{-d,--debug}'[Enable debug mode with optional category filtering]:filter:'
+    '--debug-file[Write debug logs to a specific file path]:path:_files'
     '--disable-slash-commands[Disable all skills]'
     '--disallowedTools[Comma or space-separated list of tool names to deny]:tools:'
     '--disallowed-tools[Comma or space-separated list of tool names to deny]:tools:'
+    '--effort[Effort level for the current session]:level:(low medium high xhigh max)'
+    '--exclude-dynamic-system-prompt-sections[Move per-machine sections into the first user message]'
     '--fallback-model[Enable automatic fallback to specified model]:model:(sonnet opus haiku)'
     '--file[File resources to download at startup]:specs:'
     '--fork-session[Create a new session ID when resuming]'
+    '--from-pr[Resume a session linked to a PR by PR number/URL]:value:'
     '(-h --help)'{-h,--help}'[Display help for command]'
     '--ide[Automatically connect to IDE on startup]'
+    '--include-hook-events[Include all hook lifecycle events in the output stream]'
     '--include-partial-messages[Include partial message chunks as they arrive]'
     '--input-format[Input format]:format:(text stream-json)'
     '--json-schema[JSON Schema for structured output validation]:schema:'
@@ -34,12 +41,14 @@ _claude() {
     '--mcp-config[Load MCP servers from JSON files or strings]:configs:'
     '--mcp-debug[Enable MCP debug mode]'
     '--model[Model for the current session]:model:(sonnet opus haiku)'
+    '(-n --name)'{-n,--name}'[Set a display name for this session]:name:'
     '--no-chrome[Disable Claude in Chrome integration]'
     '--no-session-persistence[Disable session persistence]'
     '--output-format[Output format]:format:(text json stream-json)'
     '--permission-mode[Permission mode to use for the session]:mode:(acceptEdits bypassPermissions default delegate dontAsk plan)'
     '--plugin-dir[Load plugins from directories for this session only]:path:_files -/'
     '(-p --print)'{-p,--print}'[Print response and exit]'
+    '--remote-control-session-name-prefix[Prefix for auto-generated Remote Control session names]:prefix:'
     '--replay-user-messages[Re-emit user messages from stdin]'
     '(-r --resume)'{-r,--resume}'[Resume a conversation by session ID]:value:'
     '--session-id[Use a specific session ID]:uuid:'
@@ -47,18 +56,27 @@ _claude() {
     '--settings[Path to a settings JSON file or a JSON string]:file-or-json:_files'
     '--strict-mcp-config[Only use MCP servers from --mcp-config]'
     '--system-prompt[System prompt to use for the session]:prompt:'
+    '--tmux[Create a tmux session for the worktree]'
     '--tools[Specify the list of available tools]:tools:'
     '--verbose[Override verbose mode setting from config]'
     '(-v --version)'{-v,--version}'[Output the version number]'
+    '(-w --worktree)'{-w,--worktree}'[Create a new git worktree for this session]:name:'
   )
 
   local -a subcommands=(
+    'agents:Manage background and configured agents'
+    'auth:Manage authentication'
+    'auto-mode:Inspect auto mode classifier configuration'
     'doctor:Check the health of your Claude Code auto-updater'
     'install:Install Claude Code native build'
     'mcp:Configure and manage MCP servers'
     'plugin:Manage Claude Code plugins'
+    'plugins:Manage Claude Code plugins'
+    'project:Manage Claude Code project state'
     'setup-token:Set up a long-lived authentication token'
+    'ultrareview:Run a cloud-hosted multi-agent code review'
     'update:Check for updates and install if available'
+    'upgrade:Check for updates and install if available'
   )
 
   _arguments -C \
@@ -68,10 +86,24 @@ _claude() {
 
   case $state in
     (subcommand)
-      _describe -t subcommands 'claude subcommands' subcommands && ret=0
+      if (( CURRENT == 1 )); then
+        _describe -t subcommands 'claude subcommands' subcommands && ret=0
+      fi
       ;;
     (args)
       case "${words[1]}" in
+        (agents)
+          _claude:agents
+          ret=$?
+          ;;
+        (auth)
+          _claude:auth
+          ret=$?
+          ;;
+        (auto-mode)
+          _claude:auto-mode
+          ret=$?
+          ;;
         (doctor)
           _message "no arguments"
           ret=0
@@ -84,15 +116,23 @@ _claude() {
           _claude:mcp
           ret=$?
           ;;
-        (plugin)
+        (plugin|plugins)
           _claude:plugin
+          ret=$?
+          ;;
+        (project)
+          _claude:project
           ret=$?
           ;;
         (setup-token)
           _arguments \
             '(-h --help)'{-h,--help}'[Display help for command]' && ret=0
           ;;
-        (update)
+        (ultrareview)
+          _claude:ultrareview
+          ret=$?
+          ;;
+        (update|upgrade)
           _arguments \
             '(-h --help)'{-h,--help}'[Display help for command]' && ret=0
           ;;
@@ -132,7 +172,9 @@ _claude:mcp() {
 
   case ${state} in
     (mcp_subcommand)
-      _describe -t subcommands 'mcp subcommands' mcp_subcommands && ret=0
+      if (( CURRENT == 1 )); then
+        _describe -t subcommands 'mcp subcommands' mcp_subcommands && ret=0
+      fi
       ;;
     (mcp_args)
       case ${words[1]} in
@@ -189,14 +231,18 @@ _claude:mcp() {
 
 _claude:plugin() {
   local -a plugin_subcommands=(
+    'autoremove:Remove auto-installed dependencies that are no longer needed'
     'disable:Disable an enabled plugin'
     'enable:Enable a disabled plugin'
-    'install:Install a plugin from available marketplaces'
+    'help:display help for command'
     'i:Install a plugin from available marketplaces'
+    'install:Install a plugin from available marketplaces'
     'list:List installed plugins'
     'marketplace:Manage Claude Code marketplaces'
-    'uninstall:Uninstall an installed plugin'
+    'prune:Remove auto-installed dependencies that are no longer needed'
     'remove:Uninstall an installed plugin'
+    'tag:Create a git tag for a plugin release'
+    'uninstall:Uninstall an installed plugin'
     'update:Update a plugin to the latest version'
     'validate:Validate a plugin or marketplace manifest'
   )
@@ -207,7 +253,9 @@ _claude:plugin() {
 
   case ${state} in
     (plugin_subcommand)
-      _describe -t subcommands 'plugin subcommands' plugin_subcommands && ret=0
+      if (( CURRENT == 1 )); then
+        _describe -t subcommands 'plugin subcommands' plugin_subcommands && ret=0
+      fi
       ;;
     (plugin_args)
       case ${words[1]} in
@@ -236,8 +284,26 @@ _claude:plugin() {
         (uninstall|remove)
           _arguments \
             '(-h --help)'{-h,--help}'[Display help for command]' \
+            '--keep-data[Preserve the plugin persistent data directory]' \
+            '--prune[Also remove auto-installed dependencies that are no longer needed]' \
             '(-s --scope)'{-s,--scope}'[Uninstall from scope]:scope:(user project local)' \
+            '(-y --yes)'{-y,--yes}'[Skip the --prune confirmation prompt]' \
             '1:plugin:' && ret=0
+          ;;
+        (prune|autoremove)
+          _arguments \
+            '--dry-run[List what would be removed without removing]' \
+            '(-h --help)'{-h,--help}'[Display help for command]' \
+            '(-s --scope)'{-s,--scope}'[Prune at scope]:scope:(user project local)' \
+            '(-y --yes)'{-y,--yes}'[Skip the confirmation prompt]' && ret=0
+          ;;
+        (tag)
+          _arguments \
+            '(-h --help)'{-h,--help}'[Display help for command]' \
+            '1:path:_files -/' && ret=0
+          ;;
+        (help)
+          _describe -t subcommands 'plugin subcommands' plugin_subcommands && ret=0
           ;;
         (update)
           _arguments \
@@ -274,7 +340,9 @@ _claude:plugin:marketplace() {
 
   case ${state} in
     (marketplace_subcommand)
-      _describe -t subcommands 'marketplace subcommands' marketplace_subcommands && ret=0
+      if (( CURRENT == 1 )); then
+        _describe -t subcommands 'marketplace subcommands' marketplace_subcommands && ret=0
+      fi
       ;;
     (marketplace_args)
       case ${words[1]} in
@@ -307,6 +375,140 @@ _claude:plugin:marketplace() {
       esac
       ;;
   esac
+}
+
+_claude:agents() {
+  _arguments \
+    '(-h --help)'{-h,--help}'[Display help for command]' \
+    '--setting-sources[Comma-separated list of setting sources to load]:sources:' && return 0
+}
+
+_claude:auth() {
+  local -a auth_subcommands=(
+    'help:display help for command'
+    'login:Sign in to your Anthropic account'
+    'logout:Log out from your Anthropic account'
+    'status:Show authentication status'
+  )
+
+  _arguments -C \
+    '1: :->auth_subcommand' \
+    '*:: :->auth_args' && ret=0
+
+  case ${state} in
+    (auth_subcommand)
+      if (( CURRENT == 1 )); then
+        _describe -t subcommands 'auth subcommands' auth_subcommands && ret=0
+      fi
+      ;;
+    (auth_args)
+      case ${words[1]} in
+        (login)
+          _arguments \
+            '(-h --help)'{-h,--help}'[Display help for command]' && ret=0
+          ;;
+        (logout)
+          _arguments \
+            '(-h --help)'{-h,--help}'[Display help for command]' && ret=0
+          ;;
+        (status)
+          _arguments \
+            '(-h --help)'{-h,--help}'[Display help for command]' && ret=0
+          ;;
+        (help)
+          _describe -t subcommands 'auth subcommands' auth_subcommands && ret=0
+          ;;
+        (*)
+          _message "argument for ${words[1]}"
+          ;;
+      esac
+      ;;
+  esac
+}
+
+_claude:auto-mode() {
+  local -a auto_mode_subcommands=(
+    'config:Print the effective auto mode config as JSON'
+    'critique:Get AI feedback on your custom auto mode rules'
+    'defaults:Print the default auto mode environment, allow, and deny rules as JSON'
+    'help:display help for command'
+  )
+
+  _arguments -C \
+    '1: :->auto_mode_subcommand' \
+    '*:: :->auto_mode_args' && ret=0
+
+  case ${state} in
+    (auto_mode_subcommand)
+      if (( CURRENT == 1 )); then
+        _describe -t subcommands 'auto-mode subcommands' auto_mode_subcommands && ret=0
+      fi
+      ;;
+    (auto_mode_args)
+      case ${words[1]} in
+        (config)
+          _arguments \
+            '(-h --help)'{-h,--help}'[Display help for command]' && ret=0
+          ;;
+        (critique)
+          _arguments \
+            '(-h --help)'{-h,--help}'[Display help for command]' && ret=0
+          ;;
+        (defaults)
+          _arguments \
+            '(-h --help)'{-h,--help}'[Display help for command]' && ret=0
+          ;;
+        (help)
+          _describe -t subcommands 'auto-mode subcommands' auto_mode_subcommands && ret=0
+          ;;
+        (*)
+          _message "argument for ${words[1]}"
+          ;;
+      esac
+      ;;
+  esac
+}
+
+_claude:project() {
+  local -a project_subcommands=(
+    'help:display help for command'
+    'purge:Delete all Claude Code state for a project'
+  )
+
+  _arguments -C \
+    '1: :->project_subcommand' \
+    '*:: :->project_args' && ret=0
+
+  case ${state} in
+    (project_subcommand)
+      if (( CURRENT == 1 )); then
+        _describe -t subcommands 'project subcommands' project_subcommands && ret=0
+      fi
+      ;;
+    (project_args)
+      case ${words[1]} in
+        (purge)
+          _arguments \
+            '(-h --help)'{-h,--help}'[Display help for command]' \
+            '1:path:_files -/' && ret=0
+          ;;
+        (help)
+          _describe -t subcommands 'project subcommands' project_subcommands && ret=0
+          ;;
+        (*)
+          _message "argument for ${words[1]}"
+          ;;
+      esac
+      ;;
+  esac
+}
+
+_claude:ultrareview() {
+  _arguments \
+    '(-h --help)'{-h,--help}'[Display help for command]' \
+    '--json[Print the raw bugs.json payload instead of formatted findings]' \
+    '--timeout[Maximum minutes to wait for the review to finish]:minutes:' \
+    '1:target:' && return 0
 }
 
 if [ "${funcstack[1]}" = "_claude" ]; then
