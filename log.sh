@@ -21,25 +21,39 @@ declare -A LEVELS_COLORS=(
 )
 
 # # _get_caller [OFFSET=3]
-function _get_caller(){
-	# There's also these: funcfiletrace, functsourcetrace
-	local offset
-	# Assuming myfn (3) called `log.debug` (2) which called `log` (1) which called `_get_caller` (0)
-	if [[ -n "$1" ]]; then
-		offset="$1"
-	elif [[ -n "$LOG_TRACE_OFFSET" ]]; then
-		offset="$LOG_TRACE_OFFSET"
-	else
-		offset=3
-	fi
-	# shellcheck disable=SC2154
-	local fn_and_linenum="${functrace[$offset]}"
-	# local caller_fn="$(echo "$fn_and_linenum" | cut -d : -f 1)"
-	# local linenum="$(echo "$fn_and_linenum" | cut -d : -f 2)"
-	# echo -n "${caller_fn}():${linenum}"
-	printf "%s" "${fn_and_linenum}"
-	[[ -n "${fn_and_linenum}" ]]
-}
+if [[ -n "$ZSH_VERSION" ]]; then
+	function _get_caller(){
+		# There's also these: funcfiletrace, functsourcetrace
+		local offset
+		# Assuming myfn (3) called `log.debug` (2) which called `log` (1) which called `_get_caller` (0)
+		if [[ -n "$1" ]]; then
+			offset="$1"
+		elif [[ -n "$LOG_TRACE_OFFSET" ]]; then
+			offset="$LOG_TRACE_OFFSET"
+		else
+			offset=3
+		fi
+		# shellcheck disable=SC2154
+		local fn_and_linenum="${functrace[$offset]}"
+		printf "%s" "${fn_and_linenum}"
+		[[ -n "${fn_and_linenum}" ]]
+	}
+else
+	function _get_caller(){
+		local offset
+		if [[ -n "$1" ]]; then
+			offset="$1"
+		elif [[ -n "$LOG_TRACE_OFFSET" ]]; then
+			offset="$LOG_TRACE_OFFSET"
+		else
+			offset=3
+		fi
+		local fn="${FUNCNAME[$offset]:-}"
+		local lineno="${BASH_LINENO[$((offset - 1))]:-}"
+		[[ -n "$fn" ]] || return 1
+		printf "%s:%s" "$fn" "$lineno"
+	}
+fi
 
 # # log <ARG...> [-x / --no-trace] [-L / --no-level] [-n / --no-newline] [--offset <OFFSET>]
 # ### log <MESSAGE> [-x / --no-trace] [-L / --no-level] [-n / --no-newline] [--offset <OFFSET>]
