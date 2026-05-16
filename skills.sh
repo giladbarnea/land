@@ -1,4 +1,16 @@
 #!/usr/bin/env zsh
+#
+# Skills live in .agents/skills (user-scoped: ~/.agents/skills; project-scoped: .agents/skills).
+# They're symlinked into each CLI agent's skills directory for reuse:
+#
+#   User-level                Project-level
+#   ~/.pi/agent/skills        .pi/skills
+#   ~/.claude/skills          .claude/skills
+#   ~/.codex/skills           .codex/skills
+#   ~/.gemini/skills          .gemini/skills
+#
+# Pi quirk: user-level uses ~/.pi/agent/skills (not ~/.pi/skills). Project-level is .pi/skills.
+# This script manages the symlink plumbing from a canonical SOURCE into one or more TARGETs.
 
 # # skills sync SOURCE TARGET[,TARGET,...] [--install-githooks [HOOKNAME[,HOOKNAME,...]]]
 # # skills unsync SOURCE [TARGET[,TARGET,...]]
@@ -362,4 +374,124 @@ function _skills_unsync() {
   if (( removed == 0 )); then
     echo "skills unsync: no matching symlinks found" >&2
   fi
+}
+
+# --- Skill CRUD helpers -------------------------------------------------------
+
+function _skills_base_dir() {
+  # Resolve the skills directory from -g (global) and -p (provider) flags.
+  # Sets REPLY to the resolved path.
+  emulate -L zsh
+  local global="$1" provider="${2-}" prefix="."
+
+  [[ "$global" == "true" ]] && prefix="$HOME"
+
+  case "$provider" in
+    pi)
+      if [[ "$global" == "true" ]]; then
+        REPLY="$HOME/.pi/agent/skills"
+      else
+        REPLY=".pi/skills"
+      fi
+      ;;
+    claude)  REPLY="$prefix/.claude/skills" ;;
+    codex)   REPLY="$prefix/.codex/skills" ;;
+    gemini)  REPLY="$prefix/.gemini/skills" ;;
+    "")      REPLY="$prefix/.agents/skills" ;;
+    *)
+      echo "skills: unknown provider '$provider'. Expected: pi, claude, codex, gemini" >&2
+      return 1
+      ;;
+  esac
+}
+
+function _skills_resolve_target() {
+  # Resolve the target path for a skill name within a base skills directory.
+  # Sets REPLY to the path and _skills_target_mode to "file" or "dir".
+  emulate -L zsh
+  local skill_name="$1" base_dir="$2" caller_name="$3"
+  local skill_dir="$base_dir/$skill_name"
+  local -a all_entries subdirs
+
+  if [[ ! -d "$skill_dir" ]]; then
+    echo "$caller_name: skill '$skill_name' not found in $base_dir" >&2
+    return 1
+  fi
+
+  all_entries=("$skill_dir"/*(N))
+  subdirs=("$skill_dir"/*(N/))
+
+  if (( ${#all_entries} == 1 )) && (( ${#subdirs} == 0 )) && [[ "${all_entries[1]:t}" == "SKILL.md" ]]; then
+    REPLY="$skill_dir/SKILL.md"
+    _skills_target_mode="file"
+  else
+    REPLY="$skill_dir"
+    _skills_target_mode="dir"
+  fi
+}
+
+function skr() {
+  # Read a skill. Usage: skr [-g] [-p pi|claude|codex|gemini] [skill-name]
+  emulate -L zsh
+  local global="false" provider="" skill_name="" target=""
+  local base_dir=""
+
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      -g) global="true" ;;
+      -p) provider="${2-}"; shift ;;
+      --) shift; break ;;
+      -*) echo "skr: unknown flag '$1'" >&2; return 1 ;;
+      *)  break ;;
+    esac
+    shift
+  done
+
+  _skills_base_dir "$global" "$provider" || return 1
+  base_dir="$REPLY"
+
+  if [[ $# -eq 0 ]]; then
+    bat "$base_dir"/*(N)
+    return
+  fi
+
+  skill_name="$1"
+  _skills_resolve_target "$skill_name" "$base_dir" "skr" || return 1
+  target="$REPLY"
+
+  if [[ "$_skills_target_mode" == "file" ]]; then
+    bat "$target"
+  else
+    bat "$target"/**/*(.N)
+  fi
+}
+
+function ske() {
+  # Edit a skill. Usage: ske [-g] [-p pi|claude|codex|gemini] [skill-name]
+  emulate -L zsh
+  local global="false" provider="" skill_name=""
+  local base_dir=""
+
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      -g) global="true" ;;
+      -p) provider="${2-}"; shift ;;
+      --) shift; break ;;
+      -*) echo "ske: unknown flag '$1'" >&2; return 1 ;;
+      *)  break ;;
+    esac
+    shift
+  done
+
+  _skills_base_dir "$global" "$provider" || return 1
+  base_dir="$REPLY"
+
+  if [[ $# -eq 0 ]]; then
+    ${EDITOR:-vim} "$base_dir"
+    return
+  fi
+
+  skill_name="$1"
+  _skills_resolve_target "$skill_name" "$base_dir" "ske" || return 1
+  ${EDITOR:-vim} "$REPLY"
 }

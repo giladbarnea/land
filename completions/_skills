@@ -1,4 +1,4 @@
-#compdef skills skills.sh
+#compdef skills skills.sh skr ske
 
 typeset -ga _skills_subcommands=(
   'sync:Symlink SOURCE skills into each TARGET/skills directory'
@@ -33,6 +33,13 @@ typeset -ga _skills_git_hook_values=(
 )
 
 _skills() {
+  case "${words[1]}" in
+    (skr) _skills_skr; return $? ;;
+    (ske) _skills_ske; return $? ;;
+    (skills|skills.sh) ;;
+    (*) return 1 ;;
+  esac
+
   local curcontext="$curcontext" state line
   local -i ret=1
   typeset -A opt_args
@@ -102,8 +109,87 @@ _skills_git_hook_names() {
   _values -s , 'git hook' "${_skills_git_hook_values[@]}"
 }
 
+_skills_resolve_base_dir() {
+  emulate -L zsh
+  local global="false" provider="" prefix="."
+
+  [[ -n "${opt_args[-g]}" ]] && global="true" && prefix="$HOME"
+  provider="${opt_args[-p]-}"
+
+  case "$provider" in
+    pi)
+      if [[ "$global" == "true" ]]; then
+        REPLY="$HOME/.pi/agent/skills"
+      else
+        REPLY=".pi/skills"
+      fi
+      ;;
+    claude)  REPLY="$prefix/.claude/skills" ;;
+    codex)   REPLY="$prefix/.codex/skills" ;;
+    gemini)  REPLY="$prefix/.gemini/skills" ;;
+    "")      REPLY="$prefix/.agents/skills" ;;
+  esac
+}
+
+_skills_skill_names() {
+  emulate -L zsh
+  local -a skill_dirs
+  local base_dir
+
+  _skills_resolve_base_dir
+  base_dir="$REPLY"
+
+  skill_dirs=("$base_dir"/*(N/:t))
+  (( ${#skill_dirs[@]} )) || return 1
+  _describe -t skills 'skill name' skill_dirs
+}
+
+_skills_skr() {
+  local curcontext="$curcontext" state line
+  local -i ret=1
+  typeset -A opt_args
+
+  _arguments -A '-*' -C \
+    '-g[Use user-level skills directory]' \
+    '-p[Provider for skills directory]:provider:(pi claude codex gemini)' \
+    '::skill:_skills_skill_names' \
+    '*:: :->rest' && ret=0
+
+  case $state in
+    (rest)
+      _arguments -A '-*' -C \
+        '-g[Use user-level skills directory]' \
+        '-p[Provider for skills directory]:provider:(pi claude codex gemini)' && ret=0
+      ;;
+  esac
+
+  return ret
+}
+
+_skills_ske() {
+  local curcontext="$curcontext" state line
+  local -i ret=1
+  typeset -A opt_args
+
+  _arguments -A '-*' -C \
+    '-g[Use user-level skills directory]' \
+    '-p[Provider for skills directory]:provider:(pi claude codex gemini)' \
+    '::skill:_skills_skill_names' \
+    '*:: :->rest' && ret=0
+
+  case $state in
+    (rest)
+      _arguments -A '-*' -C \
+        '-g[Use user-level skills directory]' \
+        '-p[Provider for skills directory]:provider:(pi claude codex gemini)' && ret=0
+      ;;
+  esac
+
+  return ret
+}
+
 if [ "${funcstack[1]}" = "_skills" ]; then
   _skills "$@"
 else
-  compdef _skills skills skills.sh
+  compdef _skills skills skills.sh skr ske
 fi

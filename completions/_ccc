@@ -436,6 +436,7 @@ _ccc_rm() {
 
 _ccc_catalog() {
   _arguments -A '-*' -C \
+    '(-a --append-prompt)'{-a,--append-prompt}'[Append extra instructions to the AI user message]:string:' \
     '*:session or file:_ccc_session_selector' && return 0
 }
 

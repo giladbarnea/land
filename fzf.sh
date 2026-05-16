@@ -186,7 +186,6 @@ function fzfx() {
 	  -q) query="$2" ; shift ;;
     # * defaults
     -*)
-      log.debug "added $1 to \$fzf_flags"
 	    fzf_flags+=("$1") ;;
     *)
       # Convenience to also support `fzfd foo` instead of `fzfd -q foo`
@@ -203,7 +202,6 @@ function fzfx() {
   [[ -n "$min_depth" ]] && temp_fzf_command+=" --min-depth=$min_depth"
   [[ -n "$exact_depth" ]] && temp_fzf_command+=" --exact-depth=$exact_depth"
   [[ -n "$max_depth" ]] && temp_fzf_command+=" --max-depth=$max_depth"
-  log.debug "$(typeset query) | $(typeset fzf_flags) | $(typeset copy_res) | $(typeset show_preview) | $(typeset temp_fzf_command)"
   if [[ "$show_preview" = true ]]; then
     fzf_flags+=(--ansi --preview ". fzf.sh; .fzf-preview {}")
   fi
@@ -213,7 +211,6 @@ function fzfx() {
   [[ -n "$query" ]] && fzf_flags+=(-q "$query")
   res="$(FZF_DEFAULT_COMMAND="$temp_fzf_command" fzf "${fzf_flags[@]}")"
   exitcode=$?
-  log.debug "fzf output: $res (code $exitcode)"
   if [[ "$exitcode" == 0 && -n "$res" && "$copy_res" = true ]]; then
     # fzf ok, res is not empty, copy_res is true and cmd checks
     copy -r "$res"
@@ -288,6 +285,10 @@ function fzfd() {
   fzfx -d "$@"
 }
 
+function bfzf(){
+  bat "$(fzff "$@")"
+}
+
 
 # # fzftext <QUERY> [PATH=.]
 # Fuzzy search text in current directory.
@@ -332,8 +333,4 @@ function fzftext2() {
     --preview-window '~3,+{2}+3/2,down,wrap'
 }
 
-function cdfzf() {
-  local res
-  res="$(fzfx "$@")" || return $?
-  cd "$res"
-}
+

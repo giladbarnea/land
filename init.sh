@@ -41,6 +41,7 @@ source "$THIS_SCRIPT_DIR/paths.sh" # cppwd, cppath, resolve
 source "$THIS_SCRIPT_DIR/keybinds.zsh"
 source "$THIS_SCRIPT_DIR/scraping.sh"
 source "$THIS_SCRIPT_DIR/convert.sh"
+source "$THIS_SCRIPT_DIR/skills.sh"
 # [[ "$ZSH" ]] && source "$THIS_SCRIPT_DIR/zsh_advanced_history.zsh"
 
 if is_interactive; then

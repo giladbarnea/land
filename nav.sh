@@ -140,7 +140,7 @@
     log.warn "Failed ${Cc}builtin cd \"$targetdir\"${Cc0}. Trying to fzfd it..."
     local fzfd_result fzfd_exitcode
     # fzfd_result="$(fzfd "${targetdir##*/}")" # Search only the last part of the path.
-    fzfd_result="$(fd -t d | fzy -s -q "${targetdir##*/}")" # Search only the last part of the path.
+    fzfd_result="$(fd -t d | fzy -s -q "$(basename "$targetdir")")" # Search only the last part of the path.
     fzfd_exitcode=$?
     if [[ $fzfd_exitcode == 0 ]]; then
       log.success "fzfd_result: $fzfd_result"
@@ -350,4 +350,3 @@ function cdroot() {
   cd "$root_dir"
   return $?
 }
-

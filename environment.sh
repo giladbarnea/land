@@ -7,7 +7,7 @@ export LESS="--tilde --line-num-width=4 --quit-if-one-screen --RAW-CONTROL-CHARS
 export EDITOR=nvim
 export RIPGREP_CONFIG_PATH="$HOME"/.ripgreprc
 export HISTORY_SUBSTRING_SEARCH_ENSURE_UNIQUE=true
-export BAT_STYLE='numbers,header,grid,snip,changes'
+export BAT_STYLE="numbers,changes,header"
 export KITTY_SHELL_INTEGRATION=enabled
 # export ZPP_LOG_LEVEL=4  # debug and above
 
