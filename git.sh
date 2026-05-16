@@ -853,14 +853,28 @@ function git-structured-diff(){
   local -a self_args
   (( only_line_ranges )) && self_args+=(--only-line-ranges)
 
+  function .emit-new-files-diff() {
+    # Staged new files (added but not committed)
+    command git --no-pager diff --cached --diff-filter=A
+    # Untracked files: emit synthetic diff so .parse-diff handles them identically
+    while IFS= read -r filepath; do
+      [[ -f "$filepath" ]] || continue
+      local n
+      n=$(wc -l < "$filepath")
+      printf "diff --git a/%s b/%s\nnew file mode 100644\n--- /dev/null\n+++ b/%s\n@@ -0,0 +1,%d @@\n" \
+        "$filepath" "$filepath" "$filepath" "$n"
+      while IFS= read -r line; do printf "+%s\n" "$line"; done < "$filepath"
+    done < <(command git ls-files --others --exclude-standard)
+  }
+
   if (( ${#git_diff_args[@]} == 0 )) && ! is_piped; then
     if is_piping || ! is_interactive; then
-      log.info "No data provided and can’t ask user interactively. Defaulting to 'git --no-pager diff $(gdargs+) | $0'."
-      command git --no-pager diff "${git_diff_args[@]}" | git-structured-diff "${self_args[@]}"
+      log.info "No data provided and can’t ask user interactively. Defaulting to ‘git --no-pager diff $(gdargs+) | $0’."
+      { command git --no-pager diff; .emit-new-files-diff } | git-structured-diff "${self_args[@]}"
       return 0
     fi
-    confirm "No data in stdin. Run 'git --no-pager diff $(gdargs+) | $0'?" || return 0
-    command git --no-pager diff "${git_diff_args[@]}" | git-structured-diff "${self_args[@]}"
+    confirm "No data in stdin. Run ‘git --no-pager diff $(gdargs+) | $0’?" || return 0
+    { command git --no-pager diff; .emit-new-files-diff } | git-structured-diff "${self_args[@]}"
     return 0
   fi
   
@@ -1206,11 +1220,23 @@ function git-structured-diff(){
     '
   }
   
+  # Detect whether args contain a rev spec (non-flag, non-separator arg).
+  # If all args are flags, new/untracked files are invisible to git diff and need augmentation.
+  local has_revspec=0
+  local arg
+  for arg in "${git_diff_args[@]}"; do
+    [[ "$arg" != -* && "$arg" != "--" ]] && has_revspec=1 && break
+  done
+
   if (( ${#git_diff_args[@]} > 0 )); then
-    command git --no-pager diff "${git_diff_args[@]}" | .parse-diff
+    if (( has_revspec )); then
+      command git --no-pager diff "${git_diff_args[@]}" | .parse-diff
+    else
+      { command git --no-pager diff "${git_diff_args[@]}"; .emit-new-files-diff } | .parse-diff
+    fi
     return 0
   fi
-  
+
   .parse-diff
 }
 
