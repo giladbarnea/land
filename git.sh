@@ -216,12 +216,11 @@ function gacp() {
   if [[ -z "$commitmsg" || "$commitmsg" = "" ]]; then
     commitmsg="$(date)"
   fi
-  commitmsg="'$commitmsg'"  # Bash cleans up single quotes in middle of string
-  if ! confirm "commit -am $* $commitmsg?"; then
+  if ! confirm "commit -am $* \"$commitmsg\"?"; then
     log.warn Aborting
     return 3
   fi
-  if ! vex git commit -am "$@" "$commitmsg"; then
+  if ! git commit -am "$@" "$commitmsg"; then
     log.fatal Failed
     return 1
   fi
@@ -231,7 +230,7 @@ function gacp() {
     return 3
   fi
   local exitcode
-  vex git push
+  git push
   exitcode=$?
 
   # If permission denied, probably tried to push to forked upstream, and a remote upstream is not set (e.g. new repo).

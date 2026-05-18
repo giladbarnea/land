@@ -40,7 +40,7 @@ function spinner() {
 # TODO: llm.agents does this differently and awesomely.
 function background() {
   # Note: we source ~/.zshrc instead of -i because -i messes up piping to less.
-  (zsh -c 'source ~/.zshrc; builtin cd "$1"; shift; "$@"' -- "$PWD" "${@}" & )
+  (zsh -ic 'source ~/.zshrc; builtin cd "$1"; shift; "$@"' -- "$PWD" "${@}" & )
 }
 
 # # realasync <PROGRAM...> -- --notify
@@ -71,7 +71,7 @@ function realasync() {
     # Case A: single arg is a shell expression — pass it as the -c script body.
     # env vars ferry the values into the single-quoted script without injection risk.
     if [[ "$notify" == true ]]; then
-      (nohup env REALASYNC_EXPR="${args[1]}" REALASYNC_CWD="$PWD" zsh -c '
+      (nohup env REALASYNC_EXPR="${args[1]}" REALASYNC_CWD="$PWD" zsh -ic '
         source ~/.zshrc; builtin cd "$REALASYNC_CWD"
         notif.generic "Running $REALASYNC_EXPR..." -t "🔄"
         if eval "$REALASYNC_EXPR"; then
@@ -81,7 +81,7 @@ function realasync() {
         fi
       ' > /dev/null 2>&1 &)
     else
-      (nohup env REALASYNC_EXPR="${args[1]}" REALASYNC_CWD="$PWD" zsh -c '
+      (nohup env REALASYNC_EXPR="${args[1]}" REALASYNC_CWD="$PWD" zsh -ic '
         source ~/.zshrc
         builtin cd "$REALASYNC_CWD"
         eval "$REALASYNC_EXPR"
@@ -91,7 +91,7 @@ function realasync() {
     # Case B: command + arguments — canonical $@ passthrough.
     # zsh -c 'script' -- arg0 arg1... sets $1=arg0 inside the script, fully quoted.
     if [[ "$notify" == true ]]; then
-      (nohup zsh -c '
+      (nohup zsh -ic '
         source ~/.zshrc; builtin cd "$1"; shift
         notif.generic "Running $1 in background..." -t "🔄"
         if "$@"; then
@@ -101,7 +101,7 @@ function realasync() {
         fi
       ' -- "$PWD" "${args[@]}" > /dev/null 2>&1 &)
     else
-      (nohup zsh -c 'source ~/.zshrc; builtin cd "$1"; shift; "$@"' -- "$PWD" "${args[@]}" > /dev/null 2>&1 &)
+      (nohup zsh -ic 'source ~/.zshrc; builtin cd "$1"; shift; "$@"' -- "$PWD" "${args[@]}" > /dev/null 2>&1 &)
     fi
   fi
 }
