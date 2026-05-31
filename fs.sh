@@ -52,7 +52,7 @@ function renametopathlike(){
   }
   local pathlike_file_name
   if [[ $with_date = true ]]; then
-    pathlike_file_name="$(date +"%Y-%m-%d")-${pathlike:a:t}"
+    pathlike_file_name="$(date +"%y-%m-%d")-${pathlike:a:t}"
   else
     pathlike_file_name="${pathlike:a:t}"
   fi

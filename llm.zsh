@@ -2141,8 +2141,8 @@ function llm-search(){
 function llm-commit-msg(){
 	setopt localoptions pipefail errreturn
 	local -a diff_targets=()
-  local llm_prompt='Generate a short commit message. If different changes serve a cohesive purpose, mention that purpose. Make sure the commit message c learly conveys what was changed and why it was changed (overarching purpose), what it was before. Do not repeat yourself; be terse and concise. Condense (compress) descriptiveness and information LOSSLESSLY; in other words, pack as much "story" into as few words as possible. Readers should be able to answer the question "What was changed, and for what purpose?" at a glance. If the changes span a single file, start the commit message with the file name. If the changes span multiple files, start with a short commit message capturing the overarching purpose, then a bullet list where each item starts with a file name. Do not use Markdown formatting nor straight single quotes. No intros, no outros.'
-	local two_pass=false
+  local llm_prompt="$(cat "/Users/giladbarnea/Library/Application Support/io.datasette.llm/templates/code/commit-message.md")"
+  local two_pass=false
 	local one_by_one=false
 	local append_prompt=''
 	while [[ $# -gt 0 ]]; do

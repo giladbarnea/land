@@ -378,31 +378,170 @@ function _skills_unsync() {
 
 # --- Skill CRUD helpers -------------------------------------------------------
 
-function _skills_base_dir() {
-  # Resolve the skills directory from -g (global) and -p (provider) flags.
-  # Sets REPLY to the resolved path.
+function _skills_hidden_base_dir_relative_paths() {
   emulate -L zsh
-  local global="$1" provider="${2-}" prefix="."
-
-  [[ "$global" == "true" ]] && prefix="$HOME"
+  local provider="${1-}"
+  reply=()
 
   case "$provider" in
-    pi)
-      if [[ "$global" == "true" ]]; then
-        REPLY="$HOME/.pi/agent/skills"
-      else
-        REPLY=".pi/skills"
-      fi
+    "")
+      reply=(
+        ".agents/skills"
+        ".pi/agent/skills"
+        ".claude/skills"
+        ".codex/skills"
+        ".gemini/skills"
+        ".pi/skills"
+      )
       ;;
-    claude)  REPLY="$prefix/.claude/skills" ;;
-    codex)   REPLY="$prefix/.codex/skills" ;;
-    gemini)  REPLY="$prefix/.gemini/skills" ;;
-    "")      REPLY="$prefix/.agents/skills" ;;
+    pi)      reply=(".pi/agent/skills" ".pi/skills") ;;
+    claude)  reply=(".claude/skills") ;;
+    codex)   reply=(".codex/skills") ;;
+    gemini)  reply=(".gemini/skills") ;;
     *)
       echo "skills: unknown provider '$provider'. Expected: pi, claude, codex, gemini" >&2
       return 1
       ;;
   esac
+}
+
+function _skills_detect_provider_from_base_dir() {
+  emulate -L zsh
+  local base_dir="$1" parent_dir_name="${base_dir:h:t}" grandparent_dir_name="${base_dir:h:h:t}"
+
+  [[ "${base_dir:t}" == "skills" ]] || {
+    echo "skills: expected a skills directory, got '$base_dir'" >&2
+    return 1
+  }
+
+  case "$parent_dir_name" in
+    .agents) REPLY="agents" ;;
+    .claude) REPLY="claude" ;;
+    .codex)  REPLY="codex" ;;
+    .gemini) REPLY="gemini" ;;
+    .pi)     REPLY="pi" ;;
+    agent)
+      if [[ "$grandparent_dir_name" == ".pi" ]]; then
+        REPLY="pi"
+      else
+        REPLY="unknown"
+      fi
+      ;;
+    *) REPLY="unknown" ;;
+  esac
+}
+
+function _skills_base_dir_matches_provider() {
+  emulate -L zsh
+  local base_dir="$1" provider="${2-}"
+
+  [[ -d "$base_dir" && "${base_dir:t}" == "skills" ]] || return 1
+  [[ -z "$provider" ]] && return 0
+
+  _skills_detect_provider_from_base_dir "$base_dir" || return 1
+  [[ "$REPLY" == "$provider" ]]
+}
+
+function _skills_resolve_existing_dir() {
+  emulate -L zsh
+  local path="$1" resolved=""
+
+  resolved="$(realpath "$path" 2>/dev/null)"
+  [[ -n "$resolved" ]] || resolved="$path"
+  REPLY="$resolved"
+}
+
+function _skills_find_nearest_plain_base_dir() {
+  emulate -L zsh
+  local provider="${1-}" current_dir="${PWD:A}" candidate=""
+
+  while true; do
+    if [[ "$current_dir:t" == "skills" ]] && _skills_base_dir_matches_provider "$current_dir" "$provider"; then
+      _skills_resolve_existing_dir "$current_dir"
+      return 0
+    fi
+
+    candidate="$current_dir/skills"
+    if _skills_base_dir_matches_provider "$candidate" "$provider"; then
+      _skills_resolve_existing_dir "$candidate"
+      return 0
+    fi
+
+    [[ "$current_dir" == "/" ]] && break
+    current_dir="$current_dir:h"
+  done
+
+  return 1
+}
+
+function _skills_find_nearest_hidden_base_dir() {
+  emulate -L zsh
+  local provider="${1-}" current_dir="${PWD:A}" candidate="" relative_path=""
+  local -a relative_paths
+
+  _skills_hidden_base_dir_relative_paths "$provider" || return 1
+  relative_paths=("${reply[@]}")
+
+  while true; do
+    for relative_path in "${relative_paths[@]}"; do
+      candidate="$current_dir/$relative_path"
+      if [[ -d "$candidate" ]]; then
+        _skills_resolve_existing_dir "$candidate"
+        return 0
+      fi
+    done
+
+    [[ "$current_dir" == "/" ]] && break
+    current_dir="$current_dir:h"
+  done
+
+  return 1
+}
+
+function _skills_find_local_base_dir() {
+  emulate -L zsh
+  local provider="${1-}"
+
+  _skills_find_nearest_plain_base_dir "$provider" && return 0
+  _skills_find_nearest_hidden_base_dir "$provider" && return 0
+
+  if [[ -n "$provider" ]]; then
+    echo "skills: could not find local $provider skills from ${PWD:A} upward" >&2
+  else
+    echo "skills: could not find local skills from ${PWD:A} upward" >&2
+  fi
+  return 1
+}
+
+function _skills_base_dir() {
+  # Resolve the skills directory from -g (global) and -p (provider) flags.
+  # Sets REPLY to the resolved path.
+  emulate -L zsh
+  local global="$1" provider="${2-}" base_dir=""
+
+  if [[ "$global" == "true" ]]; then
+    case "$provider" in
+      pi)      base_dir="$HOME/.pi/agent/skills" ;;
+      claude)  base_dir="$HOME/.claude/skills" ;;
+      codex)   base_dir="$HOME/.codex/skills" ;;
+      gemini)  base_dir="$HOME/.gemini/skills" ;;
+      "")      base_dir="$HOME/.agents/skills" ;;
+      *)
+        echo "skills: unknown provider '$provider'. Expected: pi, claude, codex, gemini" >&2
+        return 1
+        ;;
+    esac
+
+    if [[ ! -d "$base_dir" ]]; then
+      echo "skills: directory not found: $base_dir" >&2
+      return 1
+    fi
+
+    _skills_resolve_existing_dir "$base_dir"
+    return 0
+  fi
+
+  _skills_find_local_base_dir "$provider"
 }
 
 function _skills_resolve_target() {

@@ -69,8 +69,7 @@ alias b=bat
 alias c=command
 alias ca=cursor-agent
 alias oc=openclaw
-
-alias :claude='/usr/bin/env -u CLAUDE_CODE_OAUTH_TOKEN -u ANTHROPIC_API_KEY claude --dangerously-skip-permissions --no-chrome --strict-mcp-config --plugin-dir /dev/null'
+alias :claude='/usr/bin/env -u CLAUDE_CODE_OAUTH_TOKEN -u ANTHROPIC_API_KEY claude --dangerously-skip-permissions --no-chrome'
 compdef _claude :claude
 
 alias claudeo=':claude --model=opus'
@@ -115,29 +114,26 @@ alias codexm4='codexm --config="model_reasoning_effort=xhigh"'
 
 alias pig='pi --model google/gemini-3.1-pro-preview-customtools'
 alias pigf='pi --model google/gemini-3-flash-preview'
-alias pio='pi --model anthropic/claude-opus-4.7'
-alias pis='pi --model anthropic/claude-sonnet-4.6'
-alias pih='pi --model anthropic/claude-haiku-4.5'
+alias pigf35='pi --model google/gemini-3.5-flash'
+alias pik='pi --model openrouter/moonshotai/kimi-k2.6'
 alias pic55='pi --model openai-codex/gpt-5.5'
 alias pic54='pi --model openai-codex/gpt-5.4'
 alias pic5m='pi --model openai-codex/gpt-5.4-mini'
 alias pids4='pi --model openrouter/deepseek/deepseek-v4-pro'
 alias pids4f='pi --model openrouter/deepseek/deepseek-v4-flash'
-alias pim='pi --model openrouter/xiaomi/mimo-v2.5-pro'
-alias pigrok='pi --model openrouter/x-ai/grok-4.3'
 
 for _alias in ${(k)aliases[(I)pi*]}; do
-    [[ "${aliases[$_alias]}" == "pi "* ]] || continue
-    for _thinkinglevel in low medium high; do
+    [[ "${aliases[$_alias]}" != "pi "* ]] && continue
+    for _thinkinglevel in off low medium high xhigh; do
         alias "${_alias}${_thinkinglevel[1]}"="${_alias} --thinking ${_thinkinglevel}"
+        alias "${_alias}-no"="${_alias} --no-context-files --no-extensions --no-prompt-templates --no-session --no-skills"
+        alias "${_alias}${_thinkinglevel[1]}-no"="${_alias} --no-context-files --no-extensions --no-prompt-templates --no-session --no-skills"
+        alias "${_alias}-nono"="${_alias} --no-context-files --no-extensions --no-prompt-templates --no-session --no-skills --no-tools"
+        alias "${_alias}${_thinkinglevel[1]}-nono"="${_alias} --no-context-files --no-extensions --no-prompt-templates --no-session --no-skills --no-tools"
     done
 done
 unset _alias _thinkinglevel
 
-for _alias in pio pic55 pic54; do
-    alias "${_alias}x"="${_alias} --thinking xhigh"
-done
-unset _alias
 
 function :gemini() {
 	local -a args_besides_prompt=()

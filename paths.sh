@@ -83,12 +83,21 @@ function resolve(){
 function tree() {
   setopt localoptions pipefail errreturn
   local git_ignore=true
+  local git_ignore_when_empty=false  # Smart default doesn't ignore if output is empty.
   local arg
   local -a specified_eza_args
   for arg in "$@"; do
     if [[ "$arg" == "--no-git-ignore" || "$arg" = "-u"* ]]; then
       git_ignore=false
+      git_ignore_when_empty=false  # This is the function's default anyway but let's not assume
       continue 
+    fi
+
+    # If --git-ignore is specified explicitly, apply it even in empty output states.
+    if [[ "$arg" == "--git-ignore" ]]; then
+      git_ignore=true
+      git_ignore_when_empty=true
+      continue  # Even though --git-ignore is a native eza flag, we add it downstream checking $git_ignore.
     fi
     specified_eza_args+=("$arg")
   done
@@ -98,20 +107,21 @@ function tree() {
     --group-directories-first
     --all
   )
+  local -a ignore_eza_args
   if [[ "$git_ignore" = true ]]; then
-    default_eza_args+=(
+    ignore_eza_args=(
     --git-ignore
     --ignore-glob "${(j:|:)${(f)$(<~/.gitignore_global)}}"
     )
   fi
   local dry_output
-  dry_output="$(command eza "${default_eza_args[@]}" "${specified_eza_args[@]}")"
-  if [[ "$git_ignore" = true ]] && [[ -z "$dry_output" || "$dry_output" =~ \./? ]]; then
-    confirm "Empty output. Try without honoring git ignore?" || return 1
-    tree "${specified_eza_args[@]}" --no-git-ignore
+  dry_output="$(command eza "${default_eza_args[@]}" "${ignore_eza_args[@]}" "${specified_eza_args[@]}")"
+  if [[ "$git_ignore_when_empty" = false ]] && [[ -z "$dry_output" || "$dry_output" =~ \./? ]]; then
+    command eza "${default_eza_args[@]}" "${specified_eza_args[@]}"   # No ignore args 
     return $?
   fi
-  command eza "${default_eza_args[@]}" "${specified_eza_args[@]}"
+
+  command eza "${default_eza_args[@]}" "${ignore_eza_args[@]}" "${specified_eza_args[@]}"
 }
 
 # -----[ $PATH ]-----

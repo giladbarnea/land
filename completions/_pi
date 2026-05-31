@@ -6,7 +6,7 @@ _pi() {
   typeset -A opt_args
 
   local -a root_options=(
-    '--provider[Provider name]:name:_pi_providers'
+    '--provider[Provider name (default: google)]:name:_pi_providers'
     '--model[Model pattern or ID]:pattern:_pi_model_ids'
     '--api-key[API key]:key:_default'
     '--system-prompt[System prompt]:text:_default'
@@ -15,13 +15,15 @@ _pi() {
     '(-p --print)'{-p,--print}'[Non-interactive mode: process prompt and exit]'
     '(-c --continue)'{-c,--continue}'[Continue previous session]'
     '(-r --resume)'{-r,--resume}'[Select a session to resume]'
-    '--session[Use specific session file]:path:_files'
-    '--fork[Fork a specific session file or partial UUID into a new session]:path-or-uuid:_default'
+    '--session[Use specific session file or partial UUID]:path-or-id:_pi_session_reference'
+    '--fork[Fork a specific session file or partial UUID into a new session]:path-or-id:_pi_session_reference'
     '--session-dir[Directory for session storage and lookup]:dir:_files -/'
     '--no-session[Do not save the session]'
     '--models[Comma-separated model patterns for Ctrl+P cycling]:patterns:_pi_models_patterns'
-    '--no-tools[Disable all built-in tools]'
-    '--tools[Comma-separated list of tools to enable]:tools:_pi_tools'
+    '--no-tools[Disable all tools by default (built-in and extension)]'
+    '-nbt[Disable built-in tools by default but keep extension/custom tools enabled]'
+    '--no-builtin-tools[Disable built-in tools by default but keep extension/custom tools enabled]'
+    '--tools[Comma-separated allowlist of tool names to enable]:tools:_pi_tools'
     '--thinking[Set thinking level]:level:(off minimal low medium high xhigh)'
     '*-e[Load an extension file]:path:_files'
     '*--extension[Load an extension file]:path:_files'
@@ -35,6 +37,8 @@ _pi() {
     '--no-prompt-templates[Disable prompt template discovery and loading]'
     '*--theme[Load a theme file or directory]:path:_files'
     '--no-themes[Disable theme discovery and loading]'
+    '-nc[Disable AGENTS.md and CLAUDE.md discovery and loading]'
+    '--no-context-files[Disable AGENTS.md and CLAUDE.md discovery and loading]'
     '--export[Export a session file to HTML and exit]:file:_files'
     '--list-models[List available models, optionally filtered by fuzzy search]::search:_default'
     '--verbose[Force verbose startup]'
@@ -47,9 +51,9 @@ _pi() {
     'install:Install extension source and add it to settings'
     'remove:Remove extension source from settings'
     'uninstall:Alias for remove'
-    'update:Update installed extensions'
+    'update:Update pi and installed extensions'
     'list:List installed extensions from settings'
-    'config:Open the resource configuration TUI'
+    'config:Open TUI to enable or disable package resources'
   )
 
   _arguments -A '-*' -C -s -S \
@@ -129,7 +133,8 @@ _pi:list() {
 }
 
 _pi:config() {
-  _message 'no arguments'
+  _arguments -A '-*' -s -S \
+    '--help[Show help for config]' && return 0
 }
 
 _pi_at_file() {
@@ -164,6 +169,67 @@ _pi_package_source() {
       _message 'extension source'
       ;;
   esac
+}
+
+_pi_session_reference() {
+  case $PREFIX in
+    (./*|../*|/*|~*|*/*|*.jsonl)
+      _pi_session_files
+      ;;
+    (*)
+      _pi_session_ids
+      ;;
+  esac
+}
+
+_pi_resolve_session_dir() {
+  if [[ -n ${opt_args[--session-dir]-} ]]; then
+    REPLY=${opt_args[--session-dir]}
+    return 0
+  fi
+
+  if [[ -n ${PI_CODING_AGENT_SESSION_DIR-} ]]; then
+    REPLY=${PI_CODING_AGENT_SESSION_DIR}
+    return 0
+  fi
+
+  if [[ -n ${PI_CODING_AGENT_DIR-} ]]; then
+    REPLY="${PI_CODING_AGENT_DIR}/sessions"
+    return 0
+  fi
+
+  REPLY='~/.pi/agent/sessions'
+}
+
+_pi_session_id_lines() {
+  local session_dir session_file session_name session_id
+  local -a session_files
+
+  _pi_resolve_session_dir
+  session_dir="$REPLY"
+  session_files=(${~session_dir}/**/*.jsonl(N))
+
+  for session_file in $session_files; do
+    session_name=${session_file:t:r}
+    [[ $session_name == *_* ]] || continue
+    session_id=${session_name##*_}
+    print -r -- "$session_id"
+  done
+}
+
+_pi_session_ids() {
+  local expl
+  local -a session_ids
+
+  session_ids=(${(f)"$(_pi_session_id_lines)"})
+
+  (( ${#session_ids[@]} )) || return 1
+  session_ids=(${(u)session_ids})
+  _wanted session_ids expl 'session id' compadd -a session_ids
+}
+
+_pi_session_files() {
+  _files -g '*.jsonl'
 }
 
 _pi_tools() {
