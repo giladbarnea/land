@@ -544,6 +544,59 @@ function _skills_base_dir() {
   _skills_find_local_base_dir "$provider"
 }
 
+function _skills_parse_access_arguments() {
+  emulate -L zsh
+  local caller_name="$1"
+  shift
+
+  local global="false" provider="" skill_name="" expect_provider="false" argument=""
+  reply=()
+
+  while [[ $# -gt 0 ]]; do
+    argument="$1"
+
+    if [[ "$expect_provider" == "true" ]]; then
+      provider="$argument"
+      expect_provider="false"
+      shift
+      continue
+    fi
+
+    case "$argument" in
+      --)
+        shift
+        while [[ $# -gt 0 ]]; do
+          [[ -n "$skill_name" ]] || skill_name="$1"
+          shift
+        done
+        break
+        ;;
+      -g)
+        global="true"
+        ;;
+      -p)
+        expect_provider="true"
+        ;;
+      -*)
+        echo "$caller_name: unknown flag '$argument'" >&2
+        return 1
+        ;;
+      *)
+        [[ -n "$skill_name" ]] || skill_name="$argument"
+        ;;
+    esac
+
+    shift
+  done
+
+  if [[ "$expect_provider" == "true" ]]; then
+    echo "$caller_name: option '-p' requires a provider" >&2
+    return 1
+  fi
+
+  reply=("$global" "$provider" "$skill_name")
+}
+
 function _skills_resolve_target() {
   # Resolve the target path for a skill name within a base skills directory.
   # Sets REPLY to the path and _skills_target_mode to "file" or "dir".
@@ -571,7 +624,7 @@ function _skills_resolve_target() {
 
 function _skills_format_path_with_home_tilde() {
   emulate -L zsh
-  local path="${1:A}" home_dir="${HOME:A}"
+  local path="$1" home_dir="$HOME"
 
   if [[ "$path" == "$home_dir" ]]; then
     REPLY='~'
@@ -588,9 +641,12 @@ function _skills_format_path_with_home_tilde() {
 
 function _skills_format_path_relative_to_pwd() {
   emulate -L zsh
-  local target_path="${1:A}" from_path="${2:-${PWD:A}}"
+  local target_path="$1" from_path="${2:-$PWD}"
   local -a from_segments target_segments relative_segments
   local -i common_length=0 index=0
+
+  [[ "$target_path" == /* ]] || target_path="$PWD/$target_path"
+  [[ "$from_path" == /* ]] || from_path="$PWD/$from_path"
 
   from_segments=("${(@s:/:)from_path}")
   target_segments=("${(@s:/:)target_path}")
@@ -672,26 +728,19 @@ function skr() {
   local global="false" provider="" skill_name="" target=""
   local base_dir=""
 
-  while [[ $# -gt 0 ]]; do
-    case "$1" in
-      -g) global="true" ;;
-      -p) provider="${2-}"; shift ;;
-      --) shift; break ;;
-      -*) echo "skr: unknown flag '$1'" >&2; return 1 ;;
-      *)  break ;;
-    esac
-    shift
-  done
+  _skills_parse_access_arguments "skr" "$@" || return 1
+  global="${reply[1]}"
+  provider="${reply[2]}"
+  skill_name="${reply[3]}"
 
   _skills_base_dir "$global" "$provider" || return 1
   base_dir="$REPLY"
 
-  if [[ $# -eq 0 ]]; then
+  if [[ -z "$skill_name" ]]; then
     bat "$base_dir"/*(N)
     return
   fi
 
-  skill_name="$1"
   _skills_resolve_target "$skill_name" "$base_dir" "skr" || return 1
   target="$REPLY"
 
@@ -708,26 +757,19 @@ function ske() {
   local global="false" provider="" skill_name=""
   local base_dir=""
 
-  while [[ $# -gt 0 ]]; do
-    case "$1" in
-      -g) global="true" ;;
-      -p) provider="${2-}"; shift ;;
-      --) shift; break ;;
-      -*) echo "ske: unknown flag '$1'" >&2; return 1 ;;
-      *)  break ;;
-    esac
-    shift
-  done
+  _skills_parse_access_arguments "ske" "$@" || return 1
+  global="${reply[1]}"
+  provider="${reply[2]}"
+  skill_name="${reply[3]}"
 
   _skills_base_dir "$global" "$provider" || return 1
   base_dir="$REPLY"
 
-  if [[ $# -eq 0 ]]; then
+  if [[ -z "$skill_name" ]]; then
     ${EDITOR:-vim} "$base_dir"
     return
   fi
 
-  skill_name="$1"
   _skills_resolve_target "$skill_name" "$base_dir" "ske" || return 1
   ${EDITOR:-vim} "$REPLY"
 }

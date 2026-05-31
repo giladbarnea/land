@@ -125,16 +125,38 @@ _skills_load_runtime_helpers() {
   _skills_runtime_helpers_loaded=1
 }
 
-_skills_skill_names() {
+_skills_complete_access_options() {
+  local expl
+  local -a option_names option_displays
+
+  option_names=(-g -p)
+  option_displays=(
+    '-g -- Use user-level skills directory'
+    '-p -- Provider for skills directory'
+  )
+
+  _description options expl option
+  compadd "$expl[@]" -d option_displays -a option_names
+}
+
+_skills_complete_access_providers() {
+  local -a provider_specs=(
+    'pi:Pi skills directory'
+    'claude:Claude skills directory'
+    'codex:Codex skills directory'
+    'gemini:Gemini skills directory'
+  )
+
+  _describe -t providers 'provider' provider_specs
+}
+
+_skills_complete_access_skill_names() {
   emulate -L zsh
-  local global="false" provider="${opt_args[-p]-}" base_dir="" resolution_scope="local" source_label=""
+  local global="$1" provider="$2" base_dir="" resolution_scope="local" source_label=""
   local -a skill_names
   local expl
 
-  if (( ${+opt_args[-g]} )); then
-    global="true"
-    resolution_scope="global"
-  fi
+  [[ "$global" == "true" ]] && resolution_scope="global"
 
   _skills_load_runtime_helpers || return 1
   _skills_base_dir "$global" "$provider" 2>/dev/null || return 1
@@ -151,28 +173,42 @@ _skills_skill_names() {
   compadd "$expl[@]" -a skill_names
 }
 
+_skills_complete_access_command() {
+  emulate -L zsh
+  local current_word="${words[CURRENT]-}" previous_word="${words[CURRENT-1]-}"
+  local global="false" provider="" skill_name=""
+  local -a completed_arguments parsed_arguments
+
+  if [[ "$previous_word" == "-p" ]]; then
+    _skills_complete_access_providers
+    return $?
+  fi
+
+  if [[ "$current_word" == -* ]]; then
+    _skills_complete_access_options
+    return $?
+  fi
+
+  if (( CURRENT > 2 )); then
+    completed_arguments=("${(@)words[2,CURRENT-1]}")
+    _skills_load_runtime_helpers || return 1
+    _skills_parse_access_arguments "_skills_complete_access_command" "${completed_arguments[@]}" 2>/dev/null || return 1
+    parsed_arguments=("${reply[@]}")
+    global="${parsed_arguments[1]}"
+    provider="${parsed_arguments[2]}"
+    skill_name="${parsed_arguments[3]}"
+  fi
+
+  [[ -z "$skill_name" ]] || return 1
+  _skills_complete_access_skill_names "$global" "$provider"
+}
+
 _skills_skr() {
-  local -i ret=1
-  typeset -A opt_args
-
-  _arguments -A '-*' -C \
-    '-g[Use user-level skills directory]' \
-    '-p[Provider for skills directory]:provider:(pi claude codex gemini)' \
-    '1:skill:_skills_skill_names' && ret=0
-
-  return $ret
+  _skills_complete_access_command
 }
 
 _skills_ske() {
-  local -i ret=1
-  typeset -A opt_args
-
-  _arguments -A '-*' -C \
-    '-g[Use user-level skills directory]' \
-    '-p[Provider for skills directory]:provider:(pi claude codex gemini)' \
-    '1:skill:_skills_skill_names' && ret=0
-
-  return $ret
+  _skills_complete_access_command
 }
 
 if [ "${funcstack[1]}" = "_skills" ]; then
