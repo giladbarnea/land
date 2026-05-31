@@ -569,6 +569,86 @@ function _skills_resolve_target() {
   fi
 }
 
+function _skills_format_path_with_home_tilde() {
+  emulate -L zsh
+  local path="${1:A}" home_dir="${HOME:A}"
+
+  if [[ "$path" == "$home_dir" ]]; then
+    REPLY='~'
+    return 0
+  fi
+
+  if [[ "$path" == "$home_dir"/* ]]; then
+    REPLY="~/${path#"$home_dir"/}"
+    return 0
+  fi
+
+  REPLY="$path"
+}
+
+function _skills_format_path_relative_to_pwd() {
+  emulate -L zsh
+  local target_path="${1:A}" from_path="${2:-${PWD:A}}"
+  local -a from_segments target_segments relative_segments
+  local -i common_length=0 index=0
+
+  from_segments=("${(@s:/:)from_path}")
+  target_segments=("${(@s:/:)target_path}")
+
+  while (( common_length < ${#from_segments} && common_length < ${#target_segments} )); do
+    index=$(( common_length + 1 ))
+    [[ "${from_segments[index]}" == "${target_segments[index]}" ]] || break
+    (( common_length += 1 ))
+  done
+
+  for (( index = common_length + 1; index <= ${#from_segments}; index += 1 )); do
+    relative_segments+=("..")
+  done
+
+  for (( index = common_length + 1; index <= ${#target_segments}; index += 1 )); do
+    relative_segments+=("${target_segments[index]}")
+  done
+
+  if (( ${#relative_segments} == 0 )); then
+    REPLY='.'
+    return 0
+  fi
+
+  REPLY="${(j:/:)relative_segments}"
+  [[ "$REPLY" == ..* ]] || REPLY="./$REPLY"
+}
+
+function _skills_format_source_path_for_display() {
+  emulate -L zsh
+  local path="$1" relative_path="" home_path=""
+
+  _skills_format_path_relative_to_pwd "$path"
+  relative_path="$REPLY"
+
+  _skills_format_path_with_home_tilde "$path"
+  home_path="$REPLY"
+
+  if (( ${#relative_path} <= ${#home_path} )); then
+    REPLY="$relative_path"
+  else
+    REPLY="$home_path"
+  fi
+}
+
+function _skills_describe_base_dir_source() {
+  emulate -L zsh
+  local base_dir="$1" resolution_scope="$2" display_path=""
+
+  if [[ "$resolution_scope" == "global" ]]; then
+    _skills_format_path_with_home_tilde "$base_dir"
+  else
+    _skills_format_source_path_for_display "$base_dir"
+  fi
+
+  display_path="$REPLY"
+  REPLY="$resolution_scope: $display_path"
+}
+
 function _skills_collect_resolvable_skill_names() {
   emulate -L zsh
   local base_dir="$1" entry="" entry_name=""

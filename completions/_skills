@@ -127,11 +127,14 @@ _skills_load_runtime_helpers() {
 
 _skills_skill_names() {
   emulate -L zsh
-  local global="false" provider="${opt_args[-p]-}" base_dir=""
+  local global="false" provider="${opt_args[-p]-}" base_dir="" resolution_scope="local" source_label=""
   local -a skill_names
   local expl
 
-  [[ -n "${opt_args[-g]-}" ]] && global="true"
+  if (( ${+opt_args[-g]} )); then
+    global="true"
+    resolution_scope="global"
+  fi
 
   _skills_load_runtime_helpers || return 1
   _skills_base_dir "$global" "$provider" 2>/dev/null || return 1
@@ -141,7 +144,11 @@ _skills_skill_names() {
   skill_names=("${reply[@]}")
   (( ${#skill_names[@]} )) || return 1
 
-  _wanted skills expl 'skill name' compadd -a skill_names
+  _skills_describe_base_dir_source "$base_dir" "$resolution_scope"
+  source_label="$REPLY"
+
+  _description -V "skills-${base_dir//[^[:alnum:]]/_}" expl "skill name from ${source_label}"
+  compadd "$expl[@]" -a skill_names
 }
 
 _skills_skr() {
