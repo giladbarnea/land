@@ -417,6 +417,7 @@ _ccc_search() {
 _ccc_rename() {
   _arguments -A '-*' -C \
     '(-h --help)'{-h,--help}'[Show help and exit]' \
+    '(-n --dry-run)'{-n,--dry-run}'[Print the resolved/generated name without modifying the session file]' \
     '1:conversation:_ccc_session_selector' \
     '2:new name:_default' && return 0
 }
