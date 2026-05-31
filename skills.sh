@@ -569,6 +569,23 @@ function _skills_resolve_target() {
   fi
 }
 
+function _skills_collect_resolvable_skill_names() {
+  emulate -L zsh
+  local base_dir="$1" entry="" entry_name=""
+  reply=()
+
+  [[ -d "$base_dir" ]] || {
+    echo "skills: directory not found: $base_dir" >&2
+    return 1
+  }
+
+  for entry in "$base_dir"/*(ND); do
+    entry_name="${entry:t}"
+    _skills_resolve_target "$entry_name" "$base_dir" "_skills_collect_resolvable_skill_names" >/dev/null 2>&1 || continue
+    reply+=("$entry_name")
+  done
+}
+
 function skr() {
   # Read a skill. Usage: skr [-g] [-p pi|claude|codex|gemini] [skill-name]
   emulate -L zsh

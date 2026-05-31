@@ -32,6 +32,8 @@ typeset -ga _skills_git_hook_values=(
   pre-push
 )
 
+typeset -gi _skills_runtime_helpers_loaded=0
+
 _skills() {
   case "${words[1]}" in
     (skr) _skills_skr; return $? ;;
@@ -109,83 +111,61 @@ _skills_git_hook_names() {
   _values -s , 'git hook' "${_skills_git_hook_values[@]}"
 }
 
-_skills_resolve_base_dir() {
+_skills_load_runtime_helpers() {
   emulate -L zsh
-  local global="false" provider="" prefix="."
+  (( _skills_runtime_helpers_loaded )) && return 0
 
-  [[ -n "${opt_args[-g]}" ]] && global="true" && prefix="$HOME"
-  provider="${opt_args[-p]-}"
+  local completion_file="${functions_source[_skills]-}" skills_file=""
+  [[ -n "$completion_file" ]] || return 1
 
-  case "$provider" in
-    pi)
-      if [[ "$global" == "true" ]]; then
-        REPLY="$HOME/.pi/agent/skills"
-      else
-        REPLY=".pi/skills"
-      fi
-      ;;
-    claude)  REPLY="$prefix/.claude/skills" ;;
-    codex)   REPLY="$prefix/.codex/skills" ;;
-    gemini)  REPLY="$prefix/.gemini/skills" ;;
-    "")      REPLY="$prefix/.agents/skills" ;;
-  esac
+  skills_file="${completion_file:A:h:h}/skills.sh"
+  [[ -f "$skills_file" ]] || return 1
+
+  source "$skills_file" || return 1
+  _skills_runtime_helpers_loaded=1
 }
 
 _skills_skill_names() {
   emulate -L zsh
-  local -a skill_dirs
-  local base_dir
+  local global="false" provider="${opt_args[-p]-}" base_dir=""
+  local -a skill_names
+  local expl
 
-  _skills_resolve_base_dir
+  [[ -n "${opt_args[-g]-}" ]] && global="true"
+
+  _skills_load_runtime_helpers || return 1
+  _skills_base_dir "$global" "$provider" 2>/dev/null || return 1
   base_dir="$REPLY"
 
-  skill_dirs=("$base_dir"/*(N/:t))
-  (( ${#skill_dirs[@]} )) || return 1
-  _describe -t skills 'skill name' skill_dirs
+  _skills_collect_resolvable_skill_names "$base_dir" || return 1
+  skill_names=("${reply[@]}")
+  (( ${#skill_names[@]} )) || return 1
+
+  _wanted skills expl 'skill name' compadd -a skill_names
 }
 
 _skills_skr() {
-  local curcontext="$curcontext" state line
   local -i ret=1
   typeset -A opt_args
 
   _arguments -A '-*' -C \
     '-g[Use user-level skills directory]' \
     '-p[Provider for skills directory]:provider:(pi claude codex gemini)' \
-    '::skill:_skills_skill_names' \
-    '*:: :->rest' && ret=0
+    '1:skill:_skills_skill_names' && ret=0
 
-  case $state in
-    (rest)
-      _arguments -A '-*' -C \
-        '-g[Use user-level skills directory]' \
-        '-p[Provider for skills directory]:provider:(pi claude codex gemini)' && ret=0
-      ;;
-  esac
-
-  return ret
+  return $ret
 }
 
 _skills_ske() {
-  local curcontext="$curcontext" state line
   local -i ret=1
   typeset -A opt_args
 
   _arguments -A '-*' -C \
     '-g[Use user-level skills directory]' \
     '-p[Provider for skills directory]:provider:(pi claude codex gemini)' \
-    '::skill:_skills_skill_names' \
-    '*:: :->rest' && ret=0
+    '1:skill:_skills_skill_names' && ret=0
 
-  case $state in
-    (rest)
-      _arguments -A '-*' -C \
-        '-g[Use user-level skills directory]' \
-        '-p[Provider for skills directory]:provider:(pi claude codex gemini)' && ret=0
-      ;;
-  esac
-
-  return ret
+  return $ret
 }
 
 if [ "${funcstack[1]}" = "_skills" ]; then
