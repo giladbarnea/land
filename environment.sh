@@ -124,4 +124,8 @@ export PATH="$PATH:$LAND"
 # fi
 
 # export SHELLCHECK_OPTS='-e SC2016 -e SC2034 -e SC2155 -e SC2164 -e SC2140 -e SC1090 -e SC2030 -e SC2031 -e SC2004 -e SC2120'
-[[ $- == *i* ]] && export CD_PATCH=true
+if [[ $- == *i* && "$CLAUDECODE" != 1 ]]; then
+  export CD_PATCH=true
+else
+  export CD_PATCH=false
+fi

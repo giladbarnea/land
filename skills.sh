@@ -116,6 +116,20 @@ function _skills_collect_source_skills() {
   done
 }
 
+function _skills_canonicalize_pi_home_skills_dir() {
+  # Pi quirk: the home-level .pi skills dir is ~/.pi/agent/skills, never ~/.pi/skills.
+  # Whatever angle resolved a target to the home .pi skills dir, force the agent/ path.
+  emulate -L zsh
+  local skills_dir="$1" absolute="$1"
+  [[ "$absolute" == /* ]] || absolute="$PWD/$absolute"
+
+  if [[ "${absolute:A}" == "$HOME/.pi/skills" ]]; then
+    REPLY="$HOME/.pi/agent/skills"
+  else
+    REPLY="$skills_dir"
+  fi
+}
+
 function _skills_normalize_target_skills_dir() {
   local target="$1" action="$2" reject_specific_skill="$3"
 
@@ -129,7 +143,7 @@ function _skills_normalize_target_skills_dir() {
     return 0
   fi
 
-  REPLY="$target/skills"
+  _skills_canonicalize_pi_home_skills_dir "$target/skills"
 }
 
 function _skills_normalize_targets() {

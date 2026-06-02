@@ -39,7 +39,7 @@ function spinner() {
 # Runs the command in the background of a subshell.
 # TODO: llm.agents does this differently and awesomely.
 function background() {
-  # Note: we source ~/.zshrc instead of -i because -i messes up piping to less.
+  # Note: we source ~/.zshrc instead of -i because -i messes up piping to a pager (e.g. less.)
   (zsh -ic 'source ~/.zshrc; builtin cd "$1"; shift; "$@"' -- "$PWD" "${@}" & )
 }
 
@@ -101,7 +101,9 @@ function realasync() {
         fi
       ' -- "$PWD" "${args[@]}" > /dev/null 2>&1 &)
     else
-      (nohup zsh -ic 'source ~/.zshrc; builtin cd "$1"; shift; "$@"' -- "$PWD" "${args[@]}" > /dev/null 2>&1 &)
+      # (nohup zsh -ic 'source ~/.zshrc; builtin cd "$1"; shift; "$@"' -- "$PWD" "${args[@]}" > /dev/null 2>&1 &)
+      # This is the newer form. If it works, then rest of `zsh -ic ...` expressions in this file should be aligned.
+      (nohup zrun "${args[@]}" > /dev/null 2>&1 &)
     fi
   fi
 }
@@ -139,63 +141,6 @@ function await() {
 
   while ps -x -p $job_id 1>/dev/null 2>&1; do :; done
 }
-# # onmodified <FILE_TO_WATCH> <-c, --command CMD | -s, --script PATH> [-i, --interval INTERVAL]
-# `CMD` replaces literal '{}' with `FILE_TO_WATCH`.
-# `onmodified ~/sxhkd.cfg -c "pkill --signal SIGTERM sxhkd; nohup sxhkd -c {} &>/dev/null &"`
-function onmodified() {
-  local file="$1"
-  shift
-  local command script
-  local interval=4
-  local positional=()
-  while [[ $# -gt 0 ]]; do
-    case "$1" in
-    -i | --interval)
-      interval="$2"
-      shift 2
-      ;;
-    -c | --command)
-      command="$2"
-      shift 2
-      ;;
-    -s | --script)
-      script="$2"
-      shift 2
-      ;;
-    *)
-      positional+=("$1")
-      shift
-      ;;
-    esac
-  done
-  if [[ -n "$script" && -n "$command" ]]; then
-    log.fatal "Cannot have both script and command. Mutually exlusive."
-    return 1
-  fi
-
-  if [[ -z "$script" && -z "$command" ]]; then
-    log.fatal "Must have either script or command, both missing"
-    return 1
-  fi
-  set -- "${positional[@]}"
-  local last_modified_a="$(stat -c %Y "$file")"
-  local last_modified_b
-  local last_applied=-1
-  local command="${command//"{}"/"$file"}"
-  log.debug "command: ${Cc}${command}${Cc0}\n\tfile: ${file} | last_modified_a: ${last_modified_a} | interval: ${interval}"
-  while true; do
-    last_modified_b="$(stat -c %Y "$file")"
-    if [[ "$last_modified_b" -gt "$last_modified_a" && "$last_modified_b" -gt "$last_applied" ]]; then
-      # (nohup eval "$command" &) &>/dev/null
-      #  vex "$command"
-      eval "$command"
-      last_applied="$(date "+%s")"
-      echo "Applied command: $(date "+%X")"
-    fi
-    sleep "$interval"
-  done
-}
-
 #complete -o bashdefault -o default -o nospace \
 #         -C 'completion.generate <STATEMENT> -e "ls | map cat \$line"' \
 #         map
@@ -215,7 +160,7 @@ function after() {
   if [[ "$first_positional_arg" =~ ^[-\+]?[0-9]+$ ]]; then
     local proc_num="$first_positional_arg"
     shift
-    log.debug "proc_num: ${proc_num} | command: ${*}"
+    log.debug "proc_num: ${proc_num} | \${*}: ${*}"
     function _get_process() {
       ps "$proc_num" | awk 'FNR >= 2'
     }
@@ -251,6 +196,11 @@ function after() {
   return $?
 }
 
+# # zrun ARGS... OPTS...
+# Passthrough helper to run a program through a login Zsh process.
+function zrun(){
+  zsh -ic 'source ~/.zshrc; builtin cd "$1"; shift; "$@"' -- "$PWD" "${@}" 
+}
 # # whiletrue <CMD> [-i, --interval INTERVAL_SECONDS] [-n, --no-exit-on-error]
 function whiletrue() {
   local sleep_interval no_exit_on_error exitcode
@@ -283,7 +233,7 @@ function vsleep() {
 function onidle() {
   local cmd="$1"
   shift 1 || {
-    log.error "$0: Not enough positional args (expected 1, got ${#$}). Usage:\n$(docstring "$0")"
+    log.error "$0: Not enough positional args (expected 1, got ${#}). Usage:\n$(docstring "$0")"
     return 2
   }
   local iteration=1
