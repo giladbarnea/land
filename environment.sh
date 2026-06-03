@@ -9,7 +9,6 @@ export RIPGREP_CONFIG_PATH="$HOME"/.ripgreprc
 export HISTORY_SUBSTRING_SEARCH_ENSURE_UNIQUE=true
 export BAT_STYLE="numbers,changes,header"
 export KITTY_SHELL_INTEGRATION=enabled
-# export ZPP_LOG_LEVEL=4  # debug and above
 
 # WSL: $OSTYPE = linux-gnu; $OS = Linux? (probably); $PLATFORM = UNIX?
 # git-bash: $OSTYPE = ?; $OS = ?; $PLATFORM=UNIX?
@@ -126,6 +125,8 @@ export PATH="$PATH:$LAND"
 # export SHELLCHECK_OPTS='-e SC2016 -e SC2034 -e SC2155 -e SC2164 -e SC2140 -e SC1090 -e SC2030 -e SC2031 -e SC2004 -e SC2120'
 if [[ $- == *i* && "$CLAUDECODE" != 1 ]]; then
   export CD_PATCH=true
+  export LAND_LOG=true
 else
   export CD_PATCH=false
+  export LAND_LOG=false
 fi

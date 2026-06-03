@@ -1,6 +1,6 @@
 #!/usr/bin/env zsh
 # Sourced fourth, after term.zsh
-# Env vars: ZPP_LOG_LEVEL, LOG_SHOW_TRACE, LOG_SHOW_LEVEL, LOG_APPEND_NEWLINE, LOG_TRACE_OFFSET
+# Env vars: LAND_LOG, LOG_SHOW_TRACE, LOG_SHOW_LEVEL, LOG_APPEND_NEWLINE, LOG_TRACE_OFFSET
 
 
 # -------------[ Log ]-------------
@@ -125,10 +125,13 @@ function log(){
 	return $?
 }
 
-if [[ "${ZPP_LOG_LEVEL:-4}" -ge 4 ]]; then
-	function log.debug() { log debug "$@" ; }
-else
-	function log.debug() { : ; }
+function log.debug() { log debug "$@" ; }
+
+if [[ "$LAND_LOG" == false ]]; then
+	for _log_fn in log log.debug log.info log.notice log.success log.title log.warn log.error log.fatal log.prompt log.megasuccess log.megatitle log.megawarn log.megaerror log.megafatal; do
+		functions[$_log_fn]=':'
+	done
+	unset _log_fn
 fi
 
 function log.megasuccess() {
