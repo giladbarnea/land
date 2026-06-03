@@ -624,6 +624,11 @@ function _skills_resolve_target() {
     return 1
   fi
 
+  if [[ ! -f "$skill_dir/SKILL.md" ]]; then
+    echo "$caller_name: '$skill_name' in $base_dir is not a skill (missing SKILL.md)" >&2
+    return 1
+  fi
+
   all_entries=("$skill_dir"/*(N))
   subdirs=("$skill_dir"/*(N/))
 
@@ -786,4 +791,117 @@ function ske() {
 
   _skills_resolve_target "$skill_name" "$base_dir" "ske" || return 1
   ${EDITOR:-vim} "$REPLY"
+}
+
+function skcd() {
+  # Navigate to a skill directory. Usage: skcd [-g] [-p pi|claude|codex|gemini] [skill-name]
+  emulate -L zsh
+  local global="false" provider="" skill_name=""
+  local base_dir=""
+
+  _skills_parse_access_arguments "skcd" "$@" || return 1
+  global="${reply[1]}"
+  provider="${reply[2]}"
+  skill_name="${reply[3]}"
+
+  _skills_base_dir "$global" "$provider" || return 1
+  base_dir="$REPLY"
+
+  if [[ -z "$skill_name" ]]; then
+    cd "$base_dir"
+    return
+  fi
+
+  _skills_resolve_target "$skill_name" "$base_dir" "skcd" || return 1
+  if [[ "$_skills_target_mode" == "file" ]]; then
+    cd "${REPLY:h}"
+  else
+    cd "$REPLY"
+  fi
+}
+
+function skt() {
+  # Tree a skill directory. Usage: skt [-g] [-p pi|claude|codex|gemini] [skill-name]
+  emulate -L zsh
+  local global="false" provider="" skill_name=""
+  local base_dir=""
+
+  _skills_parse_access_arguments "skt" "$@" || return 1
+  global="${reply[1]}"
+  provider="${reply[2]}"
+  skill_name="${reply[3]}"
+
+  _skills_base_dir "$global" "$provider" || return 1
+  base_dir="$REPLY"
+
+  if [[ -z "$skill_name" ]]; then
+    tree "$base_dir"
+    return
+  fi
+
+  _skills_resolve_target "$skill_name" "$base_dir" "skt" || return 1
+  if [[ "$_skills_target_mode" == "file" ]]; then
+    tree "${REPLY:h}"
+  else
+    tree "$REPLY"
+  fi
+}
+
+function skl() {
+  # List all existing skill directories. Usage: skl [-g] [-p pi|claude|codex|gemini]
+  # Lists local (project) skills if any exist; otherwise falls back to global.
+  emulate -L zsh
+  local global="false" provider="" skill_name=""
+
+  _skills_parse_access_arguments "skl" "$@" || return 1
+  global="${reply[1]}"
+  provider="${reply[2]}"
+  skill_name="${reply[3]}"
+
+  if [[ -n "$skill_name" ]]; then
+    echo "skl: unexpected argument '$skill_name' (skl lists all skills, not a specific one)" >&2
+    return 1
+  fi
+
+  local -aU base_dirs
+  local -a providers_to_check
+  local p=""
+
+  if [[ -n "$provider" ]]; then
+    providers_to_check=("$provider")
+  else
+    providers_to_check=("" pi claude codex gemini)
+  fi
+
+  for p in "${providers_to_check[@]}"; do
+    _skills_base_dir "$global" "$p" 2>/dev/null && base_dirs+=("$REPLY")
+  done
+
+  # When not explicitly global: if no local base dirs found, try global as fallback.
+  if [[ "$global" != "true" ]] && (( ${#base_dirs} == 0 )); then
+    for p in "${providers_to_check[@]}"; do
+      _skills_base_dir "true" "$p" 2>/dev/null && base_dirs+=("$REPLY")
+    done
+  fi
+
+  if (( ${#base_dirs} == 0 )); then
+    echo "skl: no skill directories found" >&2
+    return 1
+  fi
+
+  local base_dir="" scope="" display_base="" skill_name_entry=""
+  for base_dir in "${base_dirs[@]}"; do
+    if [[ "$base_dir" == "$HOME"/* ]]; then
+      scope="global"
+    else
+      scope="local"
+    fi
+    _skills_describe_base_dir_source "$base_dir" "$scope"
+    display_base="$REPLY"
+
+    _skills_collect_resolvable_skill_names "$base_dir" || continue
+    for skill_name_entry in "${reply[@]}"; do
+      echo "$display_base/$skill_name_entry"
+    done
+  done
 }
