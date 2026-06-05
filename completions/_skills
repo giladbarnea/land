@@ -216,7 +216,7 @@ _skills_complete_skill_file_paths() {
   _skills_resolve_target "$skill_name" "$base_dir" "_skills_complete_skill_file_paths" >/dev/null 2>&1 || return 1
   skill_dir="$base_dir/$skill_name"
 
-  relative_file_paths=("${(@f)$(cd "$skill_dir" && print -rl -- **/*(.N))}")
+  relative_file_paths=("${(@f)$(builtin cd "$skill_dir" && print -rl -- **/*(.N))}")
   (( ${#relative_file_paths[@]} )) || return 1
 
   _description files expl 'skill file'
