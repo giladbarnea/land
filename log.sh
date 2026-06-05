@@ -199,9 +199,8 @@ function log.prompt() {
 # input "Choose:" --choices=${(j.,.)${(s..):-smurf}}
 # ```
 function input() {
-	# if [[ $- != *i* || ! -t 1 ]]; then
-	if ! is_interactive; then
-		log.warn "Not interactive. Returning 1"
+	if ! is_interactive || is_piped; then
+		log.warn "Not interactive and/or stdin is unavailable. Returning 1"
 		return 1
 	fi
 	local message string choices_formatted specified_choices
@@ -354,8 +353,8 @@ function confirm() {
 	# if [[ ! tty -s ]]; then
 	#   return 1
 	# fi
-	if [[ $- != *i* || ! -t 1 || ! -t 0 ]]; then
-		log.warn "Not interactive or stdin/stdout is not available. Returning 1"
+  if ! is_interactive || [[ ! -r /dev/tty ]]; then
+		log.warn "Not interactive or stdin is unavailable. Returning 1"
 		return 1
 	fi
 	input "$@" --choices y,n -s ''
