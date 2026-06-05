@@ -203,8 +203,64 @@ _skills_complete_access_command() {
   _skills_complete_access_skill_names "$global" "$provider"
 }
 
+_skills_complete_skill_file_paths() {
+  emulate -L zsh
+  local global="$1" provider="$2" skill_name="$3" base_dir="" skill_dir=""
+  local -a relative_file_paths
+  local expl
+
+  _skills_load_runtime_helpers || return 1
+  _skills_base_dir "$global" "$provider" 2>/dev/null || return 1
+  base_dir="$REPLY"
+
+  _skills_resolve_target "$skill_name" "$base_dir" "_skills_complete_skill_file_paths" >/dev/null 2>&1 || return 1
+  skill_dir="$base_dir/$skill_name"
+
+  relative_file_paths=("${(@f)$(cd "$skill_dir" && print -rl -- **/*(.N))}")
+  (( ${#relative_file_paths[@]} )) || return 1
+
+  _description files expl 'skill file'
+  compadd "$expl[@]" -a relative_file_paths
+}
+
+_skills_complete_skr_command() {
+  emulate -L zsh
+  local current_word="${words[CURRENT]-}" previous_word="${words[CURRENT-1]-}"
+  local global="false" provider="" skill_name="" skill_file_path=""
+  local -a completed_arguments parsed_arguments
+
+  if [[ "$previous_word" == "-p" ]]; then
+    _skills_complete_access_providers
+    return $?
+  fi
+
+  if [[ "$current_word" == -* ]]; then
+    _skills_complete_access_options
+    return $?
+  fi
+
+  if (( CURRENT > 2 )); then
+    completed_arguments=("${(@)words[2,CURRENT-1]}")
+    _skills_load_runtime_helpers || return 1
+    _skills_parse_read_arguments "_skills_complete_skr_command" "${completed_arguments[@]}" 2>/dev/null || return 1
+    parsed_arguments=("${reply[@]}")
+    global="${parsed_arguments[1]}"
+    provider="${parsed_arguments[2]}"
+    skill_name="${parsed_arguments[3]}"
+    skill_file_path="${parsed_arguments[4]}"
+  fi
+
+  if [[ -z "$skill_name" ]]; then
+    _skills_complete_access_skill_names "$global" "$provider"
+    return $?
+  fi
+
+  [[ -z "$skill_file_path" ]] || return 1
+  _skills_complete_skill_file_paths "$global" "$provider" "$skill_name"
+}
+
 _skills_skr() {
-  _skills_complete_access_command
+  _skills_complete_skr_command
 }
 
 _skills_ske() {

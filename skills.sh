@@ -611,6 +611,76 @@ function _skills_parse_access_arguments() {
   reply=("$global" "$provider" "$skill_name")
 }
 
+function _skills_parse_read_arguments() {
+  emulate -L zsh
+  local caller_name="$1"
+  shift
+
+  local global="false" provider="" skill_name="" skill_file_path="" expect_provider="false" argument=""
+  local -i positional_count=0
+  reply=()
+
+  while [[ $# -gt 0 ]]; do
+    argument="$1"
+
+    if [[ "$expect_provider" == "true" ]]; then
+      provider="$argument"
+      expect_provider="false"
+      shift
+      continue
+    fi
+
+    case "$argument" in
+      --)
+        shift
+        while [[ $# -gt 0 ]]; do
+          case $positional_count in
+            0) skill_name="$1" ;;
+            1) skill_file_path="$1" ;;
+            *)
+              echo "$caller_name: unexpected argument '$1'" >&2
+              return 1
+              ;;
+          esac
+          (( positional_count += 1 ))
+          shift
+        done
+        break
+        ;;
+      -g)
+        global="true"
+        ;;
+      -p)
+        expect_provider="true"
+        ;;
+      -*)
+        echo "$caller_name: unknown flag '$argument'" >&2
+        return 1
+        ;;
+      *)
+        case $positional_count in
+          0) skill_name="$argument" ;;
+          1) skill_file_path="$argument" ;;
+          *)
+            echo "$caller_name: unexpected argument '$argument'" >&2
+            return 1
+            ;;
+        esac
+        (( positional_count += 1 ))
+        ;;
+    esac
+
+    shift
+  done
+
+  if [[ "$expect_provider" == "true" ]]; then
+    echo "$caller_name: option '-p' requires a provider" >&2
+    return 1
+  fi
+
+  reply=("$global" "$provider" "$skill_name" "$skill_file_path")
+}
+
 function _skills_resolve_target() {
   # Resolve the target path for a skill name within a base skills directory.
   # Sets REPLY to the path and _skills_target_mode to "file" or "dir".
@@ -639,6 +709,35 @@ function _skills_resolve_target() {
     REPLY="$skill_dir"
     _skills_target_mode="dir"
   fi
+}
+
+function _skills_resolve_skill_file_path() {
+  emulate -L zsh
+  local skill_name="$1" base_dir="$2" skill_file_path="$3" caller_name="$4"
+  local skill_dir="$base_dir/$skill_name" candidate_path="" resolved_path=""
+
+  candidate_path="$skill_dir/$skill_file_path"
+  [[ -e "$candidate_path" ]] || {
+    echo "$caller_name: '$skill_file_path' not found in skill '$skill_name'" >&2
+    return 1
+  }
+
+  resolved_path="$(realpath "$candidate_path" 2>/dev/null)" || {
+    echo "$caller_name: could not resolve '$skill_file_path' in skill '$skill_name'" >&2
+    return 1
+  }
+
+  if [[ "$resolved_path" != "$skill_dir"/* ]]; then
+    echo "$caller_name: '$skill_file_path' resolves outside skill '$skill_name'" >&2
+    return 1
+  fi
+
+  [[ -f "$resolved_path" ]] || {
+    echo "$caller_name: '$skill_file_path' in skill '$skill_name' is not a file" >&2
+    return 1
+  }
+
+  REPLY="$resolved_path"
 }
 
 function _skills_format_path_with_home_tilde() {
@@ -742,26 +841,37 @@ function _skills_collect_resolvable_skill_names() {
 }
 
 function skr() {
-  # Read a skill. Usage: skr [-g] [-p pi|claude|codex|gemini] [skill-name]
+  # Read a skill. Usage: skr [-g] [-p pi|claude|codex|gemini] [skill-name] [skill-file-path]
   emulate -L zsh
-  local global="false" provider="" skill_name="" target=""
+  local global="false" provider="" skill_name="" skill_file_path="" target=""
   local base_dir=""
 
-  _skills_parse_access_arguments "skr" "$@" || return 1
+  _skills_parse_read_arguments "skr" "$@" || return 1
   global="${reply[1]}"
   provider="${reply[2]}"
   skill_name="${reply[3]}"
+  skill_file_path="${reply[4]}"
 
   _skills_base_dir "$global" "$provider" || return 1
   base_dir="$REPLY"
 
   if [[ -z "$skill_name" ]]; then
+    [[ -z "$skill_file_path" ]] || {
+      echo "skr: unexpected file path '$skill_file_path' without a skill name" >&2
+      return 1
+    }
     bat "$base_dir"/*(N)
     return
   fi
 
   _skills_resolve_target "$skill_name" "$base_dir" "skr" || return 1
   target="$REPLY"
+
+  if [[ -n "$skill_file_path" ]]; then
+    _skills_resolve_skill_file_path "$skill_name" "$base_dir" "$skill_file_path" "skr" || return 1
+    bat "$REPLY"
+    return
+  fi
 
   if [[ "$_skills_target_mode" == "file" ]]; then
     bat "$target"
