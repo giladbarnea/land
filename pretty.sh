@@ -49,7 +49,16 @@ function batw() {
 	setopt localoptions pipefail errreturn
 	local thing="$1"
 	shift || return 1
-	where "$thing" | bat -p -l bash "$@"
+
+	local where_output
+	where_output="$(where "$thing")"
+	local -a where_lines=("${(@f)where_output}")
+	[[ -e "${where_lines[1]}" ]] && {
+		bat "$@" -- "${where_lines[1]}"
+		return $?
+	}
+
+	print -r -- "$where_output" | bat -p -l bash "$@"
 }
 
 # # bath <EXECUTABLE>

@@ -957,8 +957,6 @@ function kt-all(){
 	kitty @ get-text --extent=all "$@"
 }
 
-
-
 #endregion kitty
 
 # region ------------[ uv ] ---------------
@@ -999,30 +997,6 @@ function uvpt() { uv run pytest "$@"; }
 # }
 
 #endregion
-# -----------------------------
-
-# # wget.recursive
-# wget.recursive <URL> [wget options...]
-# Specifying --domains=DOMAIN is recommended.
-function wget.recursive(){
-	local url domain
-	url="$1"
-	shift 1 || { log.error "$0: Not enough args (expected 1, got ${#$}). Usage:\n$(docstring -p "$0")"; return 2; }
-	# Remove all the optional prefixes: https?://, www., and remove everything after (and including) the first slash
-	domain="${url#http://}"
-	domain="${domain#https://}"
-	domain="${domain#www.}"
-	domain="${domain%%/*}"
-	# assert that there is exactly a single period in the domain, and text to its left and to its right
-	# split domain into an array by periods
-	local domain_parts=(${(s/./)domain})
-	if [[ ${#domain_parts[@]} -ne 2 ]]; then
-		log.error "Domain is not a valid domain: $domain"
-		return 1
-	fi
-	wget --recursive --page-requisites --html-extension --convert-links --span-hosts --ignore-tags=img --domains="$domain" "$url" "$@"
-}
-
 # -----------------------------
 
 # region ------------[ Exa ] ---------------

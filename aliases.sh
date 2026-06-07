@@ -213,6 +213,7 @@ alias typora='open -b abnerworks.Typora'
 alias jqc='jq --color-output'
 alias cn=codanna
 alias cnr='codanna retrieve'
+alias headroom="uvx --with=fastapi,uvicorn,httpx'[http2]',tree-sitter --from 'headroom-ai[ml,code,memory,relevance,image]' headroom"
 
 # ----------------------
 # *** Global Aliases ***
