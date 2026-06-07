@@ -1,9 +1,9 @@
-#compdef ccc
+#compdef ch
 #
-# Tool filter completion implements conversations' TOOL_SPEC.md as it stood on
+# Tool filter completion implements chats' TOOL_SPEC.md as it stood on
 # 2026-04-21 at commit 3d3a0a8.
 
-typeset -ga _ccc_subcommands=(
+typeset -ga _ch_subcommands=(
   'search:Search conversations with regex patterns'
   'rename:Assign a custom display name to a conversation'
   'fork:Duplicate a session into a thinner resumable copy'
@@ -11,7 +11,7 @@ typeset -ga _ccc_subcommands=(
   'catalog:AI-powered session cataloging'
 )
 
-typeset -ga _ccc_parse_options=(
+typeset -ga _ch_parse_options=(
   '(-h --help)'{-h,--help}'[Show help and exit]'
   '(-o --out)'{-o,--out}'[Output file path]:file:_files'
   '(-l --only-metadata)'{-l,--only-metadata}'[Show only session metadata]'
@@ -21,7 +21,7 @@ typeset -ga _ccc_parse_options=(
   '--only-assistant[Show only regular assistant messages]'
   '--no-user[Hide regular user messages]'
   '--no-assistant[Hide regular assistant messages]'
-  '(-t --tools)'{-t,--tools}'::tool filter:_ccc_tool_spec'
+  '(-t --tools)'{-t,--tools}'::tool filter:_ch_tool_spec'
   '(-a --agents)'{-a,--agents}'[Include agent messages]'
   '(-A --all)'{-A,--all}'[Show everything (thinking, tools, agents)]'
   '(-s --short)'{-s,--short}'[Shorten strings in output]'
@@ -38,7 +38,7 @@ typeset -ga _ccc_parse_options=(
   '(-p --provider)'{-p,--provider}'[Restrict to sessions from a specific provider]:provider:(claude pi codex)'
 )
 
-typeset -ga _ccc_search_options=(
+typeset -ga _ch_search_options=(
   '(-h --help)'{-h,--help}'[Show help and exit]'
   '(-l --list)'{-l,--list}'[List mode - show only paths and metadata]'
   '(-ll --only-id)'{-ll,--only-id}'[Show only matching session IDs]'
@@ -46,7 +46,7 @@ typeset -ga _ccc_search_options=(
   '(-ma --mafter)'{-ma,--mafter}'[Only conversations modified after DATE]:date:_default'
   '(-ca --cafter)'{-ca,--cafter}'[Only conversations created after DATE]:date:_default'
   '(-T --thinking)'{-T,--thinking}'::thinking mode:(short)'
-  '(-t --tools)'{-t,--tools}'::tool filter:_ccc_tool_spec'
+  '(-t --tools)'{-t,--tools}'::tool filter:_ch_tool_spec'
   '(-a --agents)'{-a,--agents}'[Include agent messages]'
   '(-A --all)'{-A,--all}'[Show everything (thinking, tools, agents)]'
   '(-s --short)'{-s,--short}'[Shorten strings in output]'
@@ -58,15 +58,15 @@ typeset -ga _ccc_search_options=(
   '(-p --provider)'{-p,--provider}'[Restrict search to sessions from a specific provider]:provider:(claude pi codex)'
 )
 
-typeset -ga _ccc_fork_options=(
+typeset -ga _ch_fork_options=(
   '(-h --help)'{-h,--help}'[Show help and exit]'
   '(-T --thinking)'{-T,--thinking}'::thinking mode:(short)'
-  '(-t --tools)'{-t,--tools}'::tool filter:_ccc_tool_spec'
+  '(-t --tools)'{-t,--tools}'::tool filter:_ch_tool_spec'
   '(-a --agents)'{-a,--agents}'[Include agent sidechain messages]'
   '(-A --all)'{-A,--all}'[Show everything (thinking, tools, agents)]'
 )
 
-typeset -ga _ccc_tool_names=(
+typeset -ga _ch_tool_names=(
   Bash
   Read
   Glob
@@ -83,7 +83,7 @@ typeset -ga _ccc_tool_names=(
   NotebookEdit
 )
 
-typeset -gA _ccc_tool_name_descriptions=(
+typeset -gA _ch_tool_name_descriptions=(
   Bash 'execute shell commands'
   Read 'read file contents'
   Glob 'find files by glob pattern'
@@ -100,7 +100,7 @@ typeset -gA _ccc_tool_name_descriptions=(
   NotebookEdit 'edit notebook cells'
 )
 
-typeset -gA _ccc_tool_modifier_slots=(
+typeset -gA _ch_tool_modifier_slots=(
   i direction
   input direction
   o direction
@@ -111,7 +111,7 @@ typeset -gA _ccc_tool_modifier_slots=(
   short short
 )
 
-typeset -gA _ccc_tool_modifier_descriptions=(
+typeset -gA _ch_tool_modifier_descriptions=(
   i 'input/tool-use only'
   input 'input/tool-use only'
   o 'output/tool-result only'
@@ -122,61 +122,61 @@ typeset -gA _ccc_tool_modifier_descriptions=(
   short 'shorten matching positive tools'
 )
 
-typeset -g _ccc_tool_spec_emit_prefix=''
-typeset -g _ccc_tool_spec_item_prefix=''
-typeset -g _ccc_tool_spec_invalid=0
-typeset -g _ccc_tool_spec_current=''
-typeset -g _ccc_tool_spec_prior_prefix=''
-typeset -gA _ccc_tool_spec_filled_slots=()
+typeset -g _ch_tool_spec_emit_prefix=''
+typeset -g _ch_tool_spec_item_prefix=''
+typeset -g _ch_tool_spec_invalid=0
+typeset -g _ch_tool_spec_current=''
+typeset -g _ch_tool_spec_prior_prefix=''
+typeset -gA _ch_tool_spec_filled_slots=()
 
-_ccc_tool_slot_for_item() {
+_ch_tool_slot_for_item() {
   local item=$1
   local lowered=${item:l}
 
-  if [[ -n ${_ccc_tool_modifier_slots[$lowered]} ]]; then
-    print -r -- "${_ccc_tool_modifier_slots[$lowered]}"
+  if [[ -n ${_ch_tool_modifier_slots[$lowered]} ]]; then
+    print -r -- "${_ch_tool_modifier_slots[$lowered]}"
   else
     print -r -- name
   fi
 }
 
-_ccc_tool_spec_mark_item() {
+_ch_tool_spec_mark_item() {
   local item=$1
   local slot
 
   [[ -n $item ]] || return 1
-  slot=$(_ccc_tool_slot_for_item "$item")
+  slot=$(_ch_tool_slot_for_item "$item")
 
-  if [[ -n ${_ccc_tool_spec_filled_slots[$slot]} ]]; then
-    _ccc_tool_spec_invalid=1
+  if [[ -n ${_ch_tool_spec_filled_slots[$slot]} ]]; then
+    _ch_tool_spec_invalid=1
     return 1
   fi
 
-  _ccc_tool_spec_filled_slots[$slot]=1
+  _ch_tool_spec_filled_slots[$slot]=1
 }
 
-_ccc_tool_spec_parse_current() {
+_ch_tool_spec_parse_current() {
   local spec=$1
   local body completed_body item
   local -a completed_items
 
-  _ccc_tool_spec_emit_prefix=''
-  _ccc_tool_spec_item_prefix=''
-  _ccc_tool_spec_invalid=0
-  _ccc_tool_spec_filled_slots=()
+  _ch_tool_spec_emit_prefix=''
+  _ch_tool_spec_item_prefix=''
+  _ch_tool_spec_invalid=0
+  _ch_tool_spec_filled_slots=()
 
-  [[ $spec == :* ]] && _ccc_tool_spec_invalid=1 && return 1
-  [[ $spec == *::* ]] && _ccc_tool_spec_invalid=1 && return 1
-  [[ $spec == '!!'* ]] && _ccc_tool_spec_invalid=1 && return 1
+  [[ $spec == :* ]] && _ch_tool_spec_invalid=1 && return 1
+  [[ $spec == *::* ]] && _ch_tool_spec_invalid=1 && return 1
+  [[ $spec == '!!'* ]] && _ch_tool_spec_invalid=1 && return 1
 
   if [[ $spec == !* ]]; then
-    _ccc_tool_spec_emit_prefix='!'
+    _ch_tool_spec_emit_prefix='!'
     body=${spec#?}
   else
     body=$spec
   fi
 
-  [[ $body == :* ]] && _ccc_tool_spec_invalid=1 && return 1
+  [[ $body == :* ]] && _ch_tool_spec_invalid=1 && return 1
 
   if [[ -z $body ]]; then
     return 0
@@ -184,60 +184,60 @@ _ccc_tool_spec_parse_current() {
 
   if [[ $body == *: ]]; then
     completed_body=${body%:}
-    _ccc_tool_spec_item_prefix=''
-    _ccc_tool_spec_emit_prefix+="${completed_body}:"
+    _ch_tool_spec_item_prefix=''
+    _ch_tool_spec_emit_prefix+="${completed_body}:"
   elif [[ $body == *:* ]]; then
     completed_body=${body%:*}
-    _ccc_tool_spec_item_prefix=${body##*:}
-    _ccc_tool_spec_emit_prefix+="${completed_body}:"
+    _ch_tool_spec_item_prefix=${body##*:}
+    _ch_tool_spec_emit_prefix+="${completed_body}:"
   else
     completed_body=''
-    _ccc_tool_spec_item_prefix=$body
+    _ch_tool_spec_item_prefix=$body
   fi
 
   if [[ -n $completed_body ]]; then
     completed_items=(${(@s/:/)completed_body})
     for item in "${completed_items[@]}"; do
-      _ccc_tool_spec_mark_item "$item" || return 1
+      _ch_tool_spec_mark_item "$item" || return 1
     done
   fi
 
   return 0
 }
 
-_ccc_tool_spec_split_current() {
+_ch_tool_spec_split_current() {
   local full=$PREFIX
   local current
 
   current=${full##* }
-  _ccc_tool_spec_current=$current
+  _ch_tool_spec_current=$current
 
   if [[ $current == "$full" ]]; then
-    _ccc_tool_spec_prior_prefix=''
+    _ch_tool_spec_prior_prefix=''
   else
-    _ccc_tool_spec_prior_prefix=${full[1,$(( ${#full} - ${#current} ))]}
+    _ch_tool_spec_prior_prefix=${full[1,$(( ${#full} - ${#current} ))]}
   fi
 }
 
-_ccc_tool_modifier_matches() {
+_ch_tool_modifier_matches() {
   local token=$1
   local prefix=$2
 
   [[ ${token:l} == "${prefix:l}"* ]]
 }
 
-_ccc_tool_name_matches() {
+_ch_tool_name_matches() {
   local token=$1
   local prefix=$2
 
   [[ ${token:l} == "${prefix:l}"* ]]
 }
 
-_ccc_tool_spec_add_match() {
+_ch_tool_spec_add_match() {
   local group=$1
   local token=$2
   local description=$3
-  local match="${_ccc_tool_spec_prior_prefix}${_ccc_tool_spec_emit_prefix}${token}"
+  local match="${_ch_tool_spec_prior_prefix}${_ch_tool_spec_emit_prefix}${token}"
   local display="${match} -- ${description}"
 
   case $group in
@@ -256,7 +256,7 @@ _ccc_tool_spec_add_match() {
   esac
 }
 
-_ccc_tool_spec_add_modifier_matches() {
+_ch_tool_spec_add_modifier_matches() {
   local slot=$1
   local token
   local -a tokens
@@ -277,40 +277,40 @@ _ccc_tool_spec_add_modifier_matches() {
   esac
 
   for token in "${tokens[@]}"; do
-    _ccc_tool_modifier_matches "$token" "$_ccc_tool_spec_item_prefix" || continue
-    _ccc_tool_spec_add_match modifiers "$token" "${_ccc_tool_modifier_descriptions[$token]}"
+    _ch_tool_modifier_matches "$token" "$_ch_tool_spec_item_prefix" || continue
+    _ch_tool_spec_add_match modifiers "$token" "${_ch_tool_modifier_descriptions[$token]}"
   done
 }
 
-_ccc_tool_spec() {
+_ch_tool_spec() {
   local current_spec expl
   local -i ret=1
   local -a operators operator_descriptions modifiers modifier_descriptions names name_descriptions
   local tool_name
 
-  _ccc_tool_spec_split_current
-  current_spec=$_ccc_tool_spec_current
-  _ccc_tool_spec_parse_current "$current_spec" || return 1
-  (( _ccc_tool_spec_invalid )) && return 1
+  _ch_tool_spec_split_current
+  current_spec=$_ch_tool_spec_current
+  _ch_tool_spec_parse_current "$current_spec" || return 1
+  (( _ch_tool_spec_invalid )) && return 1
 
   if [[ -z $current_spec ]]; then
-    operators+=("${_ccc_tool_spec_prior_prefix}!")
+    operators+=("${_ch_tool_spec_prior_prefix}!")
     operator_descriptions+=('negate this tool filter')
   fi
 
-  if [[ -z ${_ccc_tool_spec_filled_slots[direction]} ]]; then
-    _ccc_tool_spec_add_modifier_matches direction
+  if [[ -z ${_ch_tool_spec_filled_slots[direction]} ]]; then
+    _ch_tool_spec_add_modifier_matches direction
   fi
-  if [[ -z ${_ccc_tool_spec_filled_slots[error]} ]]; then
-    _ccc_tool_spec_add_modifier_matches error
+  if [[ -z ${_ch_tool_spec_filled_slots[error]} ]]; then
+    _ch_tool_spec_add_modifier_matches error
   fi
-  if [[ -z ${_ccc_tool_spec_filled_slots[short]} ]]; then
-    _ccc_tool_spec_add_modifier_matches short
+  if [[ -z ${_ch_tool_spec_filled_slots[short]} ]]; then
+    _ch_tool_spec_add_modifier_matches short
   fi
-  if [[ -z ${_ccc_tool_spec_filled_slots[name]} ]]; then
-    for tool_name in "${_ccc_tool_names[@]}"; do
-      _ccc_tool_name_matches "$tool_name" "$_ccc_tool_spec_item_prefix" || continue
-      _ccc_tool_spec_add_match names "$tool_name" "${_ccc_tool_name_descriptions[$tool_name]}"
+  if [[ -z ${_ch_tool_spec_filled_slots[name]} ]]; then
+    for tool_name in "${_ch_tool_names[@]}"; do
+      _ch_tool_name_matches "$tool_name" "$_ch_tool_spec_item_prefix" || continue
+      _ch_tool_spec_add_match names "$tool_name" "${_ch_tool_name_descriptions[$tool_name]}"
     done
   fi
 
@@ -321,7 +321,7 @@ _ccc_tool_spec() {
   return ret
 }
 
-_ccc_recent_indices() {
+_ch_recent_indices() {
   local expl
   local -a values descriptions
 
@@ -341,7 +341,7 @@ _ccc_recent_indices() {
   _wanted recent-indices expl 'recent session' compadd -Q -d descriptions -a values
 }
 
-_ccc_session_selector() {
+_ch_session_selector() {
   local -i ret=1
 
   case $PREFIX in
@@ -351,12 +351,12 @@ _ccc_session_selector() {
       ;;
   esac
 
-  _ccc_recent_indices && ret=0
+  _ch_recent_indices && ret=0
   [[ -n $PREFIX ]] && _files && ret=0
   return ret
 }
 
-_ccc_slice_selector() {
+_ch_slice_selector() {
   local expl
   local -a values descriptions
 
@@ -375,113 +375,113 @@ _ccc_slice_selector() {
   _wanted slices expl 'message slice' compadd -Q -d descriptions -a values
 }
 
-_ccc_parse() {
+_ch_parse() {
   local curcontext="$curcontext" state line
   local -i ret=1
   typeset -A opt_args
 
   _arguments -A '-*' -C \
-    "${_ccc_parse_options[@]}" \
-    '1:input:_ccc_session_selector' \
-    '2:slice:_ccc_slice_selector' \
+    "${_ch_parse_options[@]}" \
+    '1:input:_ch_session_selector' \
+    '2:slice:_ch_slice_selector' \
     '*:: :->parse_rest' && ret=0
 
   case $state in
     (parse_rest)
-      _arguments -A '-*' -C "${_ccc_parse_options[@]}" && ret=0
+      _arguments -A '-*' -C "${_ch_parse_options[@]}" && ret=0
       ;;
   esac
 
   return ret
 }
 
-_ccc_search() {
+_ch_search() {
   local curcontext="$curcontext" state line
   local -i ret=1
   typeset -A opt_args
 
   _arguments -A '-*' -C \
-    "${_ccc_search_options[@]}" \
+    "${_ch_search_options[@]}" \
     '1:pattern:_default' \
     '*:: :->search_rest' && ret=0
 
   case $state in
     (search_rest)
-      _arguments -A '-*' -C "${_ccc_search_options[@]}" && ret=0
+      _arguments -A '-*' -C "${_ch_search_options[@]}" && ret=0
       ;;
   esac
 
   return ret
 }
 
-_ccc_rename() {
+_ch_rename() {
   _arguments -A '-*' -C \
     '(-h --help)'{-h,--help}'[Show help and exit]' \
     '(-n --dry-run)'{-n,--dry-run}'[Print the resolved/generated name without modifying the session file]' \
-    '1:conversation:_ccc_session_selector' \
+    '1:conversation:_ch_session_selector' \
     '2:new name:_default' && return 0
 }
 
-_ccc_fork() {
+_ch_fork() {
   _arguments -A '-*' -C \
-    "${_ccc_fork_options[@]}" \
-    '1:session:_ccc_session_selector' && return 0
+    "${_ch_fork_options[@]}" \
+    '1:session:_ch_session_selector' && return 0
 }
 
-_ccc_rm() {
+_ch_rm() {
   _arguments -A '-*' -C \
     '(-h --help)'{-h,--help}'[Show help and exit]' \
     '(-n --dry-run)'{-n,--dry-run}'[Preview only - show what would be removed without prompting]' \
-    '1:session:_ccc_session_selector' && return 0
+    '1:session:_ch_session_selector' && return 0
 }
 
-_ccc_catalog() {
+_ch_catalog() {
   _arguments -A '-*' -C \
     '(-a --append-prompt)'{-a,--append-prompt}'[Append extra instructions to the AI user message]:string:' \
-    '*:session or file:_ccc_session_selector' && return 0
+    '*:session or file:_ch_session_selector' && return 0
 }
 
-_ccc() {
+_ch() {
   local curcontext="$curcontext" state line
   local -i ret=1
   typeset -A opt_args
 
   _arguments -A '-*' -C \
-    "${_ccc_parse_options[@]}" \
+    "${_ch_parse_options[@]}" \
     '1:command or input:->root_arg' \
     '*:: :->root_rest' && ret=0
 
   case $state in
     (root_arg)
       if (( CURRENT == 1 )); then
-        _describe -t subcommands 'ccc commands' _ccc_subcommands && ret=0
-        _ccc_session_selector && ret=0
+        _describe -t subcommands 'ch commands' _ch_subcommands && ret=0
+        _ch_session_selector && ret=0
       fi
       ;;
     (root_rest)
       case $line[1] in
         (search)
-          _ccc_search
+          _ch_search
           ret=$?
           ;;
         (rename)
-          _ccc_rename
+          _ch_rename
           ret=$?
           ;;
         (fork)
-          _ccc_fork
+          _ch_fork
           ret=$?
           ;;
         (rm)
-          _ccc_rm
+          _ch_rm
           ret=$?
           ;;
         (catalog)
-          _ccc_catalog
+          _ch_catalog
           ret=$?
           ;;
         (*)
-          _ccc_parse
+          _ch_parse
           ret=$?
           ;;
       esac
@@ -491,8 +491,8 @@ _ccc() {
   return $ret
 }
 
-if [ "${funcstack[1]}" = "_ccc" ]; then
-  _ccc "$@"
+if [ "${funcstack[1]}" = "_ch" ]; then
+  _ch "$@"
 else
-  compdef _ccc ccc
+  compdef _ch ch
 fi
