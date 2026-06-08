@@ -840,6 +840,23 @@ function _skills_collect_resolvable_skill_names() {
   done
 }
 
+function _skills_collect_non_binary_files_recursively() {
+  emulate -L zsh
+  local root="$1" file_path="" mime_encoding=""
+  reply=()
+
+  for file_path in "$root"/**/*(.N); do
+    if [[ ! -s "$file_path" ]]; then
+      reply+=("$file_path")
+      continue
+    fi
+
+    mime_encoding="$(file --mime-encoding -b -- "$file_path")"
+    [[ "$mime_encoding" == "binary" ]] && continue
+    reply+=("$file_path")
+  done
+}
+
 function skr() {
   # Read a skill. Usage: skr [-g] [-p pi|claude|codex|gemini] [skill-name] [skill-file-path]
   emulate -L zsh
@@ -860,7 +877,8 @@ function skr() {
       echo "skr: unexpected file path '$skill_file_path' without a skill name" >&2
       return 1
     }
-    bat "$base_dir"/*(N)
+    _skills_collect_non_binary_files_recursively "$base_dir"
+    (( ${#reply} )) && bat "${reply[@]}"
     return
   fi
 
@@ -876,7 +894,8 @@ function skr() {
   if [[ "$_skills_target_mode" == "file" ]]; then
     bat "$target"
   else
-    bat "$target"/**/*(.N)
+    _skills_collect_non_binary_files_recursively "$target"
+    (( ${#reply} )) && bat "${reply[@]}"
   fi
 }
 
