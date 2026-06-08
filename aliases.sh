@@ -70,27 +70,20 @@ alias c=command
 alias ca=cursor-agent
 alias oc=openclaw
 alias :claude='/usr/bin/env -u CLAUDE_CODE_OAUTH_TOKEN -u ANTHROPIC_API_KEY claude --dangerously-skip-permissions --no-chrome'
-compdef _claude :claude
 
 alias claudeo=':claude --model=opus'
-compdef _claude claudeo
 
 alias claudes=':claude --model=sonnet'
-compdef _claude claudes
 
 alias claudeh=':claude --model=haiku'
-compdef _claude claudeh
 
 alias claudehappy='() { if [[ -f ~/.claude-code-oauth-token ]]; then happy --claude-env CLAUDE_CODE_OAUTH_TOKEN="$(<~/.claude-code-oauth-token)" --yolo "$@"; else happy --claude-env ANTHROPIC_API_KEY="$(<~/.anthropic-api-key-hearai-gilad-local-dev)" --yolo "$@"; fi ; }'
 
 alias claudeon='claudeo --no-session-persistence -p'
-compdef _claude claudeon
 
 alias claudesn='claudes --no-session-persistence -p'
-compdef _claude claudesn
 
 alias claudehn='claudeh --no-session-persistence -p'
-compdef _claude claudehn
 
 alias codexd='/usr/bin/env -u OPENAI_API_KEY codex --yolo'
 compdef _codex codexd
