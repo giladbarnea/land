@@ -38,6 +38,7 @@ source "$THIS_SCRIPT_DIR/pkgmgr.sh" # brew, apt, snap
 source "$THIS_SCRIPT_DIR/misc.sh"   # editfile, countlines, bashh, zshh
 source "$THIS_SCRIPT_DIR/fzf.sh"
 source "$THIS_SCRIPT_DIR/paths.sh" # cppwd, cppath, resolve
+source "$THIS_SCRIPT_DIR/proc.sh" # cppwd, cppath, resolve
 source "$THIS_SCRIPT_DIR/keybinds.zsh"
 source "$THIS_SCRIPT_DIR/scraping.sh"
 source "$THIS_SCRIPT_DIR/convert.sh"
