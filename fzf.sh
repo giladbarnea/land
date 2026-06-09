@@ -12,35 +12,35 @@ export FZF_BINDINGS=(
   # --bind "'down:down+execute(. fzf.sh; source ${LAND}/zenity.sh; notif.success \"export | grep FZF_PREVIEW_LINES\")'"
 
   # alt-e: edit with cursor
-  --bind "'alt-e:execute-silent(. fzf.sh; .fzf-open-in-cursor {})'"
+  --bind "'ctrl-e:execute-silent(. fzf.sh; .fzf-open-in-cursor {})'"
 
   # ?: preview
-  --bind "'?:preview(. fzf.sh; .fzf-preview {})'"
+  --bind "'ctrl-p:preview(. fzf.sh; .fzf-preview {})'"
 
   # alt-c: copy
-  --bind "'alt-c:execute(. fzf.sh; .fzf-copy-to-clipboard {})'"
+  --bind "'ctrl-c:execute(. fzf.sh; .fzf-copy-to-clipboard {})'"
 
   # ctrl-alt-c: copy absolute path
-  --bind "'ctrl-alt-c:execute(. fzf.sh; .fzf-copy-to-clipboard {} -a)'"
+  --bind "'ctrl-alt-c:execute(.fzf-copy-to-clipboard {} -a)'"
 
   # alt-backspace: mv to /tmp/.trash
-  --bind "'alt-bspace:execute(. fzf.sh; .fzf-move-to-trash {})'"
+  --bind "'ctrl-bspace:execute(. fzf.sh; .fzf-move-to-trash {})'"
 
   # alt-?: print these bindings
   # --bind "'alt-?:preview(. fzf.sh; .fzf-print-bindings > /tmp/fzf-bindings; .fzf-preview /tmp/fzf-bindings)'"
-   --bind "'alt-?:preview(. fzf.sh; .fzf-preview <(.fzf-print-bindings))'"
+   --bind "'ctrl-/:preview(. fzf.sh; .fzf-preview <(.fzf-print-bindings))'"
 
   # alt-d: reload to search dirs
-  --bind "'alt-d:reload(fd --hidden --no-ignore --type d)'"
+  --bind "'ctrl-d:reload(fd --hidden --no-ignore --type d)'"
 
   # alt-f: reload to search files
-  --bind "'alt-f:reload(fd --hidden --no-ignore --type f)'"
+  --bind "'ctrl-f:reload(fd --hidden --no-ignore --type f)'"
 
   # alt-x: reload to search without dir/file filtering
-  --bind "'alt-x:reload(fd --hidden --no-ignore)'"
+  --bind "'ctrl-x:reload(fd --hidden --no-ignore)'"
 
    # +: reload with unlimited max-depth
-   --bind "'+:reload(fd --hidden --no-ignore --max-depth=999)'"
+   --bind "'ctrl-u:reload(fd --hidden --no-ignore --max-depth=999)'"
    # --bind "'load:reload(fd --hidden --no-ignore --max-depth=6)'"
 )
 
@@ -73,11 +73,15 @@ function .fzf-copy-to-clipboard(){
   #  export DISPLAY=:0
   #  export DISPLAY=:1
   # fi
-  if clipcopy "$target"; then
-    notif.success "copied successfully: $target" --bg
-  else
-    notif.error "failed copying: $target" --bg
-  fi
+  command -v pbcopy 1>/dev/null 2>&1 || {
+    # echo "[error] ‘pbcopy’ unavailable, did not copy $1." 1>&2
+    return 1
+  }
+  pbcopy "$target"
+  # echo "[good] Copied $1." 1>&2
+  # else
+  #   echo "[warn] ‘pbcopy $1’ returned a non-zero exit code." 1>&2
+  # fi
 }
 
 # alt-e

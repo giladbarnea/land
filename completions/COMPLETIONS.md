@@ -27,15 +27,17 @@ As of Apr 19, 2026, this is the script's output:
 ```
 │ File       │ Created                   │ Modified                  │
 │ ────────── │ ───────────────────────── │ ───────────────────────── │
-│ _pi        │ 2026-04-07T11:32:03+03:00 │ 2026-04-07T13:44:45+03:00 │
+│ _ch        │ 2026-04-23T12:59:10+03:00 │ 2026-06-07T14:16:54+03:00 │
+│ _skills    │ 2026-04-19T09:27:40+03:00 │ 2026-06-09T10:42:04+03:00 │
+│ _pi        │ 2026-04-07T11:32:03+03:00 │ 2026-05-31T13:36:51+03:00 │
 │ _openclaw  │ 2026-02-13T10:39:40+02:00 │ 2026-03-27T17:14:02+03:00 │
 │ _gemini    │ 2026-02-08T09:51:15+02:00 │ 2026-02-08T11:09:58+02:00 │
-│ _codex     │ 2026-02-08T08:44:51+02:00 │ 2026-04-03T13:37:12+03:00 │
-│ _claude    │ 2026-01-27T13:07:39+02:00 │ 2026-01-27T13:07:39+02:00 │
+│ _codex     │ 2026-02-08T08:44:51+02:00 │ 2026-05-08T09:15:02+03:00 │
+│ _claude    │ 2026-01-27T13:07:39+02:00 │ 2026-06-08T11:58:57+03:00 │
 │ _opencode  │ 2026-01-27T12:37:51+02:00 │ 2026-01-27T12:37:51+02:00 │
 │ _scraping  │ 2025-12-17T12:11:43+02:00 │ 2025-12-17T12:11:43+02:00 │
 │ _delta     │ 2025-11-14T14:32:30+02:00 │ 2025-11-14T14:32:30+02:00 │
-│ _git       │ 2025-10-15T11:52:53+03:00 │ 2026-04-07T14:59:56+03:00 │
+│ _git       │ 2025-10-15T11:52:53+03:00 │ 2026-04-21T08:35:30+03:00 │
 │ _wacli     │ 2025-10-15T11:52:53+03:00 │ 2026-03-27T17:14:02+03:00 │
 │ _ruff      │ 2025-10-15T11:52:53+03:00 │ 2026-01-13T19:48:28+02:00 │
 │ _tools     │ 2025-10-15T11:52:53+03:00 │ 2025-11-14T14:37:34+02:00 │
@@ -54,7 +56,7 @@ As of Apr 19, 2026, this is the script's output:
 ```
 
 Therefore, good example scripts are:
-- _pi: most recently created (2026-04-07) and still one of the freshest files overall
+- _ch and _pi: most recently created and still among the freshest files overall 
 - _codex: recently modified (2026-04-03), recently created (2026-02-08)
 - _openclaw: recently created (2026-02-13), heavily maintained (137kb)
 - _gemini: older (2026-02-08), but I'm signing here that it's the best script in this directory for best practices. Inspired by `/Users/giladbarnea/.openclaw/completions/openclaw.zsh`. It is superior because: 
