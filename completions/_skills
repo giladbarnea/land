@@ -270,5 +270,5 @@ _skills_ske() {
 if [ "${funcstack[1]}" = "_skills" ]; then
   _skills "$@"
 else
-  compdef _skills skills skills.sh skr ske
+  compdef _skills skills skills.sh skr ske skcd skt skl
 fi

@@ -54,8 +54,15 @@
   # ## See also
   # hsi, hsu
   function hs() {
-    setopt localoptions errreturn pipefail
-    history | .smart-grep "$@" | bat -pl zsh
+    local matches_only_with_the_history_file
+    matches_only_with_the_history_file="$(history | .smart-grep "$@")" || {
+      log.warn "No matches with naive ${Cc}history${Cc0} call; trying with all history files in ~ and ~/.zsh_history_backup."
+      local -au all_history_files
+      all_history_files=(~/.zsh_hist*(N) ~/.zsh_history_backups/*(N))
+      rg "$@" $(echo ${(j. .)all_history_files[@]})
+      return $?
+    }
+    echo "$matches_only_with_the_history_file" | bat -pl zsh
   }
 
   # # hsc <EXTENDED_REGEX> [grep options...]
