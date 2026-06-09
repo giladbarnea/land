@@ -76,6 +76,7 @@ _gemini() {
 }
 
 _gemini:mcp() {
+  local -i ret=1
   local -a mcp_subcommands=(
     'add:Add a server'
     'remove:Remove a server'
@@ -88,11 +89,11 @@ _gemini:mcp() {
     '(-d --debug)'{-d,--debug}'[Run in debug mode]' \
     '(-h --help)'{-h,--help}'[Show help]' \
     "1: :->subcmd" \
-    "*:: :->args"
+    "*:: :->args" && ret=0
 
   case $state in
     (subcmd)
-      _describe -t subcommands 'gemini mcp commands' mcp_subcommands
+      _describe -t subcommands 'gemini mcp commands' mcp_subcommands && ret=0
       ;;
     (args)
       case $line[1] in
@@ -100,21 +101,24 @@ _gemini:mcp() {
           _arguments -C \
             ':name: ' \
             ':commandOrUrl: ' \
-            '*:args: '
+            '*:args: ' && ret=0
           ;;
         (remove|enable|disable)
           _arguments -C \
-            ':name: '
+            ':name: ' && ret=0
           ;;
         (list)
-          _arguments -C
+          _arguments -C && ret=0
           ;;
       esac
       ;;
   esac
+
+  return $ret
 }
 
 _gemini:extensions() {
+  local -i ret=1
   local -a extensions_subcommands=(
     'install:Installs an extension from a git repository URL or a local path'
     'uninstall:Uninstalls one or more extensions'
@@ -132,11 +136,11 @@ _gemini:extensions() {
     '(-d --debug)'{-d,--debug}'[Run in debug mode]' \
     '(-h --help)'{-h,--help}'[Show help]' \
     "1: :->subcmd" \
-    "*:: :->args"
+    "*:: :->args" && ret=0
 
   case $state in
     (subcmd)
-      _describe -t subcommands 'gemini extensions commands' extensions_subcommands
+      _describe -t subcommands 'gemini extensions commands' extensions_subcommands && ret=0
       ;;
     (args)
       case $line[1] in
@@ -144,40 +148,43 @@ _gemini:extensions() {
           _arguments -C \
             '--auto-update[Auto update extension]' \
             '--pre-release[Install pre-release version]' \
-            ':source: '
+            ':source: ' && ret=0
           ;;
         (uninstall)
           _arguments -C \
-            '*:names: '
+            '*:names: ' && ret=0
           ;;
         (list)
-          _arguments -C
+          _arguments -C && ret=0
           ;;
         (update)
           _arguments -C \
             '--all[Update all extensions]' \
-            ':name: '
+            ':name: ' && ret=0
           ;;
         (disable|enable)
           _arguments -C \
             '--scope=[Scope]:SCOPE:(user project)' \
-            ':name: '
+            ':name: ' && ret=0
           ;;
         (link|new|validate)
           _arguments -C \
-            ':path:_files -/'
+            ':path:_files -/' && ret=0
           ;;
         (config)
           _arguments -C \
             ':name: ' \
-            ':setting: '
+            ':setting: ' && ret=0
           ;;
       esac
       ;;
   esac
+
+  return $ret
 }
 
 _gemini:skills() {
+  local -i ret=1
   local -a skills_subcommands=(
     'list:Lists discovered agent skills'
     'enable:Enables an agent skill'
@@ -190,39 +197,42 @@ _gemini:skills() {
     '(-d --debug)'{-d,--debug}'[Run in debug mode]' \
     '(-h --help)'{-h,--help}'[Show help]' \
     "1: :->subcmd" \
-    "*:: :->args"
+    "*:: :->args" && ret=0
 
   case $state in
     (subcmd)
-      _describe -t subcommands 'gemini skills commands' skills_subcommands
+      _describe -t subcommands 'gemini skills commands' skills_subcommands && ret=0
       ;;
     (args)
       case $line[1] in
         (list)
           _arguments -C \
-            '--all[List all skills]'
+            '--all[List all skills]' && ret=0
           ;;
         (enable)
           _arguments -C \
-            ':name: '
+            ':name: ' && ret=0
           ;;
         (disable|uninstall)
           _arguments -C \
             '--scope=[Scope]:SCOPE:(user project)' \
-            ':name: '
+            ':name: ' && ret=0
           ;;
         (install)
           _arguments -C \
             '--scope=[Scope]:SCOPE:(user project)' \
             '--path[Install from local path]' \
-            ':source: '
+            ':source: ' && ret=0
           ;;
       esac
       ;;
   esac
+
+  return $ret
 }
 
 _gemini:hooks() {
+  local -i ret=1
   local -a hooks_subcommands=(
     'migrate:Migrate hooks from Claude Code to Gemini CLI'
   )
@@ -231,20 +241,22 @@ _gemini:hooks() {
     '(-d --debug)'{-d,--debug}'[Run in debug mode]' \
     '(-h --help)'{-h,--help}'[Show help]' \
     "1: :->subcmd" \
-    "*:: :->args"
+    "*:: :->args" && ret=0
 
   case $state in
     (subcmd)
-      _describe -t subcommands 'gemini hooks commands' hooks_subcommands
+      _describe -t subcommands 'gemini hooks commands' hooks_subcommands && ret=0
       ;;
     (args)
       case $line[1] in
         (migrate)
-          _arguments -C
+          _arguments -C && ret=0
           ;;
       esac
       ;;
   esac
+
+  return $ret
 }
 
 if [ "${funcstack[1]}" = "_gemini" ]; then

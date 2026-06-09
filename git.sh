@@ -204,10 +204,10 @@ function gacp() {
   if [[ -n "$1" ]]; then
     commitmsg="$1"
     shift 1
-    log.debug "commitmsg: $commitmsg"
+    log.debug "$(typeset commitmsg)"
   fi
   if ! vex git add .; then
-    log.fatal "${Cc}git add${Cc0} failed, aborting"
+    log.fatal "${Cc}git add${Cc0} failed, aborting."
     return 1
   fi
   if [[ -z "$commitmsg" ]]; then
@@ -216,6 +216,7 @@ function gacp() {
   if [[ -z "$commitmsg" || "$commitmsg" = "" ]]; then
     commitmsg="$(date)"
   fi
+  commitmsg="$(strip "$commitmsg")"
   if ! confirm "commit -am $* \"$commitmsg\"?"; then
     log.warn Aborting
     return 3

@@ -433,7 +433,7 @@ function strip(){
   }
 
 	# shellcheck disable=SC2299  # Parameter expansions can't be nested.
-	printf "%s" "${${string##[\\n ]##}%%[\\n ]##}"
+	printf "%s" "${${string##[\\n $'\t']##}%%[\\n $'\t']##}"
 }
 
 # # stomp <text / stdin>

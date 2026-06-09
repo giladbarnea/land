@@ -54,10 +54,7 @@ _agy() {
           ;;
         (help)
           _arguments -C \
-            ':subcommand:(changelog install models plugin plugins update)' && ret=0
-          ;;
-        (*)
-          _default && ret=0
+            ':subcommand:(changelog help install models plugin plugins update)' && ret=0
           ;;
       esac
       ;;
@@ -70,8 +67,8 @@ _agy:install() {
   _arguments -C \
     '(-h --help)'{-h,--help}'[Show help]' \
     '--dir=[Custom directory target to configure PATH for]:DIR:_files -/' \
-    '--skip-aliases[Bypass shell profile alias purging]' \
-    '--skip-path[Bypass shell profile PATH appending]' && return 0
+    '--skip-aliases[Bypasses shell profile alias purging]' \
+    '--skip-path[Bypasses shell profile PATH appending]' && return 0
 }
 
 _agy_plugin_names() {
@@ -79,13 +76,14 @@ _agy_plugin_names() {
   local -a names
 
   names=(${(f)"$(agy plugin list 2>/dev/null)"})
-  names=(${names:#No imported plugins.*})
+  names=(${names:#No imported plugins.})
   (( ${#names[@]} )) || return 1
   _wanted plugin-names expl 'plugin name' compadd -a names
 }
 
 _agy:plugin() {
   local curcontext="$curcontext" state line
+  local -i ret=1
   typeset -A opt_args
 
   local -a plugin_subcommands=(
@@ -103,51 +101,53 @@ _agy:plugin() {
   _arguments -C \
     '(-h --help)'{-h,--help}'[Show help]' \
     '1: :->subcmd' \
-    '*:: :->args'
+    '*:: :->args' && ret=0
 
   case $state in
     (subcmd)
-      _describe -t subcommands 'agy plugin commands' plugin_subcommands
+      _describe -t subcommands 'agy plugin commands' plugin_subcommands && ret=0
       ;;
     (args)
       case $line[1] in
         (list)
           _arguments -C \
-            '(-h --help)'{-h,--help}'[Show help]'
+            '(-h --help)'{-h,--help}'[Show help]' && ret=0
           ;;
         (import)
           _arguments -C \
             '(-h --help)'{-h,--help}'[Show help]' \
-            '::source:(gemini claude)'
+            '::source:(gemini claude)' && ret=0
           ;;
         (install)
           _arguments -C \
             '(-h --help)'{-h,--help}'[Show help]' \
-            ':target:_default'
+            ':target:_default' && ret=0
           ;;
         (uninstall|enable|disable)
           _arguments -C \
             '(-h --help)'{-h,--help}'[Show help]' \
-            ':name:_agy_plugin_names'
+            ':name:_agy_plugin_names' && ret=0
           ;;
         (validate)
           _arguments -C \
             '(-h --help)'{-h,--help}'[Show help]' \
-            '::path:_files -/'
+            '::path:_files -/' && ret=0
           ;;
         (link)
           _arguments -C \
             '(-h --help)'{-h,--help}'[Show help]' \
             ':marketplace:_default' \
-            ':target:_default'
+            ':target:_default' && ret=0
           ;;
         (help)
           _arguments -C \
-            ':subcommand:(list import install uninstall enable disable validate link)'
+            ':subcommand:(list import install uninstall enable disable validate link help)' && ret=0
           ;;
       esac
       ;;
   esac
+
+  return $ret
 }
 
 if [ "${funcstack[1]}" = "_agy" ]; then
