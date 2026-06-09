@@ -8,6 +8,7 @@
 #   ~/.claude/skills          .claude/skills
 #   ~/.codex/skills           .codex/skills
 #   ~/.gemini/skills          .gemini/skills
+#   ~/.antigravity/skills     .antigravity/skills
 #
 # Pi quirk: user-level uses ~/.pi/agent/skills (not ~/.pi/skills). Project-level is .pi/skills.
 # This script manages the symlink plumbing from a canonical SOURCE into one or more TARGETs.
@@ -30,7 +31,7 @@
 #
 # Examples:
 #   skills sync .agents .claude
-#   skills sync ~/.agents ~/.claude,~/.pi/agent,~/.codex,~/.gemini
+#   skills sync ~/.agents ~/.claude,~/.pi/agent,~/.codex,~/.gemini,~/.antigravity
 #   skills sync .agents .claude,.pi/agent --install-githooks
 #   skills sync .agents/skills .claude,.pi --install-githooks pre-commit
 #   skills sync .agents/skills/my-skill .claude
@@ -405,15 +406,17 @@ function _skills_hidden_base_dir_relative_paths() {
         ".claude/skills"
         ".codex/skills"
         ".gemini/skills"
+        ".antigravity/skills"
         ".pi/skills"
       )
       ;;
-    pi)      reply=(".pi/agent/skills" ".pi/skills") ;;
-    claude)  reply=(".claude/skills") ;;
-    codex)   reply=(".codex/skills") ;;
-    gemini)  reply=(".gemini/skills") ;;
+    pi)           reply=(".pi/agent/skills" ".pi/skills") ;;
+    claude)       reply=(".claude/skills") ;;
+    codex)        reply=(".codex/skills") ;;
+    gemini)       reply=(".gemini/skills") ;;
+    antigravity)  reply=(".antigravity/skills") ;;
     *)
-      echo "skills: unknown provider '$provider'. Expected: pi, claude, codex, gemini" >&2
+      echo "skills: unknown provider '$provider'. Expected: pi, claude, codex, gemini, antigravity" >&2
       return 1
       ;;
   esac
@@ -429,11 +432,12 @@ function _skills_detect_provider_from_base_dir() {
   }
 
   case "$parent_dir_name" in
-    .agents) REPLY="agents" ;;
-    .claude) REPLY="claude" ;;
-    .codex)  REPLY="codex" ;;
-    .gemini) REPLY="gemini" ;;
-    .pi)     REPLY="pi" ;;
+    .agents)      REPLY="agents" ;;
+    .claude)      REPLY="claude" ;;
+    .codex)       REPLY="codex" ;;
+    .gemini)      REPLY="gemini" ;;
+    .antigravity) REPLY="antigravity" ;;
+    .pi)          REPLY="pi" ;;
     agent)
       if [[ "$grandparent_dir_name" == ".pi" ]]; then
         REPLY="pi"
@@ -535,13 +539,14 @@ function _skills_base_dir() {
 
   if [[ "$global" == "true" ]]; then
     case "$provider" in
-      pi)      base_dir="$HOME/.pi/agent/skills" ;;
-      claude)  base_dir="$HOME/.claude/skills" ;;
-      codex)   base_dir="$HOME/.codex/skills" ;;
-      gemini)  base_dir="$HOME/.gemini/skills" ;;
-      "")      base_dir="$HOME/.agents/skills" ;;
+      pi)           base_dir="$HOME/.pi/agent/skills" ;;
+      claude)       base_dir="$HOME/.claude/skills" ;;
+      codex)        base_dir="$HOME/.codex/skills" ;;
+      gemini)       base_dir="$HOME/.gemini/skills" ;;
+      antigravity)  base_dir="$HOME/.antigravity/skills" ;;
+      "")           base_dir="$HOME/.agents/skills" ;;
       *)
-        echo "skills: unknown provider '$provider'. Expected: pi, claude, codex, gemini" >&2
+        echo "skills: unknown provider '$provider'. Expected: pi, claude, codex, gemini, antigravity" >&2
         return 1
         ;;
     esac
@@ -858,7 +863,7 @@ function _skills_collect_non_binary_files_recursively() {
 }
 
 function skr() {
-  # Read a skill. Usage: skr [-g] [-p pi|claude|codex|gemini] [skill-name] [skill-file-path]
+  # Read a skill. Usage: skr [-g] [-p pi|claude|codex|gemini|antigravity] [skill-name] [skill-file-path]
   emulate -L zsh
   local global="false" provider="" skill_name="" skill_file_path="" target=""
   local base_dir=""
@@ -900,7 +905,7 @@ function skr() {
 }
 
 function ske() {
-  # Edit a skill. Usage: ske [-g] [-p pi|claude|codex|gemini] [skill-name]
+  # Edit a skill. Usage: ske [-g] [-p pi|claude|codex|gemini|antigravity] [skill-name]
   emulate -L zsh
   local global="false" provider="" skill_name=""
   local base_dir=""
@@ -923,7 +928,7 @@ function ske() {
 }
 
 function skcd() {
-  # Navigate to a skill directory. Usage: skcd [-g] [-p pi|claude|codex|gemini] [skill-name]
+  # Navigate to a skill directory. Usage: skcd [-g] [-p pi|claude|codex|gemini|antigravity] [skill-name]
   emulate -L zsh
   local global="false" provider="" skill_name=""
   local base_dir=""
@@ -950,7 +955,7 @@ function skcd() {
 }
 
 function skt() {
-  # Tree a skill directory. Usage: skt [-g] [-p pi|claude|codex|gemini] [skill-name]
+  # Tree a skill directory. Usage: skt [-g] [-p pi|claude|codex|gemini|antigravity] [skill-name]
   emulate -L zsh
   local global="false" provider="" skill_name=""
   local base_dir=""
@@ -977,7 +982,7 @@ function skt() {
 }
 
 function skl() {
-  # List all existing skill directories. Usage: skl [-g] [-p pi|claude|codex|gemini]
+  # List all existing skill directories. Usage: skl [-g] [-p pi|claude|codex|gemini|antigravity]
   # Lists local (project) skills if any exist; otherwise falls back to global.
   emulate -L zsh
   local global="false" provider="" skill_name=""
@@ -999,7 +1004,7 @@ function skl() {
   if [[ -n "$provider" ]]; then
     providers_to_check=("$provider")
   else
-    providers_to_check=("" pi claude codex gemini)
+    providers_to_check=("" pi claude codex gemini antigravity)
   fi
 
   for p in "${providers_to_check[@]}"; do
