@@ -15,6 +15,7 @@ typeset -ga _skills_target_alias_specs=(
   'gemini:Alias for .gemini'
   'codex:Alias for .codex'
   'pi:Alias for .pi/agent'
+  'antigravity:Alias for .antigravity'
 )
 
 typeset -ga _skills_git_hook_values=(
@@ -145,6 +146,7 @@ _skills_complete_access_providers() {
     'claude:Claude skills directory'
     'codex:Codex skills directory'
     'gemini:Gemini skills directory'
+    'antigravity:Antigravity skills directory'
   )
 
   _describe -t providers 'provider' provider_specs
