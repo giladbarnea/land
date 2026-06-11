@@ -47,8 +47,12 @@ source "$THIS_SCRIPT_DIR/skills.sh"
 
 if is_interactive; then
   (( ${fpath[(Ie)$THIS_SCRIPT_DIR/completions]} )) || fpath=("$THIS_SCRIPT_DIR/completions" $fpath)
-  [[ -f "$THIS_SCRIPT_DIR/standalone/rebuild-zwc.zsh" ]] && \
-    command zsh "$THIS_SCRIPT_DIR/standalone/rebuild-zwc.zsh" "$THIS_SCRIPT_DIR" >/dev/null 2>&1 &!
+  # if (( $+functions[compdef] )); then
+  #   autoload -Uz _nav
+  #   compdef _nav cd
+  # fi
+  # [[ -f "$THIS_SCRIPT_DIR/standalone/rebuild-zwc.zsh" ]] && \
+  #   command zsh "$THIS_SCRIPT_DIR/standalone/rebuild-zwc.zsh" "$THIS_SCRIPT_DIR" >/dev/null 2>&1 &!
 
   for hook_file in "$THIS_SCRIPT_DIR"/hooks/*.zsh(N); do
     source "$hook_file"
