@@ -57,6 +57,7 @@ hash -d dl="$HOME/Downloads"
 hash -d pic="$HOME/Pictures"
 hash -d lib="$HOME/Library"
 hash -d appsup="$HOME/Library/Application Support"
+hash -d iclouddocs=/Users/giladbarnea/Library/Mobile\ Documents/com\~apple\~CloudDocs/
 hash -d llm="$HOME/Library/Application Support/io.datasette.llm"
 hash -d t="$HOME/Library/Application Support/io.datasette.llm/templates"
 hash -d ob="$HOME/Documents/remote"
@@ -71,13 +72,17 @@ alias ca=cursor-agent
 alias oc=openclaw
 alias :claude='/usr/bin/env -u CLAUDE_CODE_OAUTH_TOKEN -u ANTHROPIC_API_KEY claude --dangerously-skip-permissions --no-chrome'
 
+alias claudef=':claude --model=fable'
+
 alias claudeo=':claude --model=opus'
 
 alias claudes=':claude --model=sonnet'
 
 alias claudeh=':claude --model=haiku'
 
-alias claudehappy='() { if [[ -f ~/.claude-code-oauth-token ]]; then happy --claude-env CLAUDE_CODE_OAUTH_TOKEN="$(<~/.claude-code-oauth-token)" --yolo "$@"; else happy --claude-env ANTHROPIC_API_KEY="$(<~/.anthropic-api-key-hearai-gilad-local-dev)" --yolo "$@"; fi ; }'
+alias claudehappy='() { if [[ -f ~/.claude-code-personal-1y-oauth-token ]]; then happy --claude-env CLAUDE_CODE_OAUTH_TOKEN="$(<~/.claude-code-personal-1y-oauth-token)" --yolo "$@"; else echo "[claudehappy] error: ~/.claude-code-personal-1y-oauth-token does not exist" ; return 1; fi ; }'
+
+alias claudefn='claudef --no-session-persistence -p'
 
 alias claudeon='claudeo --no-session-persistence -p'
 
@@ -206,7 +211,8 @@ alias typora='open -b abnerworks.Typora'
 alias jqc='jq --color-output'
 alias cn=codanna
 alias cnr='codanna retrieve'
-alias headroom="uvx --with=fastapi,uvicorn,httpx'[http2]',tree-sitter --from 'headroom-ai[ml,code,memory,relevance,image]' headroom"
+alias headroom="uvx --with=fastapi,uvicorn'[standard]',httpx'[http2]',tree-sitter --from 'headroom-ai[ml,code,memory,relevance,image]' headroom"
+alias hr=headroom
 
 # ----------------------
 # *** Global Aliases ***

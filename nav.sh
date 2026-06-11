@@ -22,6 +22,7 @@
     declare -a implicit_path_prefixes=(
       "$HOME"/dev
       "$HOME"
+      "$HOME/clients"
     )
 
     # *** Argument Parsing
@@ -67,16 +68,12 @@
       shallow_search_on_fail=false
     fi
 
-    # Replace tilda with $HOME
-    targetdir="${targetdir/'~'/$HOME}"
+    # Replace leading tilda with $HOME
+    targetdir="${targetdir/#\~/$HOME}"
 
-    if [[ ! "$targetdir" || "$targetdir" == . ]]; then
-      if [[ -z "$targetdir" ]]; then
-        # Bare 'cd': if exactly one subdirectory exists, use it.
-        local -a subdirs=(*(/N))
-        [[ ${#subdirs[@]} -eq 1 ]] && targetdir="${subdirs[@]}"
-      fi
-      [[ -z "$targetdir" || "$targetdir" == . ]] && targetdir="$PWD"
+    # Bare 'cd [.]' -> Resolve to absolute path.
+    if [[ -z "$targetdir" || "$targetdir" == . ]]; then
+      targetdir="$PWD"
     elif [[ "$targetdir" != -* && ! -e "$targetdir" ]]; then
       # * If targetdir does not exist (and is not -*), try to find it in implicit_path_prefixes
       local implicit_path_prefix
@@ -93,7 +90,7 @@
     [[ "$targetdir" != /* && "$targetdir" != ./* && "$targetdir" != -* ]] && targetdir="./${targetdir}"
 
     # *** cd into dir
-    builtin cd "${targetdir}" 2>/dev/null
+    builtin cd -- "${targetdir}" 2>/dev/null
     builtin_cd_exitcode=$?
     if [[ $builtin_cd_exitcode == 0 ]]; then
       # ** Builtin cd succeeded; show interesting information (no flow control)
@@ -106,7 +103,7 @@
       return 0
     fi
 
-    # ** Builtin cd failed; maybe file -> recurse.
+    # ** Builtin cd failed; maybe it’s a file -> recurse.
     if [[ -f "$targetdir" ]]; then
       local -i handle_dest_is_a_file_exitcode user_declined_code=100
       .handle-dest-is-a-file "$targetdir"
@@ -116,7 +113,7 @@
     fi
 
     ## Reaching here means either:
-    # 1. user declined .handle-dest-is-a-file, or
+    # 1. User declined .handle-dest-is-a-file, or
     # 2. 'builtin cd $targetdir' failed
     if [[ "$shallow_search_on_fail" = true ]]; then
       local -i shallow_search_exitcode
@@ -126,7 +123,7 @@
         return $builtin_cd_exitcode
       fi
       if [[ "$shallow_search_exitcode" == 0 && -n "$shallow_search_result" ]]; then
-        builtin cd "$shallow_search_result"
+        builtin cd -- "$shallow_search_result"
         return $?
       fi
     fi
@@ -136,23 +133,39 @@
     fi
 
     # ** fzf on fail -> recurse
+    local -i exitcode
     print_hr
-    log.warn "Failed ${Cc}builtin cd \"$targetdir\"${Cc0}. Trying to fzfd it..."
+    log.warn "Failed ${Cc}builtin cd -- \"$targetdir\"${Cc0}. Trying to fuzzy find it..."
     local fzfd_result fzfd_exitcode
-    # fzfd_result="$(fzfd "${targetdir##*/}")" # Search only the last part of the path.
-    fzfd_result="$(fd -t d | fzy -s -q "$(basename "$targetdir")")" # Search only the last part of the path.
+    fzfd_result="$(fzfd "$(basename -- "$targetdir")")" # Search only the last part of the path.
     fzfd_exitcode=$?
     if [[ $fzfd_exitcode == 0 ]]; then
-      log.success "fzfd_result: $fzfd_result"
-      # Todo: pass specified args
+      log.success "$(typeset fzfd_result)"
+      # Todo: pass originally specified args
       if ! cd "$fzfd_result"; then
-        local exitcode=$?
-        log.fatal "${Cc}cd $fzfd_result${Cc0} failed ($exitcode), returning $exitcode"
+        exitcode=$?
+        log.error "${Cc}cd $fzfd_result${Cc0} failed ($exitcode), returning $exitcode"
         return $exitcode
       fi
       return 0
     fi
-    log.warn "No results from fzf ($fzfd_exitcode), returning $builtin_cd_exitcode"
+
+    # `fzfd` failed -> let’s try `fzff` (longshot)
+
+    local fzff_result fzff_exitcode
+    fzff_result="$(fzff "$(basename -- "$targetdir")")" # Search only the last part of the path.
+    fzff_exitcode=$?
+    if [[ $fzff_exitcode == 0 ]]; then
+      log.success "$(typeset fzff_result)"
+      # Todo: pass originally specified args
+      if ! cd "$(dirname -- "$fzff_result")"; then
+        exitcode=$?
+        log.error "Both ${Cc}fzfd \"$(basename -- "$targetdir")\"${Cc0} and ${Cc}cd \"$(dirname -- "$fzff_result")\"${Cc0} failed ($exitcode), returning $exitcode"
+        return $exitcode
+      fi
+      return 0
+    fi
+    log.error "Both ${Cc}cd \"$fzfd_result\"${Cc0} and ${Cc}cd \"$(dirname -- "$fzff_result")\"${Cc0} failed ($exitcode), returning $exitcode"
     return $builtin_cd_exitcode
 
   }

@@ -436,6 +436,23 @@ function strip(){
 	printf "%s" "${${string##[\\n $'\t']##}%%[\\n $'\t']##}"
 }
 
+# # also <stdin> <text...>
+# Concatenates piped text and content passed positionally.
+function also(){
+	local string
+  if ! is_piped; then
+    log.error "$0: Stdin unavailable. Usage:\n$(docstring "$0")"
+    return 2
+  fi
+  string="$(<&0)"
+  [[ "$string" ]] || {
+    log.error "$0: Stdin empty. Usage:\n$(docstring "$0")"
+    return 2
+  }
+  
+  printf "%s\n%s\n" "$string" "$*"
+}
+
 # # stomp <text / stdin>
 # Replaces newlines with spaces, and squeezes all repeated spaces to a single space.
 function stomp(){
