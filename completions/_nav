@@ -1,11 +1,59 @@
 #compdef cd
-_my_cd(){
-	_arguments \
-    '*:directory:_files -/' \
-    {-q,--quiet}"[Sets everything to false. Default false]" \
-    --ls"[Run ls after navigating to the directory. Default true]" \
-    --show-git-status"[Run \`git status -s\` if directory is a git repo. Default true]" \
-    --fzf-on-fail"[Run \`fzfd\` on destination if failed to cd. Default true]"
+
+_nav_implicit_path_prefixes() {
+  if (( ${#CD_IMPLICIT_PATH_PREFIXES[@]} )); then
+    reply=( "${CD_IMPLICIT_PATH_PREFIXES[@]}" )
+    return 0
+  fi
+
+  reply=(
+    "$HOME"/dev
+    "$HOME"
+    "$HOME/clients"
+  )
 }
 
-compdef _my_cd cd
+_nav_directories() {
+  local -i ret=1
+  local implicit_path_prefix
+  local -a implicit_path_prefixes
+
+  _files -/ && ret=0
+
+  _nav_implicit_path_prefixes
+  implicit_path_prefixes=( "${reply[@]}" )
+
+  for implicit_path_prefix in "${implicit_path_prefixes[@]}"; do
+    [[ -d "$implicit_path_prefix" ]] || continue
+    _path_files -/ -W "$implicit_path_prefix" && ret=0
+  done
+
+  return ret
+}
+
+_nav() {
+  local -i ret=1
+  local curcontext="$curcontext" state line
+  typeset -A opt_args
+
+  local -a boolean_values=(true false)
+  local -a options=(
+    '(-q --quiet)'{-q,--quiet}'[Disable ls, git status, fzf, and shallow-search]'
+    "--ls=[Run ls after navigation (default true)]::BOOL:(${boolean_values[*]})"
+    "--show-git-status=[Run git status/log info after navigating into a git repo (default true)]::BOOL:(${boolean_values[*]})"
+    "--fzf-on-fail=[Run fzfd/fzff on destination if cd fails (default true)]::BOOL:(${boolean_values[*]})"
+    "--shallow-search-on-fail=[Run exact shallow search if cd fails (default false)]::BOOL:(${boolean_values[*]})"
+  )
+
+  _arguments -A '-*' -C \
+    "${options[@]}" \
+    '*:directory:_nav_directories' && ret=0
+
+  return ret
+}
+
+if [ "${funcstack[1]}" = "_nav" ]; then
+  _nav "$@"
+else
+  compdef _nav cd
+fi

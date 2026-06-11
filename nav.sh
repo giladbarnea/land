@@ -3,6 +3,12 @@
 
 [[ "$CD_PATCH" = true ]] && {
 
+  declare -a CD_IMPLICIT_PATH_PREFIXES=(
+    "$HOME"/dev
+    "$HOME"
+    "$HOME/clients"
+  )
+
   # # cd <DIRNAME> [OPTIONS]
   # ## OPTIONS:
   #  - --ls[=true]
@@ -19,11 +25,6 @@
     local fzf_on_fail=true
     local shallow_search_on_fail=false
     local targetdir
-    declare -a implicit_path_prefixes=(
-      "$HOME"/dev
-      "$HOME"
-      "$HOME/clients"
-    )
 
     # *** Argument Parsing
     while [[ $# -gt 0 ]]; do
@@ -75,9 +76,9 @@
     if [[ -z "$targetdir" || "$targetdir" == . ]]; then
       targetdir="$PWD"
     elif [[ "$targetdir" != -* && ! -e "$targetdir" ]]; then
-      # * If targetdir does not exist (and is not -*), try to find it in implicit_path_prefixes
+      # * If targetdir does not exist (and is not -*), try to find it in CD_IMPLICIT_PATH_PREFIXES
       local implicit_path_prefix
-      for implicit_path_prefix in "${implicit_path_prefixes[@]}"; do
+      for implicit_path_prefix in "${CD_IMPLICIT_PATH_PREFIXES[@]}"; do
         if [[ -e "$implicit_path_prefix/$targetdir" ]]; then
           targetdir="$implicit_path_prefix/$targetdir"
           break
