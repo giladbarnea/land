@@ -1279,13 +1279,8 @@ function skcr() {
     return 1
   fi
 
+  skill_name_value="${skill_dir:t}"
   mkdir -p "$skill_dir" || return 1
-
-  _skills_prompt_required_value "skcr" "name" "Skill name:" || {
-    rmdir "$skill_dir" 2>/dev/null
-    return 1
-  }
-  skill_name_value="$REPLY"
 
   _skills_prompt_required_value "skcr" "description" "Skill description:" || {
     rmdir "$skill_dir" 2>/dev/null
