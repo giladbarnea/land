@@ -2135,22 +2135,19 @@ function llm-search(){
 }
 
 
-# # llm-commit-msg [TREEISH...] [--append-prompt APPEND_STRING] [--1-pass / --2-pass (default 1 pass)] [--one-by-one[=true|false] (default false)]
+# # llm-commit-msg [TREEISH...] [--append-prompt APPEND_STRING] [--one-by-one[=true|false] (default false)]
 # Generates a commit message for the given files against HEAD.
 # If no files are provided, prompts the user to confirm which files to use.
 function llm-commit-msg(){
 	setopt localoptions pipefail errreturn
 	local -a diff_targets=()
   local llm_prompt="$(cat "/Users/giladbarnea/Library/Application Support/io.datasette.llm/templates/code/commit-message.md")"
-  local two_pass=false
 	local one_by_one=false
 	local append_prompt=''
 	while [[ $# -gt 0 ]]; do
 		case "$1" in
 			--append-prompt=*) append_prompt="${1#*=}" ;;
 			--append-prompt) append_prompt="$2" ; shift ;;
-			--1-pass) two_pass=false ;;
-			--2-pass) two_pass=true ;;
 			--one-by-one) one_by_one=true ;;
 			--one-by-one=*) one_by_one="${1#*=}" ;;
 			*) diff_targets+=("$1") ;;
@@ -2236,11 +2233,7 @@ function llm-commit-msg(){
 	log.info "Generating commit message for ${#diff_targets[@]} files..." -L -x
 	if $one_by_one; then
 		local tmp_file="$(mktemp)"
-		if $two_pass; then
-			llm-what-changed --2-pass --one-by-one HEAD -- "${diff_targets[@]}" | tee "$tmp_file"
-		else
-			llm-what-changed --1-pass --one-by-one HEAD -- "${diff_targets[@]}" | tee "$tmp_file"
-		fi
+		llm-what-changed --one-by-one HEAD -- "${diff_targets[@]}" | tee "$tmp_file"
 		confirm "Done collecting changes for each file. Shall I aggregate them into a single commit message?" || {
 			cat "$tmp_file"
 			return 0
@@ -2248,21 +2241,13 @@ function llm-commit-msg(){
 		notif.info "Aggregating into a single commit message..."
     pi --model openai-codex/gpt-5.4-mini --thinking high --no-session --no-skills --no-prompt-templates --no-extensions --no-tools --no-themes --print "$(cat "$tmp_file")"
 	else
-		if $two_pass; then
-			llm-what-changed --force-prompt "$llm_prompt" --2-pass HEAD -- "${diff_targets[@]}"
-		else
-			llm-what-changed --force-prompt "$llm_prompt" --1-pass HEAD -- "${diff_targets[@]}"
-		fi
+		llm-what-changed --force-prompt "$llm_prompt" HEAD -- "${diff_targets[@]}"
 	fi
 	
 }
 
-# # llm-what-changed [git diff OPT...] [--force-prompt PROMPT='What has changed? Clearly, ...'] [--append-prompt APPEND_STRING] [--1-pass / --2-pass (default 1 pass)] [--dry-run] [--one-by-one[=true|false] (default false)] [-- TREEISH...]
-# Asks an LLM what has changed based on a git diff context.
-# By default, performs a 1-pass over the git diff context, tagging changes in a unified diff.
-# If --2-pass is provided, performs a 2-pass over the git diff context, concatenating the following:
-# 1. "Before vs After" of each file
-# 2. Tags changes in a unified diff.
+# # llm-what-changed [git diff OPT...] [--force-prompt PROMPT='What has changed? Clearly, ...'] [--append-prompt APPEND_STRING] [--dry-run] [--one-by-one[=true|false] (default false)] [-- TREEISH...]
+# Asks an LLM what has changed based on a git diff context, tagging changes in a unified diff.
 # If --one-by-one is provided, applies itself recursively to each file in the git diff context.
 # The processed git diff context is passed to the LLM.
 # If --dry-run is provided, prints the git diff context instead of passing it to the LLM.
@@ -2276,7 +2261,6 @@ function llm-what-changed(){
 	
 	local prompt='What has changed? Clearly, directly and shortly describe what was before and what is now. Ignore whitespace and formatting changes unless that is the only kind of change throughout the entire diff.'
 	local append_prompt=''
-	local two_pass=false
 	local dry_run=false
 	local one_by_one=false
 	local parse_file_paths=false
@@ -2292,8 +2276,6 @@ function llm-what-changed(){
 			--force-prompt) prompt="$2" ; shift ;;
 			--append-prompt=*) append_prompt="${1#*=}" ;;
 			--append-prompt) append_prompt="$2" ; shift ;;
-			--1-pass) two_pass=false ;;
-			--2-pass) log.warn "‘--2-pass’ is deprecated. Falling back to ‘--1-pass’." ; two_pass=false ;;
 			--dry-run=*) dry_run="${1#*=}" ;;
 			--dry-run) dry_run=true ;;
 			--one-by-one) one_by_one=true ;;
@@ -2350,16 +2332,9 @@ function llm-what-changed(){
 	# 	log.error "Git diff returned empty output."
 	# 	return 1
 	# }
-	local context
 	# local tagged_git_diff="$(git-structured-diff <<< "$git_diff_output")"
 	local tagged_git_diff="$(git-structured-diff "${git_diff_opts[@]}" "${additional_git_diff_args[@]}" -- "${file_paths[@]}")"
-	if $two_pass; then
-		local before_and_after="$(.llm-xml-wrap -q "$(git.beforeafter 2>/dev/null)" --stdin-tag 'before and after two git commits')"
-		context="$(printf "%s\n\n%s" "$before_and_after" "$tagged_git_diff")"
-	else
-		context="$tagged_git_diff"
-	fi
-	local full_prompt="$(printf "%s\n\n%s" "$context" "$(xt -q "$prompt" --tag 'user-instructions')")"
+	local full_prompt="$(printf "%s\n\n%s" "$tagged_git_diff" "$(xt -q "$prompt" --tag 'user-instructions')")"
 	if $dry_run; then
 		print -- "$full_prompt"
 	else
