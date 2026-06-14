@@ -60,7 +60,7 @@ killverify() {
 
   # Validate we have at least one target
   if [[ ${#targets[@]} -eq 0 ]]; then
-    log.error "killverify: no targets specified"
+    log.error "${0}: no targets specified"
     return 1
   fi
 
@@ -81,7 +81,7 @@ killverify() {
         # Escalate to KILL after 3 failed attempts
         if ((attempt >= 3)) && [[ $current_signal != "KILL" ]] && [[ $current_signal != "9" ]]; then
           current_signal=KILL
-          log.notice "Escalating to SIGKILL for PID $target"
+          log.notice "Escalating to SIGKILL for '$target'"
         fi
       done
 
@@ -89,23 +89,24 @@ killverify() {
         log.warn "Warning: PID $target still running"
         overall_success=1
       else
-        log.success "PID $target terminated"
+        log.success "No match for PID $target."
       fi
     else
       # It's a pattern
-      while [[ -n "$(pgrep -fao "$target")" ]] && ((attempt++ < max_attempts)); do
+      # `pgrep`/`pkill` quirk (at least on MacOS): A 'Heynote' app with 'heynote' substring only in its full process will match `pgrep -f heynote` but not `pkill -f`. So we just don’t use `-f` for consistent behavior.
+      while [[ -n "$(pgrep -ao "$target")" ]] && ((attempt++ < max_attempts)); do
         log.debug "Attempt ${attempt}/${max_attempts}: ${current_signal}'ing processes matching '$target'"
-        pkill -fao -"${current_signal}" "$target"
+        pkill -"${current_signal}" -ao "$target"
         sleep 0.5
 
         # Escalate to KILL after 3 failed attempts
         if ((attempt >= 3)) && [[ $current_signal != "KILL" ]] && [[ $current_signal != "9" ]]; then
+          log.notice "Escalating to SIGKILL for '$target' after 3 failed ${current_signal} attempts."
           current_signal=KILL
-          log.notice "Escalating to SIGKILL for pattern '$target'"
         fi
       done
 
-      if [[ -n "$(pgrep -fao "$target")" ]]; then
+      if [[ -n "$(pgrep -ao "$target")" ]]; then
         log.warn "Warning: Some processes matching '$target' still running"
         overall_success=1
       else
@@ -141,4 +142,3 @@ function proc.pprint() {
 }
 
 #compdef _pgrep proc.{kill,pgrep,pprint,killgrep,kill_bg_jobs}
-
