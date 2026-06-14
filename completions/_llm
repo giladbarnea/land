@@ -621,6 +621,18 @@ compdef _llm llm simplify compress zshai zshcmd pyai claudeai 'claudeai+' flashl
 
 compdef _llm:logs:list llm-logs llm-response llm-cids
 
+# 'llm-commit-msg' wrapper handler. Completes CLI options only; TREEISH positionals are intentionally not completed.
+_llm-commit-msg() {
+  local -a boolean_values=(true false)
+  _arguments -A '-*' \
+    '--append-prompt[Append text to the commit-message prompt]:text:' \
+    '(--1-pass --2-pass)--1-pass[Tag changes in a single unified-diff pass (default)]' \
+    '(--1-pass --2-pass)--2-pass[Prepend a before/after pass before tagging changes]' \
+    "--one-by-one=[Process each file individually (default false)]::BOOL:(${boolean_values[*]})"
+}
+
+compdef _llm-commit-msg llm-commit-msg
+
 
 
 # region [-------- Extras --------]

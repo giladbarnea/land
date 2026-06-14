@@ -18,6 +18,31 @@ killverify() {
   local -i max_attempts=10
   local -a targets=()
 
+  _killverify_parse_args "$@" || return 1
+
+  # Validate we have at least one target
+  if [[ ${#targets[@]} -eq 0 ]]; then
+    log.error "${0}: no targets specified"
+    return 1
+  fi
+
+  # Process each target
+  local -i overall_success=0
+  local target
+  for target in "${targets[@]}"; do
+    if [[ "$target" =~ ^[0-9]+$ ]]; then
+      _killverify_pid "$target" "$signal" "$max_attempts" || overall_success=1
+    else
+      _killverify_pattern "$target" "$signal" "$max_attempts" || overall_success=1
+    fi
+  done
+
+  return $overall_success
+}
+
+# # _killverify_parse_args ARG ...
+# Parses killverify's argv, populating the caller's `signal`, `max_attempts` and `targets` (dynamic scope).
+_killverify_parse_args() {
   # Parse arguments using while-case for flexible ordering
   while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -57,66 +82,68 @@ killverify() {
     esac
     shift
   done
+}
 
-  # Validate we have at least one target
-  if [[ ${#targets[@]} -eq 0 ]]; then
-    log.error "${0}: no targets specified"
-    return 1
-  fi
+# # _killverify_pid PID SIGNAL MAX_ATTEMPTS
+# Signals a single PID, escalating to SIGKILL after 3 attempts. Returns non-zero if still running.
+_killverify_pid() {
+  local target="$1"
+  local current_signal="$2"
+  local -i max_attempts="$3"
+  local -i attempt=0
 
-  # Process each target
-  local -i overall_success=0
-  for target in "${targets[@]}"; do
-    local -i attempt=0
-    local current_signal="$signal"
+  while _killverify_pid_alive "$target" && ((attempt++ < max_attempts)); do
+    log.debug "Attempt ${attempt}/${max_attempts}: ${current_signal}'ing PID $target"
+    kill -"${current_signal}" "$target" 2>/dev/null
+    sleep 0.5
 
-    # Check if target is a number (PID) or a pattern
-    if [[ "$target" =~ ^[0-9]+$ ]]; then
-      # It's a PID
-      while kill -0 "$target" 2>/dev/null && ((attempt++ < max_attempts)); do
-        log.debug "Attempt ${attempt}/${max_attempts}: ${current_signal}'ing PID $target"
-        kill -"${current_signal}" "$target" 2>/dev/null
-        sleep 0.5
-
-        # Escalate to KILL after 3 failed attempts
-        if ((attempt >= 3)) && [[ $current_signal != "KILL" ]] && [[ $current_signal != "9" ]]; then
-          current_signal=KILL
-          log.notice "Escalating to SIGKILL for '$target'"
-        fi
-      done
-
-      if kill -0 "$target" 2>/dev/null; then
-        log.warn "Warning: PID $target still running"
-        overall_success=1
-      else
-        log.success "No match for PID $target."
-      fi
-    else
-      # It's a pattern
-      # `pgrep`/`pkill` quirk (at least on MacOS): A 'Heynote' app with 'heynote' substring only in its full process will match `pgrep -f heynote` but not `pkill -f`. So we just don’t use `-f` for consistent behavior.
-      while [[ -n "$(pgrep -ao "$target")" ]] && ((attempt++ < max_attempts)); do
-        log.debug "Attempt ${attempt}/${max_attempts}: ${current_signal}'ing processes matching '$target'"
-        pkill -"${current_signal}" -ao "$target"
-        sleep 0.5
-
-        # Escalate to KILL after 3 failed attempts
-        if ((attempt >= 3)) && [[ $current_signal != "KILL" ]] && [[ $current_signal != "9" ]]; then
-          log.notice "Escalating to SIGKILL for '$target' after 3 failed ${current_signal} attempts."
-          current_signal=KILL
-        fi
-      done
-
-      if [[ -n "$(pgrep -ao "$target")" ]]; then
-        log.warn "Warning: Some processes matching '$target' still running"
-        overall_success=1
-      else
-        log.success "All processes matching '$target' terminated"
-      fi
+    # Escalate to KILL after 3 failed attempts
+    if ((attempt >= 3)) && [[ $current_signal != "KILL" ]] && [[ $current_signal != "9" ]]; then
+      current_signal=KILL
+      log.notice "Escalating to SIGKILL for '$target'"
     fi
   done
 
-  return $overall_success
+  if _killverify_pid_alive "$target"; then
+    log.warn "Warning: PID $target still running"
+    return 1
+  fi
+  log.success "PID $target terminated"
 }
+
+# # _killverify_pid_alive PID
+_killverify_pid_alive() { kill -0 "$1" 2>/dev/null; }
+
+# # _killverify_pattern PATTERN SIGNAL MAX_ATTEMPTS
+# Signals processes matching a pattern, escalating to SIGKILL after 3 attempts. Returns non-zero if any remain.
+_killverify_pattern() {
+  local target="$1"
+  local current_signal="$2"
+  local -i max_attempts="$3"
+  local -i attempt=0
+
+  # `pgrep`/`pkill` quirk (at least on MacOS): A 'Heynote' app with 'heynote' substring only in its full process will match `pgrep -f heynote` but not `pkill -f`. So we just don’t use `-f` for consistent behavior.
+  while _killverify_pattern_matches "$target" && ((attempt++ < max_attempts)); do
+    log.debug "Attempt ${attempt}/${max_attempts}: ${current_signal}'ing processes matching '$target'"
+    pkill -"${current_signal}" -ao "$target"
+    sleep 0.5
+
+    # Escalate to KILL after 3 failed attempts
+    if ((attempt >= 3)) && [[ $current_signal != "KILL" ]] && [[ $current_signal != "9" ]]; then
+      log.notice "Escalating to SIGKILL for '$target' after 3 failed ${current_signal} attempts."
+      current_signal=KILL
+    fi
+  done
+
+  if _killverify_pattern_matches "$target"; then
+    log.warn "Warning: Some processes matching '$target' still running"
+    return 1
+  fi
+  log.success "All processes matching '$target' terminated"
+}
+
+# # _killverify_pattern_matches PATTERN
+_killverify_pattern_matches() { [[ -n "$(pgrep -ao "$1")" ]]; }
 
 # # proc.pprint <FULL_PROCESS / STDIN>
 function proc.pprint() {
