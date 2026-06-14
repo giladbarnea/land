@@ -90,6 +90,23 @@ alias claudesn='claudes --no-session-persistence -p'
 
 alias claudehn='claudeh --no-session-persistence -p'
 
+# low/medium/high apply to all models; opus and fable also support xhigh and max.
+# Suffixes: low=l, medium=m, high=h, xhigh=x, max=max (medium stays `m` so `max` is unambiguous).
+for _alias in ${(k)aliases[(I)claude*]}; do
+    [[ "${aliases[$_alias]}" != ":claude "* ]] && continue
+    _levels=(low:l medium:m high:h)
+    if [[ "${aliases[$_alias]}" == *--model=opus* || "${aliases[$_alias]}" == *--model=fable* ]]; then
+        _levels+=(xhigh:x max:max)
+    fi
+    for _entry in "${_levels[@]}"; do
+        _level="${_entry%%:*}"
+        _suffix="${_entry##*:}"
+        alias "${_alias}${_suffix}"="${_alias} --effort ${_level}"
+        alias "${_alias}n${_suffix}"="${_alias}n --effort ${_level}"
+    done
+done
+unset _alias _levels _entry _level _suffix
+
 alias codexd='/usr/bin/env -u OPENAI_API_KEY codex --yolo'
 compdef _codex codexd
 
@@ -113,24 +130,25 @@ alias codexm4='codexm --config="model_reasoning_effort=xhigh"'
 alias pig='pi --model google/gemini-3.1-pro-preview-customtools'
 alias pigf='pi --model google/gemini-3-flash-preview'
 alias pigf35='pi --model google/gemini-3.5-flash'
-alias pik='pi --model openrouter/moonshotai/kimi-k2.6'
+alias pik='pi --model openrouter/moonshotai/kimi-k2.7'
 alias pic55='pi --model openai-codex/gpt-5.5'
 alias pic54='pi --model openai-codex/gpt-5.4'
 alias pic5m='pi --model openai-codex/gpt-5.4-mini'
 alias pids4='pi --model openrouter/deepseek/deepseek-v4-pro'
 alias pids4f='pi --model openrouter/deepseek/deepseek-v4-flash'
 
+_base_pi_no_args=(--no-context-files --no-extensions --no-prompt-templates --no-themes --no-session --no-skills)
 for _alias in ${(k)aliases[(I)pi*]}; do
     [[ "${aliases[$_alias]}" != "pi "* ]] && continue
     for _thinkinglevel in off low medium high xhigh; do
         alias "${_alias}${_thinkinglevel[1]}"="${_alias} --thinking ${_thinkinglevel}"
-        alias "${_alias}-no"="${_alias} --no-context-files --no-extensions --no-prompt-templates --no-session --no-skills"
-        alias "${_alias}${_thinkinglevel[1]}-no"="${_alias} --no-context-files --no-extensions --no-prompt-templates --no-session --no-skills"
-        alias "${_alias}-nono"="${_alias} --no-context-files --no-extensions --no-prompt-templates --no-session --no-skills --no-tools"
-        alias "${_alias}${_thinkinglevel[1]}-nono"="${_alias} --no-context-files --no-extensions --no-prompt-templates --no-session --no-skills --no-tools"
+        alias "${_alias}-no"="${_alias} ${_base_pi_no_args[@]}"
+        alias "${_alias}${_thinkinglevel[1]}-no"="${_alias} ${_base_pi_no_args[@]}"
+        alias "${_alias}-nono"="${_alias} ${_base_pi_no_args[@]} --no-tools"
+        alias "${_alias}${_thinkinglevel[1]}-nono"="${_alias} ${_base_pi_no_args[@]} --no-tools"
     done
 done
-unset _alias _thinkinglevel
+unset _alias _thinkinglevel _base_pi_no_args
 
 
 function :gemini() {
