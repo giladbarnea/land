@@ -2135,22 +2135,30 @@ function llm-search(){
 }
 
 
-# # llm-commit-msg [TREEISH...] [--append-prompt APPEND_STRING] [--one-by-one[=true|false] (default false)]
+# # llm-commit-msg [--append-prompt APPEND_STRING] [--one-by-one[=true|false] (default false)] [-- PATH...]
 # Generates a commit message for the given files against HEAD.
-# If no files are provided, prompts the user to confirm which files to use.
+# Paths must come after a '--' separator, consistent with git and llm-what-changed.
+# If no paths are provided, prompts the user to confirm which files to use.
 function llm-commit-msg(){
 	setopt localoptions pipefail errreturn
 	local -a diff_targets=()
   local llm_prompt="$(cat "/Users/giladbarnea/Library/Application Support/io.datasette.llm/templates/code/commit-message.md")"
 	local one_by_one=false
 	local append_prompt=''
+	local parse_paths=false
 	while [[ $# -gt 0 ]]; do
 		case "$1" in
 			--append-prompt=*) append_prompt="${1#*=}" ;;
 			--append-prompt) append_prompt="$2" ; shift ;;
 			--one-by-one) one_by_one=true ;;
 			--one-by-one=*) one_by_one="${1#*=}" ;;
-			*) diff_targets+=("$1") ;;
+			--) parse_paths=true ;;
+			*)
+				$parse_paths || {
+					log.error "Unexpected positional argument '$1'. Paths must come after a '--' separator: llm-commit-msg [opts...] -- PATH..."
+					return 1
+				}
+				diff_targets+=("$1") ;;
 		esac
 		shift
 	done

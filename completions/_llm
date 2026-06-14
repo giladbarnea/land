@@ -624,6 +624,14 @@ compdef _llm:logs:list llm-logs llm-response llm-cids
 # 'llm-commit-msg' wrapper handler. Completes CLI options only; TREEISH positionals are intentionally not completed.
 _llm-commit-msg() {
   local -a boolean_values=(true false)
+
+  # Paths are only valid after a '--' separator. Complete files there; options otherwise.
+  local -i dash_dash_index=${words[(I)--]}
+  if (( dash_dash_index && dash_dash_index < CURRENT )); then
+    _files
+    return
+  fi
+
   _arguments -A '-*' \
     '--append-prompt[Append text to the commit-message prompt]:text:' \
     "--one-by-one=[Process each file individually (default false)]::BOOL:(${boolean_values[*]})"
