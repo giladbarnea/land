@@ -2246,7 +2246,7 @@ function llm-commit-msg(){
 			return 0
 		}
 		notif.info "Aggregating into a single commit message..."
-    pi --model google/gemini-3-flash-preview --thinking high --no-session --no-skills --no-prompt-templates --no-extensions <<< "$(cat "$tmp_file")"
+    pi --model openai-codex/gpt-5.4-mini --thinking high --no-session --no-skills --no-prompt-templates --no-extensions --no-tools --no-themes --print "$(cat "$tmp_file")"
 	else
 		if $two_pass; then
 			llm-what-changed --force-prompt "$llm_prompt" --2-pass HEAD -- "${diff_targets[@]}"
@@ -2364,7 +2364,8 @@ function llm-what-changed(){
 		print -- "$full_prompt"
 	else
 	    log.notice "Running llm with full prompt:"
-		llm "$(print -r -- "$full_prompt")" --no-format-stdin --no-md --quiet --no-clear
+		  # llm "$(print -r -- "$full_prompt")" --no-format-stdin --no-md --quiet --no-clear
+      pi --model openai-codex/gpt-5.4-mini --thinking high --no-session --no-skills --no-prompt-templates --no-extensions --no-tools --no-themes --print "$(print -r -- "$full_prompt")"
 	fi
 }
 
