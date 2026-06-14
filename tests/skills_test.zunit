@@ -1,0 +1,127 @@
+#!/usr/bin/env zunit
+
+@setup {
+  set -e
+  load ${LAND}/skills.sh
+
+  export SKILLS_TEST_ROOT="$(mktemp -d)"
+  export HOME="$SKILLS_TEST_ROOT/home"
+  export SKILLS_TEST_PROJECT="$SKILLS_TEST_ROOT/project"
+  mkdir -p "$HOME" "$SKILLS_TEST_PROJECT"
+  cd "$SKILLS_TEST_PROJECT"
+
+  function skills_test_make_skill() {
+    local skill_dir="$1"
+    mkdir -p "$skill_dir"
+    print -- '---' > "$skill_dir/SKILL.md"
+    print -- "name: ${skill_dir:t}" >> "$skill_dir/SKILL.md"
+    print -- 'description: Test skill.' >> "$skill_dir/SKILL.md"
+    print -- '---' >> "$skill_dir/SKILL.md"
+  }
+}
+
+@teardown {
+  rm -rf "$SKILLS_TEST_ROOT"
+}
+
+@test 'skills sync honors explicit home pi skills target but warns about the pi home quirk' {
+  skills_test_make_skill .agents/skills/example
+
+  run skills sync .agents "$HOME/.pi/skills"
+
+  assert $state equals 0
+  assert "$output" contains 'Pi user-level skills normally live'
+  [[ -L "$HOME/.pi/skills/example" ]] || fail "Expected explicit target to be honored at $HOME/.pi/skills/example. Output: $output"
+  [[ ! -e "$HOME/.pi/agent/skills/example" ]] || fail "Expected explicit $HOME/.pi/skills target not to be canonicalized to $HOME/.pi/agent/skills/example."
+}
+
+@test 'skills sync treats a target whose parent is skills as the exact target skill path' {
+  skills_test_make_skill .agents/skills/example
+
+  run skills sync .agents .claude/skills/renamed
+
+  assert $state equals 0
+  [[ -L .claude/skills/renamed ]] || fail "Expected target .claude/skills/renamed itself to be the symlink. Output: $output"
+  [[ ! -e .claude/skills/renamed/example ]] || fail "Expected sync not to append the source skill name below an exact target skill path."
+  [[ ! -e .claude/skills/renamed/skills ]] || fail "Expected sync not to append /skills below an exact target skill path."
+}
+
+@test 'skills sync installed hook preserves exact target skill paths' {
+  git init -q
+  skills_test_make_skill .agents/skills/example
+
+  run skills sync .agents/skills/example .claude/skills/renamed --install-githooks pre-commit
+  assert $state equals 0
+  rm .claude/skills/renamed
+
+  run .githooks/pre-commit
+
+  assert $state equals 0
+  [[ -L .claude/skills/renamed ]] || fail "Expected hook to recreate exact target symlink .claude/skills/renamed. Output: $output"
+  [[ ! -e .claude/skills/renamed/example ]] || fail "Expected hook not to append source skill name below exact target path."
+}
+
+@test 'skills sync honors bare provider target aliases' {
+  skills_test_make_skill .agents/skills/example
+
+  run skills sync .agents pi,claude
+
+  assert $state equals 0
+  [[ -L .pi/skills/example ]] || fail "Expected bare target alias pi to resolve to .pi/skills/example. Output: $output"
+  [[ -L .claude/skills/example ]] || fail "Expected bare target alias claude to resolve to .claude/skills/example. Output: $output"
+  [[ ! -e pi/skills/example ]] || fail "Expected bare target alias pi not to be treated as literal pi/skills/example."
+  [[ ! -e claude/skills/example ]] || fail "Expected bare target alias claude not to be treated as literal claude/skills/example."
+}
+
+@test 'local pi access from home does not accept legacy home pi skills' {
+  mkdir -p "$HOME/.pi/skills"
+  cd "$HOME"
+
+  run _skills_base_dir false pi
+
+  assert $state equals 1
+  assert "$output" contains 'could not find local pi skills'
+}
+
+@test 'skcr from home with pi provider creates home pi agent skill and derives name from path' {
+  mkdir -p "$HOME/.pi/skills"
+  cd "$HOME"
+  export EDITOR=true
+
+  function input() {
+    case "$1" in
+      'Skill description:') print -r -- '  Does useful things  ' ;;
+      *) return 42 ;;
+    esac
+  }
+
+  run skcr -p pi newskill
+
+  assert $state equals 0
+  assert "$HOME/.pi/agent/skills/newskill/SKILL.md" is_file
+  assert "$(<"$HOME/.pi/agent/skills/newskill/SKILL.md")" contains 'name: "newskill"'
+  assert "$(<"$HOME/.pi/agent/skills/newskill/SKILL.md")" contains 'description: "Does useful things"'
+  [[ ! -e "$HOME/.pi/skills/newskill" ]] || fail "Expected skcr not to create legacy $HOME/.pi/skills/newskill."
+}
+
+@test 'skcr rejects provider flag that contradicts explicit provider path' {
+  export EDITOR=true
+  function input() { print -r -- 'Should not be called' }
+
+  run skcr -p pi .agents/skills/newskill
+
+  assert $state equals 1
+  assert "$output" contains '-p pi contradicts skill path'
+  [[ ! -e .agents/skills/newskill ]] || fail "Expected contradictory skcr invocation not to create .agents/skills/newskill."
+}
+
+@test 'skcr rejects global flag with explicitly relative path' {
+  export EDITOR=true
+  function input() { print -r -- 'Should not be called' }
+
+  run skcr -g ./.agents/skills/newskill
+
+  assert $state equals 1
+  assert "$output" contains '-g contradicts explicitly relative path'
+  [[ ! -e .agents/skills/newskill ]] || fail "Expected contradictory global-relative skcr invocation not to create .agents/skills/newskill."
+}

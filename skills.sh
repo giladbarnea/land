@@ -65,14 +65,67 @@ function _skills_hook_path_expr() {
   fi
 }
 
+typeset -ga _skills_cli_providers=(pi claude codex gemini antigravity)
+typeset -gA _skills_provider_parent_dirs=(
+  [pi]=.pi
+  [claude]=.claude
+  [codex]=.codex
+  [gemini]=.gemini
+  [antigravity]=.antigravity
+)
+
+function _skills_known_provider_message() {
+  printf 'pi, claude, codex, gemini, antigravity'
+}
+
+function _skills_is_cli_provider() {
+  emulate -L zsh
+  local provider="$1"
+  [[ -n "$provider" && "${_skills_cli_providers[(r)$provider]}" == "$provider" ]]
+}
+
+function _skills_validate_provider() {
+  emulate -L zsh
+  local provider="${1-}"
+
+  [[ -z "$provider" ]] && return 0
+  _skills_is_cli_provider "$provider" && return 0
+
+  echo "skills: unknown provider '$provider'. Expected: $(_skills_known_provider_message)" >&2
+  return 1
+}
+
+function _skills_provider_parent_dir() {
+  emulate -L zsh
+  local provider="$1"
+
+  _skills_validate_provider "$provider" || return 1
+  REPLY="${_skills_provider_parent_dirs[$provider]}"
+}
+
+typeset -ga _skills_normalized_target_modes=()
+
+function _skill_sync_to_target() {
+  local skill="$1" target="$2" target_mode="$3"
+  local skill_name="${skill:t}"
+
+  if [[ "$target_mode" == "skill" ]]; then
+    mkdir -p "${target:h}"
+    ln -sfn "$skill" "$target"
+    return 0
+  fi
+
+  mkdir -p "$target"
+  ln -sfn "$skill" "$target/$skill_name"
+}
+
 function _skill_sync() {
   local skill="$1"
   shift
 
-  local skill_name="${skill:t}" target_skills
+  local target_skills=""
   for target_skills in "$@"; do
-    mkdir -p "$target_skills"
-    ln -sfn "$skill" "$target_skills/$skill_name"
+    _skill_sync_to_target "$skill" "$target_skills" base
   done
 }
 
@@ -131,15 +184,36 @@ function _skills_canonicalize_pi_home_skills_dir() {
   fi
 }
 
+function _skills_warn_if_legacy_home_pi_target() {
+  emulate -L zsh
+  local action="$1" target="$2" absolute="$2" home_absolute="${HOME:A}"
+  [[ "$absolute" == /* ]] || absolute="$PWD/$absolute"
+
+  if [[ "${absolute:A}" == "$home_absolute/.pi/skills" || "${absolute:A}" == "$home_absolute/.pi/skills/"* ]]; then
+    echo "$action: Note: TARGET '$target' is under ~/.pi/skills. Pi user-level skills normally live at ~/.pi/agent/skills." >&2
+  fi
+}
+
 function _skills_normalize_target_skills_dir() {
   local target="$1" action="$2" reject_specific_skill="$3"
+  _skills_normalized_target_mode=base
 
-  if $reject_specific_skill && [[ "${target:h:t}" == "skills" ]]; then
-    echo "$action: TARGET '$target' must be a directory containing skills/ or the skills/ directory itself" >&2
-    return 1
+  case "$target" in
+    pi|claude|codex|gemini|antigravity)
+      _skills_provider_base_relative_path "$target" "$PWD" || return 1
+      return 0
+      ;;
+  esac
+
+  if [[ "${target:h:t}" == "skills" ]]; then
+    _skills_warn_if_legacy_home_pi_target "$action" "$target"
+    REPLY="$target"
+    _skills_normalized_target_mode=skill
+    return 0
   fi
 
   if [[ "${target:t}" == "skills" ]]; then
+    _skills_warn_if_legacy_home_pi_target "$action" "$target"
     REPLY="$target"
     return 0
   fi
@@ -150,10 +224,12 @@ function _skills_normalize_target_skills_dir() {
 function _skills_normalize_targets() {
   local targets_csv="$1" action="$2" reject_specific_skill="${3:-false}" t=""
   reply=()
+  _skills_normalized_target_modes=()
 
   for t in "${(@s/,/)targets_csv}"; do
     _skills_normalize_target_skills_dir "$t" "$action" "$reject_specific_skill" || return 1
     reply+=("$REPLY")
+    _skills_normalized_target_modes+=("$_skills_normalized_target_mode")
   done
 }
 
@@ -177,6 +253,18 @@ function _skills_remove_matching_symlink() {
 
   rm "$link"
   echo "✓ skills unsync: removed $link"
+}
+
+function _skills_remove_matching_exact_symlink() {
+  local source_skill="$1" target_skill="$2" resolved=""
+
+  [[ -L "$target_skill" ]] || return 1
+
+  resolved="$(realpath "$target_skill" 2>/dev/null)" || return 1
+  [[ "$resolved" == "$source_skill" ]] || return 1
+
+  rm "$target_skill"
+  echo "✓ skills unsync: removed $target_skill"
 }
 
 function _skills_sync() {
@@ -213,7 +301,7 @@ function _skills_sync() {
     return 1
   fi
 
-  local -a source_info source_items target_skills_dirs
+  local -a source_info source_items target_skills_dirs target_modes
   _skills_normalize_source "$source" "skills sync" || return 1
   source_info=("${reply[@]}")
 
@@ -221,13 +309,24 @@ function _skills_sync() {
   _skills_collect_source_skills "$source_skill" "$source_skills"
   source_items=("${reply[@]}")
 
-  _skills_normalize_targets "$targets_csv" "skills sync"
+  _skills_normalize_targets "$targets_csv" "skills sync" || return 1
   target_skills_dirs=("${reply[@]}")
+  target_modes=("${_skills_normalized_target_modes[@]}")
+
+  local -i target_index=0
+  for (( target_index = 1; target_index <= ${#target_skills_dirs}; target_index += 1 )); do
+    if [[ "${target_modes[target_index]}" == "skill" && ${#source_items} -ne 1 ]]; then
+      echo "skills sync: TARGET '${target_skills_dirs[target_index]}' is a specific skill path and requires exactly one source skill" >&2
+      return 1
+    fi
+  done
 
   # --- 1. Sync symlinks ---
   local skill="" target_skills=""
   for skill in "${source_items[@]}"; do
-    _skill_sync "$skill" "${target_skills_dirs[@]}"
+    for (( target_index = 1; target_index <= ${#target_skills_dirs}; target_index += 1 )); do
+      _skill_sync_to_target "$skill" "${target_skills_dirs[target_index]}" "${target_modes[target_index]}"
+    done
   done
 
   for target_skills in "${target_skills_dirs[@]}"; do
@@ -359,7 +458,7 @@ function _skills_unsync() {
     return 1
   fi
 
-  local -a source_info source_items target_skills_dirs
+  local -a source_info source_items target_skills_dirs target_modes
   _skills_normalize_source "$source" "skills unsync" || return 1
   source_info=("${reply[@]}")
 
@@ -367,20 +466,37 @@ function _skills_unsync() {
   _skills_collect_source_skills "$source_skill" "$source_skills"
   source_items=("${reply[@]}")
 
+  local source_item="" target_skills=""
+
   if [[ -n "$targets_csv" ]]; then
-    _skills_normalize_targets "$targets_csv" "skills unsync" true || return 1
+    _skills_normalize_targets "$targets_csv" "skills unsync" || return 1
     target_skills_dirs=("${reply[@]}")
+    target_modes=("${_skills_normalized_target_modes[@]}")
   else
     _skills_autodiscover_target_skills_dirs
     target_skills_dirs=("${reply[@]}")
+    target_modes=()
+    for target_skills in "${target_skills_dirs[@]}"; do
+      target_modes+=(base)
+    done
   fi
 
-  local source_item="" target_skills=""
+  local -i target_index=0
+  for (( target_index = 1; target_index <= ${#target_skills_dirs}; target_index += 1 )); do
+    if [[ "${target_modes[target_index]}" == "skill" && ${#source_items} -ne 1 ]]; then
+      echo "skills unsync: TARGET '${target_skills_dirs[target_index]}' is a specific skill path and requires exactly one source skill" >&2
+      return 1
+    fi
+  done
+
   local -i removed=0
 
   for source_item in "${source_items[@]}"; do
-    for target_skills in "${target_skills_dirs[@]}"; do
-      if _skills_remove_matching_symlink "$source_item" "$target_skills"; then
+    for (( target_index = 1; target_index <= ${#target_skills_dirs}; target_index += 1 )); do
+      target_skills="${target_skills_dirs[target_index]}"
+      if [[ "${target_modes[target_index]}" == "skill" ]]; then
+        _skills_remove_matching_exact_symlink "$source_item" "$target_skills" && ((removed += 1))
+      elif _skills_remove_matching_symlink "$source_item" "$target_skills"; then
         ((removed += 1))
       fi
     done
@@ -393,60 +509,73 @@ function _skills_unsync() {
 
 # --- Skill CRUD helpers -------------------------------------------------------
 
-function _skills_hidden_base_dir_relative_paths() {
+function _skills_provider_discovery_relative_paths() {
   emulate -L zsh
-  local provider="${1-}"
+  local provider="$1" parent_dir=""
   reply=()
 
-  case "$provider" in
-    "")
-      reply=(
-        ".agents/skills"
-        ".pi/agent/skills"
-        ".claude/skills"
-        ".codex/skills"
-        ".gemini/skills"
-        ".antigravity/skills"
-        ".pi/skills"
-      )
-      ;;
-    pi)           reply=(".pi/agent/skills" ".pi/skills") ;;
-    claude)       reply=(".claude/skills") ;;
-    codex)        reply=(".codex/skills") ;;
-    gemini)       reply=(".gemini/skills") ;;
-    antigravity)  reply=(".antigravity/skills") ;;
-    *)
-      echo "skills: unknown provider '$provider'. Expected: pi, claude, codex, gemini, antigravity" >&2
-      return 1
-      ;;
-  esac
+  _skills_provider_parent_dir "$provider" || return 1
+  parent_dir="$REPLY"
+
+  if [[ "$provider" == "pi" ]]; then
+    reply=(".pi/agent/skills" ".pi/skills")
+    return 0
+  fi
+
+  reply=("$parent_dir/skills")
+}
+
+function _skills_hidden_base_dir_relative_paths() {
+  emulate -L zsh
+  local provider="${1-}" provider_to_add=""
+  local -a relative_paths provider_relative_paths
+  reply=()
+
+  if [[ -n "$provider" ]]; then
+    _skills_provider_discovery_relative_paths "$provider"
+    return $?
+  fi
+
+  relative_paths=(".agents/skills" ".pi/agent/skills")
+  for provider_to_add in claude codex gemini antigravity; do
+    _skills_provider_discovery_relative_paths "$provider_to_add" || return 1
+    provider_relative_paths=("${reply[@]}")
+    relative_paths+=("${provider_relative_paths[@]}")
+  done
+  relative_paths+=(".pi/skills")
+  reply=("${relative_paths[@]}")
 }
 
 function _skills_detect_provider_from_base_dir() {
   emulate -L zsh
   local base_dir="$1" parent_dir_name="${base_dir:h:t}" grandparent_dir_name="${base_dir:h:h:t}"
+  local provider="" parent_dir=""
 
   [[ "${base_dir:t}" == "skills" ]] || {
     echo "skills: expected a skills directory, got '$base_dir'" >&2
     return 1
   }
 
-  case "$parent_dir_name" in
-    .agents)      REPLY="agents" ;;
-    .claude)      REPLY="claude" ;;
-    .codex)       REPLY="codex" ;;
-    .gemini)      REPLY="gemini" ;;
-    .antigravity) REPLY="antigravity" ;;
-    .pi)          REPLY="pi" ;;
-    agent)
-      if [[ "$grandparent_dir_name" == ".pi" ]]; then
-        REPLY="pi"
-      else
-        REPLY="unknown"
-      fi
-      ;;
-    *) REPLY="unknown" ;;
-  esac
+  if [[ "$parent_dir_name" == ".agents" ]]; then
+    REPLY="agents"
+    return 0
+  fi
+
+  if [[ "$parent_dir_name" == "agent" && "$grandparent_dir_name" == ".pi" ]]; then
+    REPLY="pi"
+    return 0
+  fi
+
+  for provider in "${_skills_cli_providers[@]}"; do
+    _skills_provider_parent_dir "$provider" || return 1
+    parent_dir="$REPLY"
+    if [[ "$parent_dir_name" == "$parent_dir" ]]; then
+      REPLY="$provider"
+      return 0
+    fi
+  done
+
+  REPLY="unknown"
 }
 
 function _skills_base_dir_matches_provider() {
@@ -494,7 +623,7 @@ function _skills_find_nearest_plain_base_dir() {
 
 function _skills_find_nearest_hidden_base_dir() {
   emulate -L zsh
-  local provider="${1-}" current_dir="${PWD:A}" candidate="" relative_path=""
+  local provider="${1-}" current_dir="${PWD:A}" candidate="" relative_path="" home_absolute="${HOME:A}"
   local -a relative_paths
 
   _skills_hidden_base_dir_relative_paths "$provider" || return 1
@@ -503,7 +632,7 @@ function _skills_find_nearest_hidden_base_dir() {
   while true; do
     for relative_path in "${relative_paths[@]}"; do
       candidate="$current_dir/$relative_path"
-      if [[ -d "$candidate" ]]; then
+      if [[ -d "$candidate" && "${candidate:A}" != "$home_absolute/.pi/skills" ]]; then
         _skills_resolve_existing_dir "$candidate"
         return 0
       fi
@@ -538,18 +667,8 @@ function _skills_base_dir() {
   local global="$1" provider="${2-}" base_dir=""
 
   if [[ "$global" == "true" ]]; then
-    case "$provider" in
-      pi)           base_dir="$HOME/.pi/agent/skills" ;;
-      claude)       base_dir="$HOME/.claude/skills" ;;
-      codex)        base_dir="$HOME/.codex/skills" ;;
-      gemini)       base_dir="$HOME/.gemini/skills" ;;
-      antigravity)  base_dir="$HOME/.antigravity/skills" ;;
-      "")           base_dir="$HOME/.agents/skills" ;;
-      *)
-        echo "skills: unknown provider '$provider'. Expected: pi, claude, codex, gemini, antigravity" >&2
-        return 1
-        ;;
-    esac
+    _skills_provider_base_relative_path "$provider" "$HOME" || return 1
+    base_dir="$HOME/$REPLY"
 
     if [[ ! -d "$base_dir" ]]; then
       echo "skills: directory not found: $base_dir" >&2
@@ -821,27 +940,23 @@ function _skills_is_bare_skill_path() {
 
 function _skills_provider_base_relative_path() {
   emulate -L zsh
-  local provider="${1-}" root_dir="${2:-$PWD}"
+  local provider="${1-}" root_dir="${2:-$PWD}" parent_dir=""
   local root_absolute="${root_dir:A}" home_absolute="${HOME:A}"
 
-  case "$provider" in
-    ""|agents)    REPLY=".agents/skills" ;;
-    claude)       REPLY=".claude/skills" ;;
-    codex)        REPLY=".codex/skills" ;;
-    gemini)       REPLY=".gemini/skills" ;;
-    antigravity)  REPLY=".antigravity/skills" ;;
-    pi)
-      if [[ "$root_absolute" == "$home_absolute" ]]; then
-        REPLY=".pi/agent/skills"
-      else
-        REPLY=".pi/skills"
-      fi
-      ;;
-    *)
-      echo "skills: unknown provider '$provider'. Expected: pi, claude, codex, gemini, antigravity" >&2
-      return 1
-      ;;
-  esac
+  if [[ -z "$provider" || "$provider" == "agents" ]]; then
+    REPLY=".agents/skills"
+    return 0
+  fi
+
+  _skills_provider_parent_dir "$provider" || return 1
+  parent_dir="$REPLY"
+
+  if [[ "$provider" == "pi" && "$root_absolute" == "$home_absolute" ]]; then
+    REPLY=".pi/agent/skills"
+    return 0
+  fi
+
+  REPLY="$parent_dir/skills"
 }
 
 function _skills_canonicalize_base_dir_for_create() {
