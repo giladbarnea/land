@@ -121,11 +121,11 @@ _killverify_pattern() {
   local current_signal="$2"
   local -i max_attempts="$3"
   local -i attempt=0
+  local attempt_successful=false
 
-  # `pgrep`/`pkill` quirk (at least on MacOS): A 'Heynote' app with 'heynote' substring only in its full process will match `pgrep -f heynote` but not `pkill -f`. So we just don’t use `-f` for consistent behavior.
   while _killverify_pattern_matches "$target" && ((attempt++ < max_attempts)); do
     log.debug "Attempt ${attempt}/${max_attempts}: ${current_signal}'ing processes matching '$target'"
-    pkill -"${current_signal}" -ao "$target"
+    pkill -"${current_signal}" -ao "$target" && break
     sleep 0.5
 
     # Escalate to KILL after 3 failed attempts
@@ -143,7 +143,7 @@ _killverify_pattern() {
 }
 
 # # _killverify_pattern_matches PATTERN
-_killverify_pattern_matches() { [[ -n "$(pgrep -ao "$1")" ]]; }
+_killverify_pattern_matches() { [[ -n "$(pgrep -fao "$1")" ]]; }
 
 # # proc.pprint <FULL_PROCESS / STDIN>
 function proc.pprint() {
