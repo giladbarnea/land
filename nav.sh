@@ -86,12 +86,11 @@
       done
     fi
 
-    # When targetdir is not explicitly absolute nor explicitly relative (excluding -* special cases),
-    # builtin cd complains unless explicitly prepended with ./
-    [[ "$targetdir" != /* && "$targetdir" != ./* && "$targetdir" != -* ]] && targetdir="./${targetdir}"
-
     # *** cd into dir
-    builtin cd -- "${targetdir}" 2>/dev/null
+    # A bare relative name needs a leading ./ so builtin cd treats it as a path, not a CDPATH lookup.
+    local cd_target="$targetdir"
+    [[ "$cd_target" != /* && "$cd_target" != ./* && "$cd_target" != -* ]] && cd_target="./$cd_target"
+    builtin cd -- "$cd_target" 2>/dev/null
     builtin_cd_exitcode=$?
     if [[ $builtin_cd_exitcode == 0 ]]; then
       # ** Builtin cd succeeded; show interesting information (no flow control)
@@ -116,15 +115,20 @@
     ## Reaching here means either:
     # 1. User declined .handle-dest-is-a-file, or
     # 2. 'builtin cd $targetdir' failed
+    # The leaf didn't resolve; search for it within its parent directory, not the CWD.
+    # ${targetdir:h} is the parent ('.' for a bare name, so this still searches the CWD);
+    # ${targetdir:t} is the leaf to match.
+    local search_dir="${targetdir:h}"
+    local target_leaf="${targetdir:t}"
+
     if [[ "$shallow_search_on_fail" = true ]]; then
-      local -i shallow_search_exitcode
       local shallow_search_result
-      if ! shallow_search_result="$(.exact-shallow-search-current-dir "${targetdir#./}")"; then
+      if ! shallow_search_result="$(builtin cd -- "$search_dir" 2>/dev/null && .exact-shallow-search-current-dir "$target_leaf")"; then
         log.warn "Failed ${Cc}builtin cd \"${targetdir}\"${Cc0} and subsequent shallow-searching for $targetdir; returning ${builtin_cd_exitcode}."
         return $builtin_cd_exitcode
       fi
-      if [[ "$shallow_search_exitcode" == 0 && -n "$shallow_search_result" ]]; then
-        builtin cd -- "$shallow_search_result"
+      if [[ -n "$shallow_search_result" ]]; then
+        builtin cd -- "${search_dir}/${shallow_search_result}"
         return $?
       fi
     fi
@@ -138,14 +142,14 @@
     print_hr
     log.warn "Failed ${Cc}builtin cd -- \"$targetdir\"${Cc0}. Trying to fuzzy find it..."
     local fzfd_result fzfd_exitcode
-    fzfd_result="$(fzfd "$(basename -- "$targetdir")")" # Search only the last part of the path.
+    fzfd_result="$(builtin cd -- "$search_dir" 2>/dev/null && fzfd "$target_leaf")" # Search the leaf within its parent dir.
     fzfd_exitcode=$?
     if [[ $fzfd_exitcode == 0 ]]; then
       log.success "$(typeset fzfd_result)"
       # Todo: pass originally specified args
-      if ! cd "$fzfd_result"; then
+      if ! cd "${search_dir}/${fzfd_result}"; then
         exitcode=$?
-        log.error "${Cc}cd $fzfd_result${Cc0} failed ($exitcode), returning $exitcode"
+        log.error "${Cc}cd ${search_dir}/${fzfd_result}${Cc0} failed ($exitcode), returning $exitcode"
         return $exitcode
       fi
       return 0
@@ -154,19 +158,19 @@
     # `fzfd` failed -> let’s try `fzff` (longshot)
 
     local fzff_result fzff_exitcode
-    fzff_result="$(fzff "$(basename -- "$targetdir")")" # Search only the last part of the path.
+    fzff_result="$(builtin cd -- "$search_dir" 2>/dev/null && fzff "$target_leaf")" # Search the leaf within its parent dir.
     fzff_exitcode=$?
     if [[ $fzff_exitcode == 0 ]]; then
       log.success "$(typeset fzff_result)"
       # Todo: pass originally specified args
-      if ! cd "$(dirname -- "$fzff_result")"; then
+      if ! cd "${search_dir}/${fzff_result:h}"; then
         exitcode=$?
-        log.error "Both ${Cc}fzfd \"$(basename -- "$targetdir")\"${Cc0} and ${Cc}cd \"$(dirname -- "$fzff_result")\"${Cc0} failed ($exitcode), returning $exitcode"
+        log.error "Both ${Cc}fzfd \"$target_leaf\"${Cc0} and ${Cc}cd \"${search_dir}/${fzff_result:h}\"${Cc0} failed ($exitcode), returning $exitcode"
         return $exitcode
       fi
       return 0
     fi
-    log.error "Both ${Cc}cd \"$fzfd_result\"${Cc0} and ${Cc}cd \"$(dirname -- "$fzff_result")\"${Cc0} failed ($exitcode), returning $exitcode"
+    log.error "Both ${Cc}cd \"${search_dir}/${fzfd_result}\"${Cc0} and ${Cc}cd \"${search_dir}/${fzff_result:h}\"${Cc0} failed ($exitcode), returning $exitcode"
     return $builtin_cd_exitcode
 
   }
