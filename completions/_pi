@@ -16,14 +16,17 @@ _pi() {
     '(-c --continue)'{-c,--continue}'[Continue previous session]'
     '(-r --resume)'{-r,--resume}'[Select a session to resume]'
     '--session[Use specific session file or partial UUID]:path-or-id:_pi_session_reference'
+    '--session-id[Use exact project session ID, creating it if missing]:id:_default'
     '--fork[Fork a specific session file or partial UUID into a new session]:path-or-id:_pi_session_reference'
     '--session-dir[Directory for session storage and lookup]:dir:_files -/'
     '--no-session[Do not save the session]'
+    '(-n --name)'{-n,--name}'[Set session display name]:name:_default'
     '--models[Comma-separated model patterns for Ctrl+P cycling]:patterns:_pi_models_patterns'
     '--no-tools[Disable all tools by default (built-in and extension)]'
     '-nbt[Disable built-in tools by default but keep extension/custom tools enabled]'
     '--no-builtin-tools[Disable built-in tools by default but keep extension/custom tools enabled]'
     '--tools[Comma-separated allowlist of tool names to enable]:tools:_pi_tools'
+    '(-xt --exclude-tools)'{-xt,--exclude-tools}'[Comma-separated denylist of tool names to disable]:tools:_pi_tools'
     '--thinking[Set thinking level]:level:(off minimal low medium high xhigh)'
     '*-e[Load an extension file]:path:_files'
     '*--extension[Load an extension file]:path:_files'
@@ -42,6 +45,8 @@ _pi() {
     '--export[Export a session file to HTML and exit]:file:_files'
     '--list-models[List available models, optionally filtered by fuzzy search]::search:_default'
     '--verbose[Force verbose startup]'
+    '(-a --approve -na --no-approve)'{-a,--approve}'[Trust project-local files for this run]'
+    '(-a --approve -na --no-approve)'{-na,--no-approve}'[Ignore project-local files for this run]'
     '--offline[Disable startup network operations]'
     '(-h --help)'{-h,--help}'[Show help]'
     '(-v --version)'{-v,--version}'[Show version number]'
@@ -108,28 +113,64 @@ _pi() {
 }
 
 _pi:install() {
+  local -a options=(
+    '(-l --local)'{-l,--local}'[Install project-locally (.pi/settings.json)]'
+    '(-a --approve -na --no-approve)'{-a,--approve}'[Trust project-local files for this command]'
+    '(-a --approve -na --no-approve)'{-na,--no-approve}'[Ignore project-local files for this command]'
+    '--help[Show help for install]'
+  )
+
   _arguments -A '-*' -s -S \
-    '--help[Show help for install]' \
-    '(-l --local)'{-l,--local}'[Install project-locally (.pi/settings.json)]' \
+    "${options[@]}" \
     '1:source:_pi_package_source' && return 0
 }
 
 _pi:remove() {
+  local -a options=(
+    '(-l --local)'{-l,--local}'[Remove from project settings (.pi/settings.json)]'
+    '(-a --approve -na --no-approve)'{-a,--approve}'[Trust project-local files for this command]'
+    '(-a --approve -na --no-approve)'{-na,--no-approve}'[Ignore project-local files for this command]'
+    '--help[Show help for remove or uninstall]'
+  )
+
   _arguments -A '-*' -s -S \
-    '--help[Show help for remove or uninstall]' \
-    '(-l --local)'{-l,--local}'[Remove from project settings (.pi/settings.json)]' \
+    "${options[@]}" \
     '1:source:_pi_installed_sources' && return 0
 }
 
 _pi:update() {
-  _arguments -A '-*' -s -S \
-    '--help[Show help for update]' \
-    '::source:_pi_installed_sources' && return 0
+  local -a options=(
+    '(--extensions --all --extension)--self[Update pi only (default when no target is given)]'
+    '(--self --all --extension)--extensions[Update installed packages only]'
+    '(--self --extensions --extension)--all[Update pi and installed packages]'
+    '(--self --extensions --all)--extension[Update one package only]:source:_pi_installed_sources'
+    '(-a --approve -na --no-approve)'{-a,--approve}'[Trust project-local files for this command]'
+    '(-a --approve -na --no-approve)'{-na,--no-approve}'[Ignore project-local files for this command]'
+    '--force[Reinstall pi even if the current version is latest]'
+    '--help[Show help for update]'
+  )
+
+  _arguments -A '-*' -C -s -S \
+    "${options[@]}" \
+    '1::target:_pi_update_targets' \
+    '*:: :->rest' && return 0
+
+  case $state in
+    (rest)
+      _arguments -A '-*' -C -s -S "${options[@]}" && return 0
+      ;;
+  esac
 }
 
 _pi:list() {
+  local -a options=(
+    '(-a --approve -na --no-approve)'{-a,--approve}'[Trust project-local files for this command]'
+    '(-a --approve -na --no-approve)'{-na,--no-approve}'[Ignore project-local files for this command]'
+    '--help[Show help for list]'
+  )
+
   _arguments -A '-*' -s -S \
-    '--help[Show help for list]' && return 0
+    "${options[@]}" && return 0
 }
 
 _pi:config() {
@@ -158,6 +199,12 @@ _pi_installed_sources() {
   (( ${#sources[@]} )) || return 1
   sources=(${(u)sources})
   _describe -t sources 'installed package sources' sources
+}
+
+_pi_update_targets() {
+  _alternative \
+    'targets:special target:(self pi)' \
+    'sources:installed package source:_pi_installed_sources'
 }
 
 _pi_package_source() {
