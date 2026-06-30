@@ -1,4 +1,4 @@
-#compdef skills skills.sh skr ske skcr
+#compdef skills skills.sh skr ske skcr skcd skt skl
 
 typeset -ga _skills_subcommands=(
   'sync:Symlink SOURCE skills into each TARGET/skills directory'
