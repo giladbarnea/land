@@ -125,7 +125,7 @@ _killverify_pattern() {
 
   while _killverify_pattern_matches "$target" && ((attempt++ < max_attempts)); do
     log.debug "Attempt ${attempt}/${max_attempts}: ${current_signal}'ing processes matching '$target'"
-    pkill -"${current_signal}" -ao "$target" && break
+    pkill -"${current_signal}" -ao "$target" && ! _killverify_pattern_matches "$target" && break
     sleep 0.5
 
     # Escalate to KILL after 3 failed attempts

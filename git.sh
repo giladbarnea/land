@@ -196,35 +196,73 @@ function git.lastcommit(){
   git.showcommit "$@" -1
 }
 
-# # gacp [COMMIT_MSG]
-# git add . && git commit -am [COMMIT_MSG] && git push
-# If COMMIT_MSG is not provided, it will be prompted for.
-function gacp() {
-  local commitmsg
-  if [[ -n "$1" ]]; then
-    commitmsg="$1"
-    shift 1
-    log.debug "$(typeset commitmsg)"
+# # gac [COMMIT_MSG | git-commit-args...] [-- paths...]
+# Runs git add first, then git commit.
+# Args before -- pass to git commit. A bare first arg is shorthand for -m COMMIT_MSG.
+# Paths after -- pass to git add. Without --, git add defaults to .
+function gac() {
+  local -a git_commit_args
+  local -a git_add_paths
+  local saw_add_paths=false
+
+  while (( $# )); do
+    if [[ "$1" == -- ]]; then
+      saw_add_paths=true
+      shift
+      git_add_paths=("$@")
+      break
+    fi
+    git_commit_args+=("$1")
+    shift
+  done
+
+  if [[ "$saw_add_paths" = false ]]; then
+    git_add_paths=(.)
   fi
-  if ! vex git add .; then
+
+  if (( ${#git_commit_args[@]} == 0 )); then
+    local commitmsg
+    commitmsg="$(input "Commit message? (e.g. changed this to that)")"
+    [[ -z "$commitmsg" ]] && commitmsg="$(date)"
+    git_commit_args=(-m "$(strip "$commitmsg")")
+  elif [[ "${git_commit_args[1]}" != -* ]]; then
+    local commitmsg="${git_commit_args[1]}"
+    local -a normalized_git_commit_args=(-m "$(strip "$commitmsg")")
+    local -i git_commit_arg_index=2
+    while (( git_commit_arg_index <= ${#git_commit_args[@]} )); do
+      normalized_git_commit_args+=("${git_commit_args[$git_commit_arg_index]}")
+      (( git_commit_arg_index++ ))
+    done
+    git_commit_args=("${normalized_git_commit_args[@]}")
+  fi
+
+  log.debug "$(typeset git_commit_args git_add_paths)"
+
+  if ! vex git add -- "${git_add_paths[@]}"; then
     log.fatal "${Cc}git add${Cc0} failed, aborting."
     return 1
   fi
-  if [[ -z "$commitmsg" ]]; then
-    commitmsg="$(input "Commit message? (e.g. changed this to that)")"
-  fi
-  if [[ -z "$commitmsg" || "$commitmsg" = "" ]]; then
-    commitmsg="$(date)"
-  fi
-  commitmsg="$(strip "$commitmsg")"
-  if ! confirm "commit -am $* \"$commitmsg\"?"; then
+
+  if ! confirm "git commit ${git_commit_args[*]}?"; then
     log.warn Aborting
     return 3
   fi
-  if ! git commit -am "$@" "$commitmsg"; then
+
+  local commit_exitcode
+  git commit "${git_commit_args[@]}"
+  commit_exitcode=$?
+  if (( commit_exitcode != 0 )); then
     log.fatal Failed
-    return 1
   fi
+  return "$commit_exitcode"
+}
+
+# # gacp [COMMIT_MSG | git-commit-args...] [-- paths...]
+# Runs gac, then git push.
+function gacp() {
+  gac "$@"
+  local commit_exitcode=$?
+  (( commit_exitcode == 0 )) || return "$commit_exitcode"
 
   if ! confirm "Push?"; then
     log.warn Aborting
@@ -246,7 +284,6 @@ function gacp() {
     return $?
   fi
   return $exitcode
-
 }
 
 # ------[ Files ]------

@@ -44,38 +44,6 @@ function cppath() {
   copy "$normalized_path_to_copy" --raw -v 1
 }
 
-# # resolve PATH [RELATIVE_TO=PWD]
-function resolve(){
-  setopt localoptions pipefail
-  local target_path="$1"
-  local original_target_path="$target_path"
-  [[ -e "$target_path" ]] && {
-    echo "$target_path"
-    return 0
-  }
-  
-  local removed_from_start
-  local part
-  local -a target_path_parts
-  target_path_parts=("${(s./.)target_path}")
-  
-  for part in ${target_path_parts[@]}; do
-      removed_from_start="${target_path#"$part"}"
-      target_path="${removed_from_start#"/"}"
-      [[ -z "$target_path" ]] && return 1
-      [[ -e "$target_path" ]] && {
-        echo "${target_path}"
-        return 0
-      }
-  done
-  local deeper_match
-  deeper_match="$(fzf -f "${original_target_path}" --select-1 --exit-0 2>&1 | head -n 1)"
-  if [[ $? -eq 0 && -n "$deeper_match" && -e "$deeper_match" ]]; then
-    echo "$deeper_match"
-    return 0
-  fi
-  return 1
-}
 
 # # tree [-u/--no-git-ignore] [PATH=.]
 # Prints a simple visual recursive file tree, respecting git ignore.

@@ -150,6 +150,96 @@ for _alias in ${(k)aliases[(I)pi*]}; do
 done
 unset _alias _thinkinglevel _base_pi_no_args
 
+function pi() {
+	local stdin
+	local full_prompt
+	local running_interactively=true
+	local -a args_besides_prompt=()
+	local -a prompt_parts=()
+	local -a options_that_take_value=(
+		--provider
+		--model
+		--api-key
+		--system-prompt
+		--append-system-prompt
+		--mode
+		--session
+		--session-id
+		--fork
+		--session-dir
+		--name
+		--models
+		--tools
+		--exclude-tools
+		--thinking
+		--extension
+		--skill
+		--prompt-template
+		--theme
+		--export
+		--fff-mode
+		--fff-frecency-db
+		--fff-history-db
+		-e
+		-n
+		-t
+		-xt
+	)
+
+	if is_piped; then
+		stdin="$(<&0)"
+	fi
+	[[ -z "$stdin" ]] && { command pi "$@"; return $?; }
+
+	while [[ "$#" -gt 0 ]]; do
+		case "$1" in
+			--print|-p)
+				running_interactively=false
+				args_besides_prompt+=("$1")
+				shift
+				;;
+			--*=*)
+				args_besides_prompt+=("$1")
+				shift
+				;;
+			--)
+				shift
+				prompt_parts+=("$@")
+				break
+				;;
+			@*)
+				args_besides_prompt+=("$1")
+				shift
+				;;
+			-*)
+				args_besides_prompt+=("$1")
+				if [[ ${options_that_take_value[(Ie)$1]} -gt 0 ]]; then
+					[[ "$2" ]] || { print -u2 -- "pi: Missing value for $1"; return 1; }
+					args_besides_prompt+=("$2")
+					shift 2
+				else
+					shift
+				fi
+				;;
+			*)
+				prompt_parts+=("$1")
+				shift
+				;;
+		esac
+	done
+
+	full_prompt="$stdin"
+	if [[ "${#prompt_parts[@]}" -gt 0 ]]; then
+		local positional_prompt="$(printf "%s\n\n" "${prompt_parts[@]}")"
+		full_prompt="$(printf "%s\n\n%s" "$stdin" "$positional_prompt")"
+	fi
+
+	if [[ "$running_interactively" = true ]]; then
+		command pi "${args_besides_prompt[@]}" "$full_prompt" < /dev/tty
+	else
+		command pi "${args_besides_prompt[@]}" "$full_prompt"
+	fi
+}
 
 function :gemini() {
 	local -a args_besides_prompt=()

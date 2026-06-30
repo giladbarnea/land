@@ -40,6 +40,9 @@ _skills() {
     (skr) _skills_skr; return $? ;;
     (ske) _skills_ske; return $? ;;
     (skcr) _skills_skcr; return $? ;;
+    (skcd) _skills_skcd; return $? ;;
+    (skt) _skills_skt; return $? ;;
+    (skl) _skills_skl; return $? ;;
     (skills|skills.sh) ;;
     (*) return 1 ;;
   esac
@@ -279,6 +282,29 @@ _skills_ske() {
 
 _skills_skcr() {
   _skills_complete_create_command
+}
+
+_skills_skcd() {
+  _skills_complete_access_command
+}
+
+_skills_skt() {
+  _skills_complete_access_command
+}
+
+_skills_skl() {
+  emulate -L zsh
+  local current_word="${words[CURRENT]-}" previous_word="${words[CURRENT-1]-}"
+
+  if [[ "$previous_word" == "-p" ]]; then
+    _skills_complete_access_providers
+    return $?
+  fi
+
+  if [[ "$current_word" == -* ]]; then
+    _skills_complete_access_options
+    return $?
+  fi
 }
 
 if [ "${funcstack[1]}" = "_skills" ]; then

@@ -149,5 +149,23 @@ function mdquote() {
 	echo "  \033[48;2;28;28;28;90m▍\033[39m  \033[2m${value}\033[0m"
 }
 
-# # ruler
-function ruler(){ echo ""; printf "─%.0s" {1..80}; echo ""; }
+# # ruler [TEXT / stdin]
+function ruler(){
+	local value
+	local rule="$(printf "─%.0s" {1..80})"
+
+	if [[ "$1" ]]; then
+		value="$1"
+		shift || return 1
+	elif is_piped; then
+		value="$(<&0)"
+	fi
+	[[ "$1" ]] && { print -u2 -- "$0: Too many args. Usage: ruler [TEXT / stdin]"; return 1; }
+
+	if [[ "$value" ]]; then
+		printf "%s\n\n%s\n\n" "$value" "$rule"
+		return $?
+	fi
+
+	printf "\n%s\n" "$rule"
+}
