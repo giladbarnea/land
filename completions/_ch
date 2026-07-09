@@ -1,7 +1,7 @@
 #compdef ch
 #
 # Tool filter completion implements chats' TOOL_SPEC.md as it stood on
-# 2026-06-21 at commit 9b7cf1d.
+# 2026-07-04 after explicit tool-local short limits landed.
 
 typeset -ga _ch_subcommands=(
   'search:Search conversations with regex patterns'
@@ -120,8 +120,10 @@ typeset -gA _ch_tool_modifier_descriptions=(
   output 'output/tool-result only'
   e 'errored tool results only'
   error 'errored tool results only'
-  s 'shorten matching positive tools'
-  short 'shorten matching positive tools'
+  s 'shorten matching positive tools with the default max chars'
+  short 'shorten matching positive tools with the default max chars'
+  's=' 'shorten matching positive tools with explicit max chars'
+  'short=' 'shorten matching positive tools with explicit max chars'
 )
 
 typeset -g _ch_tool_spec_emit_prefix=''
@@ -133,7 +135,8 @@ typeset -gA _ch_tool_spec_filled_slots=()
 
 _ch_tool_slot_for_item() {
   local item=$1
-  local lowered=${item:l}
+  local keyword=${item%%=*}
+  local lowered=${keyword:l}
 
   if [[ -n ${_ch_tool_modifier_slots[$lowered]} ]]; then
     print -r -- "${_ch_tool_modifier_slots[$lowered]}"
@@ -142,11 +145,31 @@ _ch_tool_slot_for_item() {
   fi
 }
 
+_ch_tool_spec_completed_item_is_valid() {
+  local item=$1
+  local keyword=${item%%=*}
+  local value=${item#*=}
+  local lowered=${keyword:l}
+
+  if [[ $item != *=* ]]; then
+    return 0
+  fi
+  if [[ $lowered != s && $lowered != short ]]; then
+    return 1
+  fi
+  [[ $value == <-> ]] && (( value > 7 ))
+}
+
 _ch_tool_spec_mark_item() {
   local item=$1
   local slot
 
   [[ -n $item ]] || return 1
+  if ! _ch_tool_spec_completed_item_is_valid "$item"; then
+    _ch_tool_spec_invalid=1
+    return 1
+  fi
+
   slot=$(_ch_tool_slot_for_item "$item")
 
   if [[ -n ${_ch_tool_spec_filled_slots[$slot]} ]]; then
@@ -271,7 +294,7 @@ _ch_tool_spec_add_modifier_matches() {
       tokens=(e error)
       ;;
     (short)
-      tokens=(s short)
+      tokens=(s short 's=' 'short=')
       ;;
     (*)
       return 1
