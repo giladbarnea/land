@@ -717,8 +717,8 @@ function join(){
   
 }
 
-# # xt CONTENT/FILEPATH -t,--tag,-st,--stdin-tag TAG [-k,--kebab] [-q,--quiet]
-# # xt TAG [-k,--kebab] [-q,--quiet] <<< CONTENT/FILEPATH
+# # xt CONTENT/FILEPATH -t,--tag,-st,--stdin-tag TAG [-i,--indent NUM] [-k,--kebab] [-q,--quiet]
+# # xt TAG [-i,--indent NUM] [-k,--kebab] [-q,--quiet] <<< CONTENT/FILEPATH
 # Wraps the string in XML tag.
 # Examples:
 # ```bash
@@ -746,12 +746,19 @@ function xt(){
 	local content tag formatted_content
 	local quiet=true  # makes the --quiet flag redundant, but can't bother refactor callers
 	local kebab=false
+	local indent_length
 	while [[ $# -gt 0 ]]; do
 		case "$1" in
 			--tag=*|--stdin-tag=*) tag="${1#*=}" ;;
+			--indent=*) indent_length="${1#*=}" ;;
 			-t|--tag|-st|--stdin-tag)
 								[[ "$2" ]] || { log.error "$0: Missing value for $1. Usage:\n$(docstring "$0")"; return 1; }
 								tag="$2"
+								shift
+								;;
+			-i|--indent)
+								[[ "$2" ]] || { log.error "$0: Missing value for $1. Usage:\n$(docstring "$0")"; return 1; }
+								indent_length="$2"
 								shift
 								;;
 			-q|--quiet) quiet=true ;;
@@ -778,6 +785,7 @@ function xt(){
 	[[ ! "$tag" ]] && { log.error "No tag provided." ; return 1 ; }
 	[[ ! "$content" ]] && { log.error "No content provided." ; return 1 ; }
 	[[ -f "$content" ]] && content="$(<"$content")"
+	[[ -n "$indent_length" ]] && content="$(indent "$content" "$indent_length")"
 	[[ "$kebab" = true ]] && tag="$(printf "%s" "$tag" | tr ' ' '-' | tr '[:upper:]' '[:lower:]')"
 		formatted_content="$(printf "<${tag}>\n%s\n</${tag}>\n" "$content")"
 	[[ "$quiet" = false ]] && log.debug "$(shorten "$formatted_content" -m "$COLUMNS")"

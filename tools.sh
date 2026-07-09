@@ -958,6 +958,31 @@ function kt-all(){
 }
 
 #endregion kitty
+#region ------------[ herdr ]------------
+
+# # herdrrename <NEW_WORKSPACE_NAME>
+# Renames the current herdr workspace.
+function herdrrename(){
+	local new_workspace_name="$1"
+	shift 1 || { log.error "$0: Not enough args (expected 1, got ${#$}). Usage:\n$(docstring "$0")"; return 2; }
+	setopt localoptions pipefail
+
+	local workspace_id
+	workspace_id="$(herdr pane current | jq .result.pane.workspace_id -r)" || { log.error "$0: Failed resolving current herdr workspace id"; return 1; }
+	herdr workspace rename "$workspace_id" "$new_workspace_name" || { log.error "$0: Failed renaming herdr workspace $workspace_id to $new_workspace_name"; return 1; }
+	log.success "Renamed herdr workspace $workspace_id to $new_workspace_name"
+}
+
+# # herdrstop
+# Stops the current herdr session.
+function herdrstop(){
+	[[ "$HERDR_ENV" == 1 ]] || { log.error "$0: Not in a herdr session"; return 1; }
+	[[ "$HERDR_SESSION" ]] || { log.error "$0: HERDR_SESSION is empty"; return 1; }
+	herdr session stop "$HERDR_SESSION" || { log.error "$0: Failed stopping herdr session $HERDR_SESSION"; return 1; }
+	log.success "Stopped herdr session $HERDR_SESSION"
+}
+
+#endregion herdr
 
 # region ------------[ uv ] ---------------
 
