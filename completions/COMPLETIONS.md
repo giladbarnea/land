@@ -30,7 +30,6 @@ As of Apr 19, 2026, this is the script's output:
 │ _ch        │ 2026-04-23T12:59:10+03:00 │ 2026-06-07T14:16:54+03:00 │
 │ _skills    │ 2026-04-19T09:27:40+03:00 │ 2026-06-09T10:42:04+03:00 │
 │ _pi        │ 2026-04-07T11:32:03+03:00 │ 2026-05-31T13:36:51+03:00 │
-│ _openclaw  │ 2026-02-13T10:39:40+02:00 │ 2026-03-27T17:14:02+03:00 │
 │ _gemini    │ 2026-02-08T09:51:15+02:00 │ 2026-02-08T11:09:58+02:00 │
 │ _codex     │ 2026-02-08T08:44:51+02:00 │ 2026-05-08T09:15:02+03:00 │
 │ _claude    │ 2026-01-27T13:07:39+02:00 │ 2026-06-08T11:58:57+03:00 │
@@ -58,8 +57,7 @@ As of Apr 19, 2026, this is the script's output:
 Therefore, good example scripts are:
 - _ch and _pi: most recently created and still among the freshest files overall 
 - _codex: recently modified (2026-04-03), recently created (2026-02-08)
-- _openclaw: recently created (2026-02-13), heavily maintained (137kb)
-- _gemini: older (2026-02-08), but I'm signing here that it's the best script in this directory for best practices. Inspired by `/Users/giladbarnea/.openclaw/completions/openclaw.zsh`. It is superior because: 
+- _gemini: older (2026-02-08), but I'm signing here that it's the best script in this directory for best practices. It is superior because: 
     * it leverages separation of data arrays (`local -a options`) from logic before passing them to `_arguments`, instead of a massive, unreadable `_arguments` call
     * modular dispatching (the 'Router') pattern, which uses a root function `_gemini` that acts as a router, which doesn't know *how* to complete `mcp add`, it just knows to pass control to `_gemini:mcp`, instead of nesting logic deep inside the root function 
     * state-based argument handling: uses `_arguments -C` with `->state` to handle complex flows where the completion needs to change based on the position (Command vs. Arguments), rather than a single complex argument specification
