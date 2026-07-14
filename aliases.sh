@@ -76,7 +76,7 @@ alias claudef=':claude --model=fable'
 
 alias claudeo=':claude --model=opus'
 
-alias claudes=':claude --model=sonnet'
+alias claudes=':claude --model=sonnet-5'
 
 alias claudeh=':claude --model=haiku'
 
@@ -90,13 +90,14 @@ alias claudesn='claudes --no-session-persistence -p'
 
 alias claudehn='claudeh --no-session-persistence -p'
 
-# low/medium/high apply to all models; opus and fable also support xhigh and max.
 # Suffixes: low=l, medium=m, high=h, xhigh=x, max=max (medium stays `m` so `max` is unambiguous).
+_claude_standard_levels=(low:l medium:m high:h)
+_claude_extended_levels=(${_claude_standard_levels[@]} xhigh:x max:max)
 for _alias in ${(k)aliases[(I)claude*]}; do
     [[ "${aliases[$_alias]}" != ":claude "* ]] && continue
-    _levels=(low:l medium:m high:h)
-    if [[ "${aliases[$_alias]}" == *--model=opus* || "${aliases[$_alias]}" == *--model=fable* ]]; then
-        _levels+=(xhigh:x max:max)
+    _levels=(${_claude_standard_levels[@]})
+    if [[ "${aliases[$_alias]}" == *--model=opus* || "${aliases[$_alias]}" == *--model=fable* || "${aliases[$_alias]}" == *--model=sonnet* ]]; then
+        _levels=(${_claude_extended_levels[@]})
     fi
     for _entry in "${_levels[@]}"; do
         _level="${_entry%%:*}"
@@ -111,31 +112,37 @@ alias codexd='/usr/bin/env -u OPENAI_API_KEY codex --yolo'
 compdef _codex codexd
 
 alias codexm='codexd --model=gpt-5.4-mini'
-
-alias codex0='codexd --config="model_reasoning_effort=none"'
 alias codexm0='codexm --config="model_reasoning_effort=none"'
-
-alias codex1='codexd --config="model_reasoning_effort=low"'
 alias codexm1='codexm --config="model_reasoning_effort=low"'
-
-alias codex2='codexd --config="model_reasoning_effort=medium"'
 alias codexm2='codexm --config="model_reasoning_effort=medium"'
-
-alias codex3='codexd --config="model_reasoning_effort=high"'
 alias codexm3='codexm --config="model_reasoning_effort=high"'
-
-alias codex4='codexd --config="model_reasoning_effort=xhigh"'
 alias codexm4='codexm --config="model_reasoning_effort=xhigh"'
+
+_gpt_56_models=(sol:s terra:t luna:l)
+_gpt_56_levels=(low:l medium:m high:h xhigh:x max:max ultra:u)
+for _model_entry in "${_gpt_56_models[@]}"; do
+    _model="${_model_entry%%:*}"
+    _model_suffix="${_model_entry##*:}"
+    _codex_alias="codex56${_model_suffix}"
+    alias "${_codex_alias}"="codexd --model=gpt-5.6-${_model}"
+    for _level_entry in "${_gpt_56_levels[@]}"; do
+        _level="${_level_entry%%:*}"
+        _level_suffix="${_level_entry##*:}"
+        alias "${_codex_alias}${_level_suffix}"="${_codex_alias} --config=\"model_reasoning_effort=${_level}\""
+    done
+done
+unset _model_entry _model _model_suffix _codex_alias _level_entry _level _level_suffix
 
 alias pig='pi --model google/gemini-3.1-pro-preview-customtools'
 alias pigf='pi --model google/gemini-3-flash-preview'
 alias pigf35='pi --model google/gemini-3.5-flash'
 alias pik='pi --model openrouter/moonshotai/kimi-k2.7'
-alias pic55='pi --model openai-codex/gpt-5.5'
-alias pic56s='pi --model openai-codex/gpt-5.6-sol'
-alias pic56t='pi --model openai-codex/gpt-5.6-terra'
-alias pic56l='pi --model openai-codex/gpt-5.6-luna'
-alias pic54='pi --model openai-codex/gpt-5.4'
+for _model_entry in "${_gpt_56_models[@]}"; do
+    _model="${_model_entry%%:*}"
+    _model_suffix="${_model_entry##*:}"
+    alias "pic56${_model_suffix}"="pi --model openai-codex/gpt-5.6-${_model}"
+done
+unset _model_entry _model _model_suffix
 alias pic5m='pi --model openai-codex/gpt-5.4-mini'
 alias pids4='pi --model openrouter/deepseek/deepseek-v4-pro'
 alias pids4f='pi --model openrouter/deepseek/deepseek-v4-flash'
@@ -143,15 +150,26 @@ alias pids4f='pi --model openrouter/deepseek/deepseek-v4-flash'
 _base_pi_no_args=(--no-context-files --no-extensions --no-prompt-templates --no-themes --no-session --no-skills)
 for _alias in ${(k)aliases[(I)pi*]}; do
     [[ "${aliases[$_alias]}" != "pi "* ]] && continue
-    for _thinkinglevel in off low medium high xhigh; do
-        alias "${_alias}${_thinkinglevel[1]}"="${_alias} --thinking ${_thinkinglevel}"
-        alias "${_alias}-no"="${_alias} ${_base_pi_no_args[@]}"
-        alias "${_alias}${_thinkinglevel[1]}-no"="${_alias} ${_base_pi_no_args[@]}"
-        alias "${_alias}-nono"="${_alias} ${_base_pi_no_args[@]} --no-tools"
-        alias "${_alias}${_thinkinglevel[1]}-nono"="${_alias} ${_base_pi_no_args[@]} --no-tools"
+    if [[ "${aliases[$_alias]}" == *openai-codex/gpt-5.6-* ]]; then
+        _levels=(${_gpt_56_levels[@]})
+    elif [[ "${aliases[$_alias]}" == *claude-bridge/claude-fable-* || "${aliases[$_alias]}" == *claude-bridge/claude-opus-* || "${aliases[$_alias]}" == *claude-bridge/claude-sonnet-* ]]; then
+        _levels=(${_claude_extended_levels[@]})
+    elif [[ "${aliases[$_alias]}" == *claude-bridge/* ]]; then
+        _levels=(${_claude_standard_levels[@]})
+    else
+        _levels=(off:o low:l medium:m high:h xhigh:x)
+    fi
+    alias "${_alias}-no"="${_alias} ${(j: :)_base_pi_no_args}"
+    alias "${_alias}-nono"="${_alias} ${(j: :)_base_pi_no_args} --no-tools"
+    for _entry in "${_levels[@]}"; do
+        _level="${_entry%%:*}"
+        _suffix="${_entry##*:}"
+        alias "${_alias}${_suffix}"="${_alias} --thinking ${_level}"
+        alias "${_alias}${_suffix}-no"="${_alias}${_suffix} ${(j: :)_base_pi_no_args}"
+        alias "${_alias}${_suffix}-nono"="${_alias}${_suffix} ${(j: :)_base_pi_no_args} --no-tools"
     done
 done
-unset _alias _thinkinglevel _base_pi_no_args
+unset _alias _levels _entry _level _suffix _base_pi_no_args _claude_standard_levels _claude_extended_levels _gpt_56_models _gpt_56_levels
 
 function pi() {
 	local stdin
