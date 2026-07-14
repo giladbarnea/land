@@ -2247,7 +2247,7 @@ function llm-commit-msg(){
 			return 0
 		}
 		notif.info "Aggregating into a single commit message..."
-    pi --model openai-codex/gpt-5.4-mini --thinking medium --no-session --no-skills --no-prompt-templates --no-extensions --no-tools --no-themes --print "$(cat "$tmp_file")"
+    pi --model openai-codex/gpt-5.6-luna --thinking medium --no-session --no-skills --no-prompt-templates --no-extensions --no-tools --no-themes --no-context-files --print "$(cat "$tmp_file")"
 	else
 		llm-what-changed --force-prompt "$llm_prompt" HEAD -- "${diff_targets[@]}"
 	fi

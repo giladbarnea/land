@@ -960,9 +960,9 @@ function kt-all(){
 #endregion kitty
 #region ------------[ herdr ]------------
 
-# # herdrrename <NEW_WORKSPACE_NAME>
+# # herdrwsrename <NEW_WORKSPACE_NAME>
 # Renames the current herdr workspace.
-function herdrrename(){
+function herdrwsrename(){
 	local new_workspace_name="$1"
 	shift 1 || { log.error "$0: Not enough args (expected 1, got ${#$}). Usage:\n$(docstring "$0")"; return 2; }
 	setopt localoptions pipefail
@@ -971,6 +971,19 @@ function herdrrename(){
 	workspace_id="$(herdr pane current | jq .result.pane.workspace_id -r)" || { log.error "$0: Failed resolving current herdr workspace id"; return 1; }
 	herdr workspace rename "$workspace_id" "$new_workspace_name" || { log.error "$0: Failed renaming herdr workspace $workspace_id to $new_workspace_name"; return 1; }
 	log.success "Renamed herdr workspace $workspace_id to $new_workspace_name"
+}
+
+# # herdrtabrename <NEW_TAB_NAME>
+# Renames the current herdr tab.
+function herdrtabrename(){
+	local new_tab_name="$1"
+	shift 1 || { log.error "$0: Not enough args (expected 1, got ${#$}). Usage:\n$(docstring "$0")"; return 2; }
+	setopt localoptions pipefail
+
+	local tab_id
+	tab_id="$(herdr pane current | jq .result.pane.tab_id -r)" || { log.error "$0: Failed resolving current herdr tab id"; return 1; }
+	herdr tab rename "$tab_id" "$new_tab_name" || { log.error "$0: Failed renaming herdr tab $tab_id to $new_tab_name"; return 1; }
+	log.success "Renamed herdr tab $tab_id to $new_tab_name"
 }
 
 # # herdrstop
