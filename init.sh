@@ -25,6 +25,7 @@ source "$THIS_SCRIPT_DIR/inspect.sh"
 source "$THIS_SCRIPT_DIR/python.sh"
 source "$THIS_SCRIPT_DIR/str.sh" # Maybe before python.sh?
 source "$THIS_SCRIPT_DIR/tools.sh"
+source "$THIS_SCRIPT_DIR/herdr.zsh"
 source "$THIS_SCRIPT_DIR/pretty.sh"
 source "$THIS_SCRIPT_DIR/llm.zsh"
 source "$THIS_SCRIPT_DIR/nav.sh" # 'cd' related functions
