@@ -42,6 +42,14 @@ _herdr_object_types() {
   _describe -t object-types 'Herdr object type' _herdr_object_type_specs
 }
 
+_herdr_list_types() {
+  _describe -t list-types 'Herdr list type' _herdr_list_type_specs
+}
+
+_herdr_move_source_types() {
+  _describe -t source-types 'Herdr source type' _herdr_move_source_type_specs
+}
+
 _herdr_object_selectors() {
   emulate -L zsh
 
@@ -114,7 +122,7 @@ _herdr:ls() {
   typeset -A opt_args
 
   _arguments -C \
-    '1:list type:_describe -t list-types "Herdr list type" _herdr_list_type_specs' \
+    '1:list type:_herdr_list_types' \
     '2:parent selector:->parent_selector' && ret=0
 
   case "$state" in
@@ -186,7 +194,7 @@ _herdr:move() {
   typeset -A opt_args
 
   _arguments -C \
-    '1:source type:_describe -t source-types "Herdr source type" _herdr_move_source_type_specs' \
+    '1:source type:_herdr_move_source_types' \
     '2:source selector:->source_selector' \
     '3:destination type:->destination_type' \
     '4:destination selector:->destination_selector' && ret=0
