@@ -1,0 +1,319 @@
+#compdef herdrget herdrls herdrread herdrrename herdrmove herdrnew herdrclose
+
+typeset -ga _herdr_object_type_specs=(
+  'pane:Terminal pane'
+  'tab:Tab containing one or more panes'
+  'workspace:Workspace containing one or more tabs'
+)
+
+typeset -ga _herdr_list_type_specs=(
+  'panes:List panes in a tab'
+  'tabs:List tabs in a workspace'
+  'tree:List a workspace, its tabs, and their panes'
+)
+
+typeset -ga _herdr_move_source_type_specs=(
+  'pane:Move one pane'
+  'tab:Move one tab while preserving its pane layout'
+)
+
+typeset -ga _herdr_pane_destination_type_specs=(
+  'tab:Move the pane into an existing tab'
+  'workspace:Move the pane into a new tab in an existing workspace'
+)
+
+typeset -ga _herdr_tab_destination_type_specs=(
+  'workspace:Move the tab into an existing workspace'
+)
+
+typeset -ga _herdr_pane_direction_specs=(
+  'right:Split to the right of the anchor pane'
+  'down:Split below the anchor pane'
+)
+
+typeset -ga _herdr_read_options=(
+  '--source[Captured text source]:source:(visible recent recent-unwrapped)'
+  '--lines[Maximum number of lines]:line count:'
+  '--format[Output format]:format:(text ansi)'
+  '--ansi[Preserve ANSI styling]'
+)
+
+_herdr_object_types() {
+  _describe -t object-types 'Herdr object type' _herdr_object_type_specs
+}
+
+_herdr_object_selectors() {
+  emulate -L zsh
+
+  local object_type="$1" collection_name id_field object_line object_id label expl
+  local -a object_lines values descriptions
+
+  [[ "$object_type" == ws ]] && object_type=workspace
+
+  case "$object_type" in
+    (pane)
+      collection_name=panes
+      id_field=pane_id
+      ;;
+    (tab)
+      collection_name=tabs
+      id_field=tab_id
+      ;;
+    (workspace)
+      collection_name=workspaces
+      id_field=workspace_id
+      ;;
+    (*)
+      return 1
+      ;;
+  esac
+
+  values=(current)
+  descriptions=("current -- focused $object_type")
+  object_lines=(${(f)"$(
+    _herdr_snapshot 2>/dev/null |
+      jq -r --arg collection "$collection_name" --arg id_field "$id_field" '
+        .[$collection][]
+        | [.[ $id_field ], (.label // "<unnamed>")]
+        | @tsv
+      ' 2>/dev/null
+  )"})
+
+  for object_line in "${object_lines[@]}"; do
+    IFS=$'\t' read -r object_id label <<< "$object_line"
+    values+=("$object_id")
+    descriptions+=("$object_id -- $label")
+  done
+
+  _wanted "${object_type}-selectors" expl "$object_type selector" \
+    compadd -d descriptions -a values
+}
+
+_herdr:get() {
+  local curcontext="$curcontext" state line
+  local -i ret=1
+  typeset -A opt_args
+
+  _arguments -C \
+    '1:object type:_herdr_object_types' \
+    '2:selector:->selector' && ret=0
+
+  case "$state" in
+    (selector)
+      _herdr_object_selectors "${line[1]}"
+      ret=$?
+      ;;
+  esac
+
+  return ret
+}
+
+_herdr:ls() {
+  local curcontext="$curcontext" state line
+  local -i ret=1
+  typeset -A opt_args
+
+  _arguments -C \
+    '1:list type:_describe -t list-types "Herdr list type" _herdr_list_type_specs' \
+    '2:parent selector:->parent_selector' && ret=0
+
+  case "$state" in
+    (parent_selector)
+      case "${line[1]}" in
+        (panes)
+          _herdr_object_selectors tab
+          ret=$?
+          ;;
+        (tabs|tree)
+          _herdr_object_selectors workspace
+          ret=$?
+          ;;
+      esac
+      ;;
+  esac
+
+  return ret
+}
+
+_herdr:read() {
+  if (( CURRENT == 2 )); then
+    _herdr_object_selectors pane
+    return $?
+  fi
+
+  local curcontext="$curcontext" state line
+  local -i ret=1
+  typeset -A opt_args
+
+  _arguments -A '-*' -C \
+    "${_herdr_read_options[@]}" \
+    '1:pane selector:' \
+    '*:: :->read_rest' && ret=0
+
+  case "$state" in
+    (read_rest)
+      _arguments -A '-*' -C "${_herdr_read_options[@]}"
+      ret=$?
+      ;;
+  esac
+
+  return ret
+}
+
+_herdr:rename() {
+  local curcontext="$curcontext" state line
+  local -i ret=1
+  typeset -A opt_args
+
+  _arguments -C \
+    '1:object type:_herdr_object_types' \
+    '2:selector:->selector' \
+    '3:new name:' && ret=0
+
+  case "$state" in
+    (selector)
+      _herdr_object_selectors "${line[1]}"
+      ret=$?
+      ;;
+  esac
+
+  return ret
+}
+
+_herdr:move() {
+  local curcontext="$curcontext" state line
+  local -i ret=1
+  typeset -A opt_args
+
+  _arguments -C \
+    '1:source type:_describe -t source-types "Herdr source type" _herdr_move_source_type_specs' \
+    '2:source selector:->source_selector' \
+    '3:destination type:->destination_type' \
+    '4:destination selector:->destination_selector' && ret=0
+
+  case "$state" in
+    (source_selector)
+      case "${line[1]}" in
+        (pane|tab)
+          _herdr_object_selectors "${line[1]}"
+          ret=$?
+          ;;
+      esac
+      ;;
+    (destination_type)
+      case "${line[1]}" in
+        (pane)
+          _describe -t destination-types 'Herdr destination type' \
+            _herdr_pane_destination_type_specs
+          ret=$?
+          ;;
+        (tab)
+          _describe -t destination-types 'Herdr destination type' \
+            _herdr_tab_destination_type_specs
+          ret=$?
+          ;;
+      esac
+      ;;
+    (destination_selector)
+      case "${line[3]}" in
+        (tab|workspace|ws)
+          _herdr_object_selectors "${line[3]}"
+          ret=$?
+          ;;
+      esac
+      ;;
+  esac
+
+  return ret
+}
+
+_herdr:new() {
+  local curcontext="$curcontext" state line
+  local -i ret=1
+  typeset -A opt_args
+
+  _arguments -C \
+    '1:object type:_herdr_object_types' \
+    '2:name or direction:->second_argument' \
+    '3:parent selector or working directory:->third_argument' \
+    '4:working directory:->fourth_argument' && ret=0
+
+  case "$state" in
+    (second_argument)
+      case "${line[1]}" in
+        (workspace|tab|ws)
+          _message 'name'
+          ret=$?
+          ;;
+        (pane)
+          _describe -t directions 'split direction' _herdr_pane_direction_specs
+          ret=$?
+          ;;
+      esac
+      ;;
+    (third_argument)
+      case "${line[1]}" in
+        (workspace|ws)
+          _files -/
+          ret=$?
+          ;;
+        (tab)
+          _herdr_object_selectors workspace
+          ret=$?
+          ;;
+        (pane)
+          _herdr_object_selectors pane
+          ret=$?
+          ;;
+      esac
+      ;;
+    (fourth_argument)
+      case "${line[1]}" in
+        (tab|pane)
+          _files -/
+          ret=$?
+          ;;
+      esac
+      ;;
+  esac
+
+  return ret
+}
+
+_herdr:close() {
+  local curcontext="$curcontext" state line
+  local -i ret=1
+  typeset -A opt_args
+
+  _arguments -C \
+    '1:object type:_herdr_object_types' \
+    '2:selector:->selector' && ret=0
+
+  case "$state" in
+    (selector)
+      _herdr_object_selectors "${line[1]}"
+      ret=$?
+      ;;
+  esac
+
+  return ret
+}
+
+_herdr() {
+  case "${words[1]}" in
+    (herdrget) _herdr:get ;;
+    (herdrls) _herdr:ls ;;
+    (herdrread) _herdr:read ;;
+    (herdrrename) _herdr:rename ;;
+    (herdrmove) _herdr:move ;;
+    (herdrnew) _herdr:new ;;
+    (herdrclose) _herdr:close ;;
+    (*) return 1 ;;
+  esac
+}
+
+if [[ "${funcstack[1]}" == _herdr ]]; then
+  _herdr "$@"
+else
+  compdef _herdr herdrget herdrls herdrread herdrrename herdrmove herdrnew herdrclose
+fi
