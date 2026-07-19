@@ -171,6 +171,19 @@ function herdrls() {
   esac
 }
 
+# # herdrread [SELECTOR] [--source visible|recent|recent-unwrapped] [--lines N] [--format text|ansi] [--ansi]
+# Prints the captured text of the selected pane, defaulting to the focused one; extra options pass through to `herdr pane read`.
+function herdrread() {
+  emulate -L zsh
+  setopt pipefail
+
+  local pane_id selector
+  selector="${1:-current}"
+  (( $# )) && shift
+  pane_id="$(herdrget pane "$selector")" || return
+  herdr pane read "$pane_id" "$@"
+}
+
 # # herdrrename pane|tab|workspace SELECTOR NEW_NAME
 # Renames the selected Herdr object and prints its canonical ID.
 function herdrrename() {
