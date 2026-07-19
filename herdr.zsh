@@ -26,14 +26,14 @@ function _herdr_snapshot() {
   print -r -- "$response" | jq -ec '.result.snapshot'
 }
 
-# # hg pane|tab|workspace [ID|LABEL|current]
+# # herdrget pane|tab|workspace [ID|LABEL|current]
 # Resolves one Herdr object to its canonical ID; ambiguous selectors fail.
-function hg() {
+function herdrget() {
   emulate -L zsh
   setopt pipefail
 
   (( $# >= 1 && $# <= 2 )) || {
-    _herdr_error 'usage: hg pane|tab|workspace [ID|LABEL|current]'
+    _herdr_error 'usage: herdrget pane|tab|workspace [ID|LABEL|current]'
     return
   }
 
@@ -109,14 +109,14 @@ function hg() {
   esac
 }
 
-# # hls panes [TAB] | tabs [WORKSPACE] | tree [WORKSPACE]
+# # herdrls panes [TAB] | tabs [WORKSPACE] | tree [WORKSPACE]
 # Lists Herdr objects within the selected parent, defaulting to the focused one.
-function hls() {
+function herdrls() {
   emulate -L zsh
   setopt pipefail
 
   (( $# >= 1 && $# <= 2 )) || {
-    _herdr_error 'usage: hls panes [TAB] | tabs [WORKSPACE] | tree [WORKSPACE]'
+    _herdr_error 'usage: herdrls panes [TAB] | tabs [WORKSPACE] | tree [WORKSPACE]'
     return
   }
 
@@ -126,7 +126,7 @@ function hls() {
 
   case "$list_type" in
     panes)
-      parent_id="$(hg tab "$selector")" || return
+      parent_id="$(herdrget tab "$selector")" || return
       snapshot="$(_herdr_snapshot)" || return
       print -r -- "$snapshot" | jq -r --arg tab_id "$parent_id" '
         .panes[]
@@ -135,7 +135,7 @@ function hls() {
       '
       ;;
     tabs)
-      parent_id="$(hg workspace "$selector")" || return
+      parent_id="$(herdrget workspace "$selector")" || return
       snapshot="$(_herdr_snapshot)" || return
       print -r -- "$snapshot" | jq -r --arg workspace_id "$parent_id" '
         .tabs
@@ -145,7 +145,7 @@ function hls() {
       '
       ;;
     tree)
-      parent_id="$(hg workspace "$selector")" || return
+      parent_id="$(herdrget workspace "$selector")" || return
       snapshot="$(_herdr_snapshot)" || return
       print -r -- "$snapshot" | jq -r --arg workspace_id "$parent_id" '
         . as $snapshot
@@ -171,19 +171,19 @@ function hls() {
   esac
 }
 
-# # hrn pane|tab|workspace SELECTOR NEW_NAME
+# # herdrrename pane|tab|workspace SELECTOR NEW_NAME
 # Renames the selected Herdr object and prints its canonical ID.
-function hrn() {
+function herdrrename() {
   emulate -L zsh
 
   (( $# == 3 )) || {
-    _herdr_error 'usage: hrn pane|tab|workspace SELECTOR NEW_NAME'
+    _herdr_error 'usage: herdrrename pane|tab|workspace SELECTOR NEW_NAME'
     return
   }
 
   local object_type object_id
   object_type="$(_herdr_object_type "$1")" || return
-  object_id="$(hg "$object_type" "$2")" || return
+  object_id="$(herdrget "$object_type" "$2")" || return
   herdr "$object_type" rename "$object_id" "$3" >/dev/null || return
   print -r -- "$object_id"
 }
@@ -335,22 +335,22 @@ function _herdr_move_tab_to_workspace() {
   print -r -- "$destination_tab_id"
 }
 
-# # hmv pane SOURCE tab|workspace DESTINATION | tab SOURCE workspace DESTINATION
+# # herdrmove pane SOURCE tab|workspace DESTINATION | tab SOURCE workspace DESTINATION
 # Moves a pane, or moves a tab while preserving its pane layout.
-function hmv() {
+function herdrmove() {
   emulate -L zsh
   setopt pipefail
 
   (( $# == 4 )) || {
-    _herdr_error 'usage: hmv pane SOURCE tab|workspace DESTINATION | tab SOURCE workspace DESTINATION'
+    _herdr_error 'usage: herdrmove pane SOURCE tab|workspace DESTINATION | tab SOURCE workspace DESTINATION'
     return
   }
 
   local source_type source_id destination_type destination_id response snapshot new_tab_label
   source_type="$(_herdr_object_type "$1")" || return
-  source_id="$(hg "$source_type" "$2")" || return
+  source_id="$(herdrget "$source_type" "$2")" || return
   destination_type="$(_herdr_object_type "$3")" || return
-  destination_id="$(hg "$destination_type" "$4")" || return
+  destination_id="$(herdrget "$destination_type" "$4")" || return
 
   if [[ "$source_type" == pane && "$destination_type" == tab ]]; then
     response="$(
@@ -396,14 +396,14 @@ function hmv() {
   _herdr_error "cannot move $source_type to $destination_type"
 }
 
-# # hn workspace NAME [CWD] | tab NAME [WORKSPACE] [CWD] | pane right|down [ANCHOR] [CWD]
+# # herdrnew workspace NAME [CWD] | tab NAME [WORKSPACE] [CWD] | pane right|down [ANCHOR] [CWD]
 # Creates a Herdr workspace, tab, or split pane and prints its canonical ID.
-function hn() {
+function herdrnew() {
   emulate -L zsh
   setopt pipefail
 
   (( $# >= 2 && $# <= 4 )) || {
-    _herdr_error 'usage: hn workspace NAME [CWD] | tab NAME [WORKSPACE] [CWD] | pane right|down [ANCHOR] [CWD]'
+    _herdr_error 'usage: herdrnew workspace NAME [CWD] | tab NAME [WORKSPACE] [CWD] | pane right|down [ANCHOR] [CWD]'
     return
   }
 
@@ -414,7 +414,7 @@ function hn() {
   case "$object_type" in
     workspace)
       (( $# <= 3 )) || {
-        _herdr_error 'usage: hn workspace NAME [CWD]'
+        _herdr_error 'usage: herdrnew workspace NAME [CWD]'
         return
       }
       label="$2"
@@ -426,7 +426,7 @@ function hn() {
       ;;
     tab)
       label="$2"
-      workspace_id="$(hg workspace "${3:-current}")" || return
+      workspace_id="$(herdrget workspace "${3:-current}")" || return
       cwd="${4:-}"
       command=(herdr tab create --workspace "$workspace_id" --label "$label" --no-focus)
       [[ -n "$cwd" ]] && command+=(--cwd "$cwd")
@@ -439,7 +439,7 @@ function hn() {
         _herdr_error 'new pane direction must be right or down'
         return
       }
-      anchor_pane_id="$(hg pane "${3:-current}")" || return
+      anchor_pane_id="$(herdrget pane "${3:-current}")" || return
       cwd="${4:-}"
       command=(herdr pane split "$anchor_pane_id" --direction "$direction" --no-focus)
       [[ -n "$cwd" ]] && command+=(--cwd "$cwd")
@@ -449,19 +449,19 @@ function hn() {
   esac
 }
 
-# # hc pane|tab|workspace [SELECTOR]
+# # herdrclose pane|tab|workspace [SELECTOR]
 # Closes the selected Herdr object and prints its canonical ID.
-function hc() {
+function herdrclose() {
   emulate -L zsh
 
   (( $# >= 1 && $# <= 2 )) || {
-    _herdr_error 'usage: hc pane|tab|workspace [SELECTOR]'
+    _herdr_error 'usage: herdrclose pane|tab|workspace [SELECTOR]'
     return
   }
 
   local object_type object_id
   object_type="$(_herdr_object_type "$1")" || return
-  object_id="$(hg "$object_type" "${2:-current}")" || return
+  object_id="$(herdrget "$object_type" "${2:-current}")" || return
   herdr "$object_type" close "$object_id" >/dev/null || return
   print -r -- "$object_id"
 }

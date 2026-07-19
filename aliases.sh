@@ -76,7 +76,7 @@ alias claudef=':claude --model=fable'
 
 alias claudeo=':claude --model=opus'
 
-alias claudes=':claude --model=sonnet-5'
+alias claudes=':claude --model=sonnet'
 
 alias claudeh=':claude --model=haiku'
 
