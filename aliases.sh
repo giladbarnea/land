@@ -93,6 +93,7 @@ alias claudehn='claudeh --no-session-persistence -p'
 # Suffixes: low=l, medium=m, high=h, xhigh=x, max=max (medium stays `m` so `max` is unambiguous).
 _claude_standard_levels=(low:l medium:m high:h)
 _claude_extended_levels=(${_claude_standard_levels[@]} xhigh:x max:max)
+
 for _alias in ${(k)aliases[(I)claude*]}; do
     [[ "${aliases[$_alias]}" != ":claude "* ]] && continue
     _levels=(${_claude_standard_levels[@]})
@@ -117,13 +118,16 @@ alias codexm1='codexm --config="model_reasoning_effort=low"'
 alias codexm2='codexm --config="model_reasoning_effort=medium"'
 alias codexm3='codexm --config="model_reasoning_effort=high"'
 alias codexm4='codexm --config="model_reasoning_effort=xhigh"'
+alias codexm5='codexm --config="model_reasoning_effort=max"'
 
 _gpt_56_models=(sol:s terra:t luna:l)
 _gpt_56_levels=(low:l medium:m high:h xhigh:x max:max ultra:u)
+
+# codexll (Luna low), codextm (Terra medium), codexsx (Sol xhigh), etc
 for _model_entry in "${_gpt_56_models[@]}"; do
     _model="${_model_entry%%:*}"
     _model_suffix="${_model_entry##*:}"
-    _codex_alias="codex56${_model_suffix}"
+    _codex_alias="codex${_model_suffix}"
     alias "${_codex_alias}"="codexd --model=gpt-5.6-${_model}"
     for _level_entry in "${_gpt_56_levels[@]}"; do
         _level="${_level_entry%%:*}"
@@ -136,25 +140,34 @@ unset _model_entry _model _model_suffix _codex_alias _level_entry _level _level_
 alias pig='pi --model google/gemini-3.1-pro-preview-customtools'
 alias pigf='pi --model google/gemini-3-flash-preview'
 alias pigf35='pi --model google/gemini-3.5-flash'
-alias pik='pi --model openrouter/moonshotai/kimi-k2.7'
+alias pik='pi --model openrouter/moonshotai/kimi-k3'
+alias pif='pi --model claude-bridge/claude-fable-5'
+alias pio='pi --model claude-bridge/claude-opus-5'
+alias pis='pi --model claude-bridge/claude-sonnet-5'
+alias pih='pi --model claude-bridge/claude-haiku-4-5'
+
+# picl, pict, pics, ...
+# `_model_entry` here should be renamed `_gpt_model_entry`
 for _model_entry in "${_gpt_56_models[@]}"; do
     _model="${_model_entry%%:*}"
     _model_suffix="${_model_entry##*:}"
-    alias "pic56${_model_suffix}"="pi --model openai-codex/gpt-5.6-${_model}"
+    alias "pic${_model_suffix}"="pi --model openai-codex/gpt-5.6-${_model}"
 done
 unset _model_entry _model _model_suffix
 alias pic5m='pi --model openai-codex/gpt-5.4-mini'
 alias pids4='pi --model openrouter/deepseek/deepseek-v4-pro'
 alias pids4f='pi --model openrouter/deepseek/deepseek-v4-flash'
 
-_base_pi_no_args=(--no-context-files --no-extensions --no-prompt-templates --no-themes --no-session --no-skills)
+_base_pi_no_args=(--no-extensions --no-prompt-templates --no-themes --no-session --no-skills)
+
+# `_alias` here should be renamed `_pi_alias`
 for _alias in ${(k)aliases[(I)pi*]}; do
     [[ "${aliases[$_alias]}" != "pi "* ]] && continue
     if [[ "${aliases[$_alias]}" == *openai-codex/gpt-5.6-* ]]; then
         _levels=(${_gpt_56_levels[@]})
-    elif [[ "${aliases[$_alias]}" == *claude-bridge/claude-fable-* || "${aliases[$_alias]}" == *claude-bridge/claude-opus-* || "${aliases[$_alias]}" == *claude-bridge/claude-sonnet-* ]]; then
+    elif [[ "${aliases[$_alias]}" == *claude-fable-* || "${aliases[$_alias]}" == *claude-opus-* || "${aliases[$_alias]}" == *claude-sonnet-* ]]; then
         _levels=(${_claude_extended_levels[@]})
-    elif [[ "${aliases[$_alias]}" == *claude-bridge/* ]]; then
+    elif [[ "${aliases[$_alias]}" == *claude* ]]; then
         _levels=(${_claude_standard_levels[@]})
     else
         _levels=(off:o low:l medium:m high:h xhigh:x)
@@ -166,17 +179,20 @@ for _alias in ${(k)aliases[(I)pi*]}; do
         _suffix="${_entry##*:}"
         alias "${_alias}${_suffix}"="${_alias} --thinking ${_level}"
         alias "${_alias}${_suffix}-no"="${_alias}${_suffix} ${(j: :)_base_pi_no_args}"
-        alias "${_alias}${_suffix}-nono"="${_alias}${_suffix} ${(j: :)_base_pi_no_args} --no-tools"
+        alias "${_alias}${_suffix}-nono"="${_alias}${_suffix} ${(j: :)_base_pi_no_args} --no-tools --no-context-files"
     done
 done
 unset _alias _levels _entry _level _suffix _base_pi_no_args _claude_standard_levels _claude_extended_levels _gpt_56_models _gpt_56_levels
 
+# # pi [opts...]
+# Thin `pi` wrapper. Normalizes passing prompts from stdin, positionally, or both. 
 function pi() {
 	local stdin
 	local full_prompt
 	local running_interactively=true
 	local -a args_besides_prompt=()
 	local -a prompt_parts=()
+  # Note: should be checked for completeness opportunistically (`pi --help`)
 	local -a options_that_take_value=(
 		--provider
 		--model
