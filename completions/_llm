@@ -1,4 +1,4 @@
-#compdef llm
+#compdef llm llm-commit-msg
 
 # Note: read meta/llm-completions-design.md before making changes to this file.
 
@@ -9,7 +9,7 @@ _insert_double_quote(){ compadd -Q -S '"' '' ; }
 
 # region [-------- Completion Data Declarations --------]
 
-typeset -a LLM_LOGS_CHILD_COMMANDS=(
+typeset -ga LLM_LOGS_CHILD_COMMANDS=(
   'list:Show logged prompts and their responses'
   'backup:Backup your logs database to this file'
   'off:Turn off logging for all prompts'
@@ -18,14 +18,14 @@ typeset -a LLM_LOGS_CHILD_COMMANDS=(
   'status:Show current status of database logging'
 )
 
-typeset -a LLM_KEYS_CHILD_COMMANDS=(
+typeset -ga LLM_KEYS_CHILD_COMMANDS=(
   'list:List names of all stored keys'
   'get:Return the value of a stored key'
   'path:Output the path to the keys.json file'
   'set:Save a key in the keys.json file'
 )
 
-typeset -a LLM_COMMON_OPTIONS=(
+typeset -ga LLM_COMMON_OPTIONS=(
   # These are actually the options of `llm` (no subcommand) and `llm prompt`. 
   #  They just happen to *share* many options with other subcommands.
   #  Reusing them for other subcommands is a hack and ideally we'd have a separate set of options for each subcommand, even if it would mean some duplication.
@@ -72,7 +72,7 @@ typeset -a LLM_COMMON_OPTIONS=(
 )
 
 # Core external subcommand option arrays (placeholders for future enrichment)
-typeset -a LLM_LOGS_OPTIONS=(
+typeset -ga LLM_LOGS_OPTIONS=(
   # For `llm logs` and `llm logs list`
   '(-n --count)'{-n,--count}'[Number of entries to show - defaults to 3, use 0 for all]:count:'
   '(-d --database)'{-d,--database}'[Path to log database]:database:_files'
@@ -102,15 +102,15 @@ typeset -a LLM_LOGS_OPTIONS=(
   '(--help)--help[Show this message and exit]'
 )
 
-typeset -a LLM_TEMPLATES_OPTIONS=(
+typeset -ga LLM_TEMPLATES_OPTIONS=(
   '--help[Show this message and exit]'
 )
 
-typeset -a LLM_MODELS_OPTIONS=(
+typeset -ga LLM_MODELS_OPTIONS=(
   '--help[Show this message and exit]'
 )
 
-typeset -a LLM_CHAT_OPTIONS=(
+typeset -ga LLM_CHAT_OPTIONS=(
   '(-s --system)'{-s,--system}'[System prompt to use]:system prompt:'
   '(-m --model)'{-m,--model}'[Model to use]:model:_.llm_model_names'
   '(-c --continue)'{-c,--continue}'[Continue the most recent conversation]'
@@ -131,7 +131,7 @@ typeset -a LLM_CHAT_OPTIONS=(
   '--help[Show this message and exit]'
 )
 
-typeset -a LLM_JQ_OPTIONS=(
+typeset -ga LLM_JQ_OPTIONS=(
   '(-m --model)'{-m,--model}'[Model to use]:model:_.llm_model_names'
   '(-l --length)'{-l,--length}'[Example length to use]:length:'
   '(-o --output)'{-o,--output}'[Just show the jq program]'
@@ -144,20 +144,20 @@ typeset -a LLM_JQ_OPTIONS=(
 # Source of truth is the custom wrapper functions in llm.zsh. Additionally, should be kept in sync with:
 # 1. the 'Completion Registration' region (bottom of this file).
 # 2. the 'case $cmd in' block in the main '_llm' completion function.
-typeset -a SIMPLIFY_OPTIONS=( ${(M)LLM_COMMON_OPTIONS:#^(*--template*)} )
+typeset -ga SIMPLIFY_OPTIONS=( ${(M)LLM_COMMON_OPTIONS:#^(*--template*)} )
 
-typeset -a COMPRESS_OPTIONS=(
+typeset -ga COMPRESS_OPTIONS=(
   ${(M)LLM_COMMON_OPTIONS:#^(*--system*)}
   '(-r --rate)'{-r,--rate}'[Compression rate]:rate:(aggressive high-quality)'
 )
 
-typeset -a PYAI_OPTIONS=( ${(M)LLM_COMMON_OPTIONS:#^(*--(system|template)*)} )
+typeset -ga PYAI_OPTIONS=( ${(M)LLM_COMMON_OPTIONS:#^(*--(system|template)*)} )
 
-typeset -a ZSHAI_OPTIONS=( ${(M)LLM_COMMON_OPTIONS:#^(*--system*)} )
+typeset -ga ZSHAI_OPTIONS=( ${(M)LLM_COMMON_OPTIONS:#^(*--system*)} )
 
-typeset -a ZSHCMD_OPTIONS=( ${LLM_COMMON_OPTIONS[@]} )
+typeset -ga ZSHCMD_OPTIONS=( ${LLM_COMMON_OPTIONS[@]} )
 
-typeset -a MERGE_OPTIONS=(
+typeset -ga MERGE_OPTIONS=(
   ${LLM_COMMON_OPTIONS[@]}
   '--plan[Enable planning pass]'
   '--no-plan[Skip planning pass]'
@@ -170,11 +170,17 @@ typeset -a MERGE_OPTIONS=(
 
 # Handles cases from specific and high-level to general and low-level. 
 _llm() {
-  zstyle ':completion::complete:llm:*:descriptions' format "$(docstring llm "$HOME"/dev/land/llm.zsh)"
   local curcontext="$curcontext" state line
   typeset -A opt_args
   # shellcheck disable=SC2154
   local cmd="${service}"
+
+  if [[ "$cmd" == "llm-commit-msg" ]]; then
+    _llm-commit-msg
+    return
+  fi
+
+  zstyle ':completion::complete:llm:*:descriptions' format "$(docstring llm "$HOME"/dev/land/llm.zsh)"
 
   # Custom wrapper dispatch: pick the correct option array.
   #  Ideally should cover all wrapper functions in llm.zsh NOT having 'llm' in their name.
@@ -621,6 +627,24 @@ compdef _llm llm simplify compress zshai zshcmd pyai claudeai 'claudeai+' flashl
 
 compdef _llm:logs:list llm-logs llm-response llm-cids
 
+_llm-commit-msg() {
+  local -a options=(
+    '--append-prompt=[Append text to the commit-message prompt]:text:'
+    '--one-by-one=-[Process each file individually (default false)]::boolean:(true false)'
+  )
+
+  local -i separator_index=${words[(I)--]}
+  if (( separator_index && separator_index < CURRENT )); then
+    _files
+    return
+  fi
+
+  _arguments -A '-*' \
+    "${options[@]}" \
+    '1:separator:(--)'
+}
+
+compdef _llm-commit-msg llm-commit-msg
 
 
 # region [-------- Extras --------]
@@ -713,3 +737,7 @@ _ppx() {
 
 compdef _ppx ppx ppx+ ppx++ .ppx
 # endregion [-------- Extras --------]
+
+if [[ "${funcstack[1]}" == "_llm" ]]; then
+  _llm "$@"
+fi
