@@ -19,6 +19,7 @@
 #
 # skills sync:
 #   Syncs skills from SOURCE into each TARGET/skills/ as individual symlinks (ln -sfn).
+#   Asks whether to remove each target symlink whose skill is absent from SOURCE.
 #   SOURCE may be a parent directory containing skills/, the skills/ directory itself, or a specific skills/<name> directory.
 #   TARGET may be a parent directory (e.g. .claude) or a skills/ directory directly.
 #
@@ -243,6 +244,48 @@ function _skills_autodiscover_target_skills_dirs() {
   done
 }
 
+function _skills_confirm_orphaned_link_removal() {
+  emulate -L zsh
+  local orphaned_link="$1" reply=""
+
+  [[ -t 1 ]] || {
+    echo "skills sync: no TTY; keeping orphaned link $orphaned_link" >&2
+    return 1
+  }
+
+  printf "Remove orphaned link '%s'? [y/N] " "$orphaned_link" >/dev/tty
+  read -r reply </dev/tty || return 1
+  [[ "$reply" == [Yy] ]]
+}
+
+function _skills_clean_orphaned_links_in_target() {
+  emulate -L zsh
+  local target_skills="$1" target_mode="$2" source_item="" source_skill_name=""
+  local target_skill="" target_skill_name=""
+  local -A source_skill_names
+  shift 2
+
+  [[ "$target_mode" == "base" ]] || return 0
+
+  for source_item in "$@"; do
+    source_skill_name="${source_item:t}"
+    source_skill_names[$source_skill_name]=1
+  done
+
+  for target_skill in "$target_skills"/*(ND@); do
+    target_skill_name="${target_skill:t}"
+    [[ -n "${source_skill_names[$target_skill_name]-}" ]] && continue
+
+    echo "skills sync: found orphaned link $target_skill" >&2
+    _skills_confirm_orphaned_link_removal "$target_skill" || {
+      echo "skills sync: kept $target_skill" >&2
+      continue
+    }
+    rm -- "$target_skill" || return 1
+    echo "✓ skills sync: removed $target_skill"
+  done
+}
+
 function _skills_remove_matching_symlink() {
   local source_skill="$1" target_skills="$2" resolved=""
   local link="$target_skills/${source_skill:t}"
@@ -332,6 +375,13 @@ function _skills_sync() {
 
   for target_skills in "${target_skills_dirs[@]}"; do
     echo "✓ skills sync: $source_sync_label → $target_skills"
+  done
+
+  for (( target_index = 1; target_index <= ${#target_skills_dirs}; target_index += 1 )); do
+    _skills_clean_orphaned_links_in_target \
+      "${target_skills_dirs[target_index]}" \
+      "${target_modes[target_index]}" \
+      "${source_items[@]}" || return 1
   done
 
   # --- 2. Install git hooks if requested ---

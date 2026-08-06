@@ -73,6 +73,49 @@
   [[ ! -e claude/skills/example ]] || fail "Expected bare target alias claude not to be treated as literal claude/skills/example."
 }
 
+@test 'skills sync asks about and removes orphaned links from every target' {
+  skills_test_make_skill .agents/skills/current
+  skills_test_make_skill legacy/retired-claude
+  skills_test_make_skill legacy/retired-pi
+  mkdir -p .claude/skills/local-skill .pi/skills
+  ln -s "$SKILLS_TEST_PROJECT/legacy/retired-claude" .claude/skills/retired-claude
+  ln -s "$SKILLS_TEST_PROJECT/legacy/retired-pi" .pi/skills/retired-pi
+
+  function _skills_confirm_orphaned_link_removal() {
+    print -r -- "PROMPT:$1"
+    return 0
+  }
+
+  run skills sync .agents .claude,.pi
+
+  assert $state equals 0
+  assert "$output" contains 'PROMPT:.claude/skills/retired-claude'
+  assert "$output" contains 'PROMPT:.pi/skills/retired-pi'
+  [[ ! -L .claude/skills/retired-claude ]] || fail "Expected accepted orphan removal to delete .claude/skills/retired-claude."
+  [[ ! -L .pi/skills/retired-pi ]] || fail "Expected accepted orphan removal to delete .pi/skills/retired-pi."
+  [[ -L .claude/skills/current ]] || fail "Expected the source skill link to remain. Output: $output"
+  [[ -L .pi/skills/current ]] || fail "Expected the source skill link to remain. Output: $output"
+  [[ -d .claude/skills/local-skill ]] || fail "Expected a concrete downstream skill to remain."
+}
+
+@test 'skills sync keeps an orphaned link when removal is declined' {
+  skills_test_make_skill .agents/skills/current
+  skills_test_make_skill legacy/retired
+  mkdir -p .claude/skills
+  ln -s "$SKILLS_TEST_PROJECT/legacy/retired" .claude/skills/retired
+
+  function _skills_confirm_orphaned_link_removal() {
+    print -r -- "DECLINED:$1"
+    return 1
+  }
+
+  run skills sync .agents .claude
+
+  assert $state equals 0
+  assert "$output" contains 'DECLINED:.claude/skills/retired'
+  [[ -L .claude/skills/retired ]] || fail "Expected declined orphan removal to keep .claude/skills/retired."
+}
+
 @test 'local pi access from home does not accept legacy home pi skills' {
   mkdir -p "$HOME/.pi/skills"
   cd "$HOME"
