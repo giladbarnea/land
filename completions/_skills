@@ -168,14 +168,14 @@ _skills_complete_access_skill_names() {
   _skills_base_dir "$global" "$provider" 2>/dev/null || return 1
   base_dir="$REPLY"
 
-  _skills_collect_resolvable_skill_names "$base_dir" || return 1
+  _skills_collect_accessible_skill_names "$base_dir" || return 1
   skill_names=("${reply[@]}")
   (( ${#skill_names[@]} )) || return 1
 
   _skills_describe_base_dir_source "$base_dir" "$resolution_scope"
   source_label="$REPLY"
 
-  _description -V "skills-${base_dir//[^[:alnum:]]/_}" expl "skill name from ${source_label}"
+  _description -V "skills-${base_dir//[^[:alnum:]]/_}" expl "skill name from ${source_label} or global plugins"
   compadd "$expl[@]" -a skill_names
 }
 
@@ -219,8 +219,8 @@ _skills_complete_skill_file_paths() {
   _skills_base_dir "$global" "$provider" 2>/dev/null || return 1
   base_dir="$REPLY"
 
-  _skills_resolve_target "$skill_name" "$base_dir" "_skills_complete_skill_file_paths" >/dev/null 2>&1 || return 1
-  skill_dir="$base_dir/$skill_name"
+  _skills_resolve_skill_dir "$skill_name" "$base_dir" "_skills_complete_skill_file_paths" >/dev/null 2>&1 || return 1
+  skill_dir="$REPLY"
 
   relative_file_paths=("${(@f)$(builtin cd "$skill_dir" && print -rl -- **/*(.N))}")
   (( ${#relative_file_paths[@]} )) || return 1

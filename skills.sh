@@ -1,7 +1,8 @@
 #!/usr/bin/env zsh
 #
-# Skills live in .agents/skills (user-scoped: ~/.agents/skills; project-scoped: .agents/skills).
-# They're symlinked into each CLI agent's skills directory for reuse:
+# Bare skills live in .agents/skills (user-scoped: ~/.agents/skills; project-scoped: .agents/skills).
+# Global plugin groups bind more skills under ~/.agents/plugins/*/skills.
+# Skills are symlinked into each CLI agent's skills directory for reuse:
 #
 #   User-level                Project-level
 #   ~/.pi/agent/skills        .pi/skills
@@ -1155,23 +1156,46 @@ function _skills_prompt_required_value() {
   REPLY="$value"
 }
 
+function _skills_resolve_global_plugin_skill_dir() {
+  emulate -L zsh
+  local skill_name="$1"
+  local -a skill_dirs
+
+  skill_dirs=("$HOME/.agents/plugins"/*/skills/"$skill_name"(N/))
+  (( ${#skill_dirs} )) || return 1
+  REPLY="${skill_dirs[1]:A}"
+}
+
+function _skills_resolve_skill_dir() {
+  emulate -L zsh
+  local skill_name="$1" base_dir="$2" caller_name="$3"
+  local skill_dir="$base_dir/$skill_name"
+
+  if [[ ! -d "$skill_dir" ]]; then
+    _skills_resolve_global_plugin_skill_dir "$skill_name" || {
+      echo "$caller_name: skill '$skill_name' not found in $base_dir or $HOME/.agents/plugins/*/skills" >&2
+      return 1
+    }
+    skill_dir="$REPLY"
+  fi
+
+  if [[ ! -f "$skill_dir/SKILL.md" ]]; then
+    echo "$caller_name: '$skill_name' in ${skill_dir:h} is not a skill (missing SKILL.md)" >&2
+    return 1
+  fi
+
+  REPLY="${skill_dir:A}"
+}
+
 function _skills_resolve_target() {
   # Resolve the target path for a skill name within a base skills directory.
   # Sets REPLY to the path and _skills_target_mode to "file" or "dir".
   emulate -L zsh
-  local skill_name="$1" base_dir="$2" caller_name="$3"
-  local skill_dir="$base_dir/$skill_name"
+  local skill_name="$1" base_dir="$2" caller_name="$3" skill_dir=""
   local -a all_entries subdirs
 
-  if [[ ! -d "$skill_dir" ]]; then
-    echo "$caller_name: skill '$skill_name' not found in $base_dir" >&2
-    return 1
-  fi
-
-  if [[ ! -f "$skill_dir/SKILL.md" ]]; then
-    echo "$caller_name: '$skill_name' in $base_dir is not a skill (missing SKILL.md)" >&2
-    return 1
-  fi
+  _skills_resolve_skill_dir "$skill_name" "$base_dir" "$caller_name" || return 1
+  skill_dir="$REPLY"
 
   all_entries=("$skill_dir"/*(N))
   subdirs=("$skill_dir"/*(N/))
@@ -1188,8 +1212,10 @@ function _skills_resolve_target() {
 function _skills_resolve_skill_file_path() {
   emulate -L zsh
   local skill_name="$1" base_dir="$2" skill_file_path="$3" caller_name="$4"
-  local skill_dir="$base_dir/$skill_name" candidate_path="" resolved_path=""
+  local skill_dir="" candidate_path="" resolved_path=""
 
+  _skills_resolve_skill_dir "$skill_name" "$base_dir" "$caller_name" || return 1
+  skill_dir="$REPLY"
   candidate_path="$skill_dir/$skill_file_path"
   [[ -e "$candidate_path" ]] || {
     echo "$caller_name: '$skill_file_path' not found in skill '$skill_name'" >&2
@@ -1312,6 +1338,22 @@ function _skills_collect_resolvable_skill_names() {
     _skills_resolve_target "$entry_name" "$base_dir" "_skills_collect_resolvable_skill_names" >/dev/null 2>&1 || continue
     reply+=("$entry_name")
   done
+}
+
+function _skills_collect_accessible_skill_names() {
+  emulate -L zsh
+  local base_dir="$1" skill_base_dir=""
+  local -a skill_names
+  local -aU accessible_skill_names
+  reply=()
+
+  for skill_base_dir in "$base_dir" "$HOME/.agents/plugins"/*/skills(N/); do
+    _skills_collect_resolvable_skill_names "$skill_base_dir" || return 1
+    skill_names=("${reply[@]}")
+    accessible_skill_names+=("${skill_names[@]}")
+  done
+
+  reply=("${accessible_skill_names[@]}")
 }
 
 function _skills_collect_non_binary_files_recursively() {
@@ -1538,6 +1580,8 @@ function skl() {
       _skills_base_dir "true" "$p" 2>/dev/null && base_dirs+=("$REPLY")
     done
   fi
+
+  base_dirs+=("$HOME/.agents/plugins"/*/skills(N/))
 
   if (( ${#base_dirs} == 0 )); then
     echo "skl: no skill directories found" >&2

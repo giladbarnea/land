@@ -125,3 +125,89 @@
   assert "$output" contains '-g contradicts explicitly relative path'
   [[ ! -e .agents/skills/newskill ]] || fail "Expected contradictory global-relative skcr invocation not to create .agents/skills/newskill."
 }
+
+@test 'skr falls back from global bare skills to a global plugin skill' {
+  mkdir -p "$HOME/.agents/skills"
+  skills_test_make_skill "$HOME/.agents/plugins/interaction/skills/ai-to-ai"
+  print -- 'plugin skill body' >> "$HOME/.agents/plugins/interaction/skills/ai-to-ai/SKILL.md"
+  export BAT_PAGER=cat
+
+  run skr -g ai-to-ai
+
+  assert $state equals 0
+  assert "$output" contains 'plugin skill body'
+}
+
+@test 'skr reads a requested file from a global plugin skill' {
+  mkdir -p "$HOME/.agents/skills"
+  skills_test_make_skill "$HOME/.agents/plugins/interaction/skills/ai-to-ai"
+  mkdir -p "$HOME/.agents/plugins/interaction/skills/ai-to-ai/references"
+  print -- 'plugin reference body' > "$HOME/.agents/plugins/interaction/skills/ai-to-ai/references/example.md"
+  export BAT_PAGER=cat
+
+  run skr -g ai-to-ai references/example.md
+
+  assert $state equals 0
+  assert "$output" contains 'plugin reference body'
+}
+
+@test 'skr reads a requested file through a provider plugin skill link' {
+  skills_test_make_skill "$HOME/.agents/plugins/interaction/skills/ai-to-ai"
+  mkdir -p "$HOME/.agents/plugins/interaction/skills/ai-to-ai/references" "$HOME/.pi/agent/skills"
+  print -- 'linked plugin reference body' > "$HOME/.agents/plugins/interaction/skills/ai-to-ai/references/example.md"
+  ln -s "$HOME/.agents/plugins/interaction/skills/ai-to-ai" "$HOME/.pi/agent/skills/ai-to-ai"
+  export BAT_PAGER=cat
+
+  run skr -g -p pi ai-to-ai references/example.md
+
+  assert $state equals 0
+  assert "$output" contains 'linked plugin reference body'
+}
+
+@test 'skr falls back from local bare skills to a global plugin skill' {
+  mkdir -p .agents/skills
+  skills_test_make_skill "$HOME/.agents/plugins/interaction/skills/ai-to-ai"
+  print -- 'global plugin skill body' >> "$HOME/.agents/plugins/interaction/skills/ai-to-ai/SKILL.md"
+  export BAT_PAGER=cat
+
+  run skr ai-to-ai
+
+  assert $state equals 0
+  assert "$output" contains 'global plugin skill body'
+}
+
+@test 'skr prefers a bare skill over a global plugin skill with the same name' {
+  skills_test_make_skill "$HOME/.agents/skills/ai-to-ai"
+  print -- 'bare skill body' >> "$HOME/.agents/skills/ai-to-ai/SKILL.md"
+  skills_test_make_skill "$HOME/.agents/plugins/interaction/skills/ai-to-ai"
+  print -- 'plugin skill body' >> "$HOME/.agents/plugins/interaction/skills/ai-to-ai/SKILL.md"
+  export BAT_PAGER=cat
+
+  run skr -g ai-to-ai
+
+  assert $state equals 0
+  assert "$output" contains 'bare skill body'
+  [[ "$output" != *'plugin skill body'* ]] || fail "Expected the bare skill to take precedence. Output: $output"
+}
+
+@test 'skl includes global plugin skills' {
+  mkdir -p "$HOME/.agents/skills"
+  skills_test_make_skill "$HOME/.agents/plugins/interaction/skills/ai-to-ai"
+
+  run skl -g
+
+  assert $state equals 0
+  assert "$output" contains 'global: ~/.agents/plugins/interaction/skills/ai-to-ai'
+}
+
+@test 'ske edits a global plugin skill through its bare name' {
+  mkdir -p "$HOME/.agents/skills"
+  skills_test_make_skill "$HOME/.agents/plugins/interaction/skills/ai-to-ai"
+  export EDITOR=skills_test_print_editor_target
+  function skills_test_print_editor_target() { print -r -- "$1" }
+
+  run ske -g ai-to-ai
+
+  assert $state equals 0
+  assert "$output" contains '/.agents/plugins/interaction/skills/ai-to-ai/SKILL.md'
+}

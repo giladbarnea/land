@@ -288,7 +288,7 @@ function timeit() {
 # # cdate
 # Outputs e.g. 26-05-01
 function cdate(){
-  date +%y-%m-%d
+  date +%Y-%m-%d
 }
 
 if [[ "$OS" = macos ]]; then

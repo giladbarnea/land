@@ -30,15 +30,6 @@ alias gpsho='git push origin'
 # * stash
 unalias gstaa gstc gstd gstl gstp gsts gstu gstall
 
-alias gs='git stash'
-alias gsa='git stash apply'
-alias gsc='git stash clear'
-alias gsl='git stash list'
-alias gsp='git stash pop'
-alias gsst='git stash show --text'
-alias gsiu='git stash --include-untracked'
-alias gsall='git stash --all'
-
 # * commit
 aliases[gcm]='git commit -m'
 alias gcae='git commit --allow-empty'
