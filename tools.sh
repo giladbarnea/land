@@ -959,6 +959,52 @@ function kt-all(){
 
 #endregion kitty
 
+# region ------------[ cargo ] ---------------
+
+# # cargox [--bin BINARY] CRATE [PROGRAM_ARGUMENTS...]
+# Installs a Cargo crate into a temporary root, runs its executable, then removes the root.
+# Without `--bin`, expects the executable name to match CRATE.
+# Examples:
+#   cargox ripgrep --help
+#   cargox --bin pdf2md pdf-inspector document.pdf
+function cargox() (
+	local package_name binary_name temporary_directory
+	local -a cargo_install_arguments
+
+	binary_name=
+	if [[ "${1-}" == "--bin" ]]; then
+		[[ $# -ge 2 && -n "${2-}" ]] || {
+			log.error "Usage: cargox [--bin BINARY] CRATE [ARGS...]"
+			exit 2
+		}
+		binary_name="$2"
+		shift 2
+	fi
+
+	[[ $# -ge 1 ]] || {
+		log.error "Usage: cargox [--bin BINARY] CRATE [ARGS...]"
+		exit 2
+	}
+
+	package_name="$1"
+	shift
+
+	temporary_directory="$(mktemp -d)" || exit 1
+	trap 'rm -rf "$temporary_directory"' EXIT
+
+	cargo_install_arguments=(install --locked --root "$temporary_directory")
+	if [[ -n "$binary_name" ]]; then
+		cargo_install_arguments+=(--bin "$binary_name")
+	else
+		binary_name="$package_name"
+	fi
+
+	cargo install "${cargo_install_arguments[@]}" "$package_name" || exit 1
+	"$temporary_directory/bin/$binary_name" "$@"
+)
+
+#endregion cargo
+
 # region ------------[ uv ] ---------------
 
 # # uv.syncall [uv sync options...]
