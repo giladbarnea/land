@@ -9,7 +9,7 @@ _git_structured_diff:delegate_git_diff() {
   stripped_current=$CURRENT
 
   for (( i = 1; i <= ${#words[@]}; i++ )); do
-    if [[ "${words[i]}" == --only-line-ranges ]]; then
+    if [[ "${words[i]}" == --only-line-ranges || "${words[i]}" == -y || "${words[i]}" == --yes ]]; then
       (( i < CURRENT )) && (( stripped_current-- ))
       continue
     fi
@@ -30,6 +30,8 @@ _git_structured_diff() {
   local -i ret=1
 
   local -a options=(
+    '(- *)-y[skip confirmation]'
+    '(- *)--yes[skip confirmation]'
     '(- *)--only-line-ranges[emit only per-file metadata plus changed line ranges]'
   )
 

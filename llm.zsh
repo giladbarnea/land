@@ -2135,16 +2135,17 @@ function llm-search(){
 }
 
 
-# # llm-commit-msg [--append-prompt APPEND_STRING] [--one-by-one[=true|false] (default false)] [-- PATH...]
+# # llm-commit-msg [-y,--yes] [--append-prompt APPEND_STRING] [--one-by-one[=true|false] (default false)] [-- PATH...]
 # Generates a commit message for the given files against HEAD.
 # Paths must come after a '--' separator, consistent with git and llm-what-changed.
-# If no paths are provided, prompts the user to confirm which files to use.
+# If no paths are provided, uses all available files with -y or prompts which files to use otherwise.
 function llm-commit-msg(){
 	setopt localoptions pipefail errreturn
 	local -a diff_targets=()
   local llm_prompt="$(cat "/Users/giladbarnea/Library/Application Support/io.datasette.llm/templates/code/commit-message.md")"
 	local one_by_one=false
 	local append_prompt=''
+	local assume_yes=false
 	local parse_paths=false
 	while [[ $# -gt 0 ]]; do
 		case "$1" in
@@ -2152,6 +2153,7 @@ function llm-commit-msg(){
 			--append-prompt) append_prompt="$2" ; shift ;;
 			--one-by-one) one_by_one=true ;;
 			--one-by-one=*) one_by_one="${1#*=}" ;;
+			-y|--yes) $parse_paths && diff_targets+=("$1") || assume_yes=true ;;
 			--) parse_paths=true ;;
 			*)
 				$parse_paths || {
@@ -2194,8 +2196,16 @@ function llm-commit-msg(){
 		if deleted_files=($(git.deleted)); then
 			has_deleted_files=true
 		fi
-		local user_choice
-		if $has_staged_files || $has_modified_files || $has_untracked_files || $has_added_files || $has_committed_files || $has_deleted_files; then
+		if $assume_yes; then
+			diff_targets+=(
+				"${staged_files[@]}"
+				"${modified_files[@]}"
+				"${untracked_files[@]}"
+				"${added_files[@]}"
+				"${committed_files[@]}"
+				"${deleted_files[@]}"
+			)
+		elif $has_staged_files || $has_modified_files || $has_untracked_files || $has_added_files || $has_committed_files || $has_deleted_files; then
 			local -a message=("No files provided and at least one of the following files exists:")
 			# Remove duplicates from all files arrays
 			staged_files=( "${(@u)staged_files[@]}" )
@@ -2239,28 +2249,29 @@ function llm-commit-msg(){
 	log.debug "$(typeset diff_targets)"
 	
 	log.info "Generating commit message for ${#diff_targets[@]} files..." -L -x
+	local -a llm_what_changed_options=()
+	$assume_yes && llm_what_changed_options+=(-y)
 	if $one_by_one; then
 		local tmp_file="$(mktemp)"
-		llm-what-changed --one-by-one HEAD -- "${diff_targets[@]}" | tee "$tmp_file"
-		confirm "Done collecting changes for each file. Shall I aggregate them into a single commit message?" || {
+		llm-what-changed "${llm_what_changed_options[@]}" --one-by-one HEAD -- "${diff_targets[@]}" | tee "$tmp_file"
+		if [[ "$assume_yes" = false ]] && ! confirm "Done collecting changes for each file. Shall I aggregate them into a single commit message?"; then
 			cat "$tmp_file"
 			return 0
-		}
+		fi
 		notif.info "Aggregating into a single commit message..."
     pi --model openai-codex/gpt-5.6-luna --thinking low --no-session --no-skills --no-prompt-templates --no-extensions --no-tools --no-themes --no-context-files --print "$(cat "$tmp_file")"
 	else
-		llm-what-changed --force-prompt "$llm_prompt" HEAD -- "${diff_targets[@]}"
+		llm-what-changed "${llm_what_changed_options[@]}" --force-prompt "$llm_prompt" HEAD -- "${diff_targets[@]}"
 	fi
 	
 }
 
-# # llm-what-changed [git diff OPT...] [--force-prompt PROMPT='What has changed? Clearly, ...'] [--append-prompt APPEND_STRING] [--dry-run] [--one-by-one[=true|false] (default false)] [-- TREEISH...]
+# # llm-what-changed [-y,--yes] [git diff OPT...] [--force-prompt PROMPT='What has changed? Clearly, ...'] [--append-prompt APPEND_STRING] [--dry-run] [--one-by-one[=true|false] (default false)] [-- TREEISH...]
 # Asks an LLM what has changed based on a git diff context, tagging changes in a unified diff.
 # If --one-by-one is provided, applies itself recursively to each file in the git diff context.
 # The processed git diff context is passed to the LLM.
 # If --dry-run is provided, prints the git diff context instead of passing it to the LLM.
 function llm-what-changed(){
-	log.debug "llm-what-changed: $@"
 	setopt localoptions
 	unsetopt errreturn errexit  # --one-by-one is recursive, so we don't want to exit on error.
 	local -a additional_git_diff_args
@@ -2271,6 +2282,7 @@ function llm-what-changed(){
 	local append_prompt=''
 	local dry_run=false
 	local one_by_one=false
+	local assume_yes=false
 	local parse_file_paths=false
 	local -a git_diff_opts=(
 		# $(gdargs+)
@@ -2287,6 +2299,7 @@ function llm-what-changed(){
 			--dry-run=*) dry_run="${1#*=}" ;;
 			--dry-run) dry_run=true ;;
 			--one-by-one) one_by_one=true ;;
+			-y|--yes) $parse_file_paths && file_paths+=("$1") || assume_yes=true ;;
 			--one-by-one=*) one_by_one="${1#*=}" ;;
 			--) parse_file_paths=true ;;
 			*)
@@ -2341,7 +2354,12 @@ function llm-what-changed(){
 	# 	return 1
 	# }
 	# local tagged_git_diff="$(git-structured-diff <<< "$git_diff_output")"
-	local tagged_git_diff="$(git-structured-diff "${git_diff_opts[@]}" "${additional_git_diff_args[@]}" -- "${file_paths[@]}")"
+	local -a structured_diff_options=(
+		"${git_diff_opts[@]}"
+		"${additional_git_diff_args[@]}"
+	)
+	$assume_yes && structured_diff_options+=(-y)
+	local tagged_git_diff="$(git-structured-diff "${structured_diff_options[@]}" -- "${file_paths[@]}")"
 	local full_prompt="$(printf "%s\n\n%s" "$tagged_git_diff" "$(xt -q "$prompt" --tag 'user-instructions')")"
 	if $dry_run; then
 		print -- "$full_prompt"

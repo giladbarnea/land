@@ -629,6 +629,8 @@ compdef _llm:logs:list llm-logs llm-response llm-cids
 
 _llm-commit-msg() {
   local -a options=(
+    '(- *)-y[assume all files and skip confirmations]'
+    '(- *)--yes[assume all files and skip confirmations]'
     '--append-prompt=[Append text to the commit-message prompt]:text:'
     '--one-by-one=-[Process each file individually (default false)]::boolean:(true false)'
   )

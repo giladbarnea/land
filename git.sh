@@ -855,7 +855,7 @@ function git.beforeafter(){
   
 }
 
-# # git-structured-diff [STDIN DIFF] [GIT_DIFF_OPTS...] [--no-function-context] [--only-line-ranges]
+# # git-structured-diff [-y,--yes] [STDIN DIFF] [GIT_DIFF_OPTS...] [--no-function-context] [--only-line-ranges]
 # Wraps blocks of changes in appropriate XML-like tags.
 # Pretty diff wrapper with per-patch tags and file-level XML tags.
 # - Suppresses git metadata lines; prints '---' + <filepath> per file and closes with </filepath>.
@@ -869,17 +869,26 @@ function git.beforeafter(){
 # `git-structured-diff --unified=20 --inter-hunk-context=10 --no-function-context -- path/to/treeish`
 function git-structured-diff(){
   local only_line_ranges=0
+  local assume_yes=false
+  local parse_file_paths=false
   local -a git_diff_args
   local arg
   for arg in "$@"; do
+    if $parse_file_paths; then
+      git_diff_args+=("$arg")
+      continue
+    fi
     case "$arg" in
       --only-line-ranges) only_line_ranges=1 ;;
+      -y|--yes) assume_yes=true ;;
+      --) parse_file_paths=true; git_diff_args+=("$arg") ;;
       *) git_diff_args+=("$arg") ;;
     esac
   done
 
   local -a self_args
   (( only_line_ranges )) && self_args+=(--only-line-ranges)
+  $assume_yes && self_args+=(-y)
 
   function .emit-new-files-diff() {
     # Staged new files (added but not committed)
@@ -896,7 +905,7 @@ function git-structured-diff(){
   }
 
   if (( ${#git_diff_args[@]} == 0 )) && ! is_piped; then
-    if is_piping || ! is_interactive; then
+    if $assume_yes || is_piping || ! is_interactive; then
       log.info "No data provided and can’t ask user interactively. Defaulting to ‘git --no-pager diff $(gdargs+) | $0’."
       { command git --no-pager diff; .emit-new-files-diff } | git-structured-diff "${self_args[@]}"
       return 0
