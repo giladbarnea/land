@@ -2164,6 +2164,9 @@ function llm-commit-msg(){
 		esac
 		shift
 	done
+	if [[ "$assume_yes" = false ]]; then
+		[[ "$YES" == 1 ]] && assume_yes=true
+	fi
 	[[ -n "$append_prompt" ]] && llm_prompt="$(printf "%s\n%s" "$llm_prompt" "$append_prompt")"
 	if [[ "${#diff_targets[@]}" = 0 ]]; then
 		local -a staged_files
@@ -2309,6 +2312,9 @@ function llm-what-changed(){
 		esac
 		shift
 	done
+	if [[ "$assume_yes" = false ]]; then
+		[[ "$YES" == 1 ]] && assume_yes=true
+	fi
 	[[ -n "$append_prompt" ]] && prompt="$(printf "%s\n%s" "$prompt" "$append_prompt")"
 	
 	if $one_by_one; then

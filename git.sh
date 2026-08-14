@@ -187,11 +187,13 @@ function git.lastcommit(){
   git.showcommit "$@" -1
 }
 
-# # gac [COMMIT_MSG | git-commit-args...] [-- paths...]
+# # gac [-y,--yes] [COMMIT_MSG | git-commit-args...] [-- paths...]
 # Runs git add first, then git commit.
 # Args before -- pass to git commit. A bare first arg is shorthand for -m COMMIT_MSG.
 # Paths after -- pass to git add. Without --, git add defaults to .
+# If -y is provided, skips the commit confirmation.
 function gac() {
+  local assume_yes=false
   local -a git_commit_args
   local -a git_add_paths
   local saw_add_paths=false
@@ -203,9 +205,16 @@ function gac() {
       git_add_paths=("$@")
       break
     fi
-    git_commit_args+=("$1")
+    case "$1" in
+      -y|--yes) assume_yes=true ;;
+      *) git_commit_args+=("$1") ;;
+    esac
     shift
   done
+
+  if [[ "$assume_yes" = false ]]; then
+    [[ "$YES" == 1 ]] && assume_yes=true
+  fi
 
   if [[ "$saw_add_paths" = false ]]; then
     git_add_paths=(.)
@@ -234,7 +243,7 @@ function gac() {
     return 1
   fi
 
-  if ! confirm "git commit ${git_commit_args[*]}?"; then
+  if [[ "$assume_yes" = false ]] && ! confirm "git commit ${git_commit_args[*]}?"; then
     log.warn Aborting
     return 3
   fi
@@ -248,14 +257,27 @@ function gac() {
   return "$commit_exitcode"
 }
 
-# # gacp [COMMIT_MSG | git-commit-args...] [-- paths...]
+# # gacp [-y,--yes] [COMMIT_MSG | git-commit-args...] [-- paths...]
 # Runs gac, then git push.
+# If -y is provided, skips the commit and push confirmations.
 function gacp() {
+  local assume_yes=false
+  local arg
+  for arg in "$@"; do
+    [[ "$arg" == -- ]] && break
+    case "$arg" in
+      -y|--yes) assume_yes=true ;;
+    esac
+  done
+  if [[ "$assume_yes" = false ]]; then
+    [[ "$YES" == 1 ]] && assume_yes=true
+  fi
+
   gac "$@"
   local commit_exitcode=$?
   (( commit_exitcode == 0 )) || return "$commit_exitcode"
 
-  if ! confirm "Push?"; then
+  if [[ "$assume_yes" = false ]] && ! confirm "Push?"; then
     log.warn Aborting
     return 3
   fi
@@ -270,7 +292,9 @@ function gacp() {
     local has_set_upstream=false
     git rev-parse --abbrev-ref --symbolic-full-name @{upstream} 1>/dev/null 2>/dev/null && has_set_upstream=true
     [[ "$has_set_upstream" == true ]] || git_push_args=(--set-upstream "${git_push_args[@]}")
-    confirm "Run ${Cc}git push ${git_push_args[@]}${Cc0}?" || return 3
+    if [[ "$assume_yes" = false ]] && ! confirm "Run ${Cc}git push ${git_push_args[@]}${Cc0}?"; then
+      return 3
+    fi
     vex git push "${git_push_args[@]}"
     return $?
   fi
@@ -885,6 +909,9 @@ function git-structured-diff(){
       *) git_diff_args+=("$arg") ;;
     esac
   done
+  if [[ "$assume_yes" = false ]]; then
+    [[ "$YES" == 1 ]] && assume_yes=true
+  fi
 
   local -a self_args
   (( only_line_ranges )) && self_args+=(--only-line-ranges)
