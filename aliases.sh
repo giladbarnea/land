@@ -112,7 +112,6 @@ unset _alias _levels _entry _level _suffix
 alias codexd='/usr/bin/env -u OPENAI_API_KEY codex --yolo'
 compdef _codex codexd
 
-alias codexm='codexd --model=gpt-5.4-mini'
 alias codexm0='codexm --config="model_reasoning_effort=none"'
 alias codexm1='codexm --config="model_reasoning_effort=low"'
 alias codexm2='codexm --config="model_reasoning_effort=medium"'
