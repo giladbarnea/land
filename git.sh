@@ -598,19 +598,6 @@ function gd() {
   done
   set -- "${positional[@]}"
 
-  local _original_delta_features_value="$DELTA_FEATURES"
-  if [[ "$COLUMNS" -le 50 ]]; then
-    [[ "$DELTA_FEATURES" != *narrow* ]] && {
-      DELTA_FEATURES="${DELTA_FEATURES} narrow";
-      export DELTA_FEATURES ;
-    }
-  else
-    [[ "$DELTA_FEATURES" = *narrow* ]] && {
-      DELTA_FEATURES="${DELTA_FEATURES//narrow/}";
-      export DELTA_FEATURES;
-    }
-  fi
-
   local diffout
   # ** 1) With all ignore-* flags, and patience+harder
   local diff_basic_args=(
@@ -629,7 +616,6 @@ function gd() {
     # all good
     notif.success "git $diffcmd <ignore-flags> ${*}"
     git "$diffcmd" "${diff_basic_args[@]}" "${diff_ignore_args[@]}" "$@"
-    export DELTA_FEATURES="$_original_delta_features_value"
     return $?
 
   fi
@@ -641,7 +627,6 @@ function gd() {
     if confirm "Found some diff without ${Cc}ignore-*${Cc0} flags. Show diff?"; then
       notif.success "git $diffcmd ${diff_basic_args[*]} ${*}"
       git "$diffcmd" "${diff_basic_args[@]}" "$@"
-      export DELTA_FEATURES="$_original_delta_features_value"
       return $?
     fi
     return 1
@@ -666,7 +651,6 @@ function gd() {
   if [[ -n "$(git --no-pager diff origin/"$currbranch" "$@")" ]]; then
     if confirm "${Cc}git diff origin/$currbranch $*${Cc0} is not empty. Display? (recursive)"; then
       gd origin/"$currbranch" "$@"
-      export DELTA_FEATURES="$_original_delta_features_value"
       return $?
     fi
   fi
@@ -679,7 +663,6 @@ function gd() {
     if [[ -n "$(git --no-pager diff upstream/"$currbranch" origin/"$currbranch" "$@")" ]]; then
       if confirm "${Cc}git diff upstream/$currbranch origin/$currbranch $*${Cc0} is not empty. Display? (recursive)"; then
         gd upstream/"$currbranch" origin/"$currbranch" "$@"
-        export DELTA_FEATURES="$_original_delta_features_value"
         return $?
       fi
     else
@@ -693,7 +676,6 @@ function gd() {
   if [[ -n "$(git --no-pager diff stash@{0} "$@")" ]]; then
     if confirm "${Cc}git diff stash@{0} $*${Cc0} is not empty. Display? (recursive)"; then
       gd stash "$@"
-      export DELTA_FEATURES="$_original_delta_features_value"
       return $?
     fi
   fi
@@ -702,12 +684,10 @@ function gd() {
   local untracked_files=($(git.untracked))
   if (( ${#untracked_files[@]} > 0 )); then
     if confirm "${Cc}git diff untracked files $*${Cc0} is not empty. Display? (recursive)"; then
-      export DELTA_FEATURES="$_original_delta_features_value"
       gd --no-index -- `git.untracked | xargs`
       return $?
     fi
   fi
-  export DELTA_FEATURES="$_original_delta_features_value"
   return 1
 
 }
