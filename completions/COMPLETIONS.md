@@ -24,23 +24,25 @@ for file in "${scripts[@]}"; do
 done | sort -k4,4r -k6,6r;
 ```
 
-As of Jul 19, 2026, this is the script's output:
+As of Aug 23, 2026, this is the script's output:
 ```
 │ File       │ Created                   │ Modified                  │
 │ ────────── │ ───────────────────────── │ ───────────────────────── │
 │ _herdr     │ 2026-07-19T13:05:41+03:00 │ 2026-07-19T13:24:53+03:00 │
+│ _agy       │ 2026-06-09T16:13:05+03:00 │ 2026-06-09T17:12:19+03:00 │
 │ _ch        │ 2026-04-23T12:59:10+03:00 │ 2026-07-09T22:37:20+03:00 │
-│ _skills    │ 2026-04-19T09:27:40+03:00 │ 2026-06-30T12:49:01+03:00 │
-│ _pi        │ 2026-04-07T11:32:03+03:00 │ 2026-06-22T11:51:53+03:00 │
+│ _skills    │ 2026-04-19T09:27:40+03:00 │ 2026-08-06T13:20:18+03:00 │
+│ _pi        │ 2026-04-07T11:32:03+03:00 │ 2026-08-23T12:47:39+03:00 │
 │ _gemini    │ 2026-02-08T09:51:15+02:00 │ 2026-06-09T17:12:19+03:00 │
 │ _codex     │ 2026-02-08T08:44:51+02:00 │ 2026-05-08T09:15:02+03:00 │
 │ _claude    │ 2026-01-27T13:07:39+02:00 │ 2026-06-11T20:35:20+03:00 │
 │ _opencode  │ 2026-01-27T12:37:51+02:00 │ 2026-01-27T12:37:51+02:00 │
 │ _scraping  │ 2025-12-17T12:11:43+02:00 │ 2025-12-17T12:11:43+02:00 │
 │ _delta     │ 2025-11-14T14:32:30+02:00 │ 2025-11-14T14:32:30+02:00 │
-│ _llm       │ 2025-10-15T11:52:53+03:00 │ 2026-06-14T12:08:28+03:00 │
+│ __git      │ 2025-10-15T11:52:53+03:00 │ 2026-08-14T10:11:59+03:00 │
+│ _llm       │ 2025-10-15T11:52:53+03:00 │ 2026-08-14T10:11:59+03:00 │
+│ _moshi     │ 2025-10-15T11:52:53+03:00 │ 2026-07-09T22:37:20+03:00 │
 │ _nav       │ 2025-10-15T11:52:53+03:00 │ 2026-06-11T12:02:36+03:00 │
-│ _git       │ 2025-10-15T11:52:53+03:00 │ 2026-04-21T08:35:30+03:00 │
 │ _wacli     │ 2025-10-15T11:52:53+03:00 │ 2026-03-27T17:14:02+03:00 │
 │ _ruff      │ 2025-10-15T11:52:53+03:00 │ 2026-01-13T19:48:28+02:00 │
 │ _tools     │ 2025-10-15T11:52:53+03:00 │ 2025-11-14T14:37:34+02:00 │
@@ -57,8 +59,9 @@ As of Jul 19, 2026, this is the script's output:
 ```
 
 Therefore, good example scripts are:
-- _ch and _pi: most recently created and still among the freshest files overall 
-- _codex: recently modified (2026-04-03), recently created (2026-02-08)
+- _pi: the most recently updated script in this directory (2026-08-23). Router pattern with a nested sub-router (`_pi:auth`), option data kept in arrays outside the `_arguments` call, and options completed in the rest state so they still work after positional arguments
+- _ch: recently created (2026-04-23) and among the freshest files overall
+- _codex: recently modified (2026-05-08), recently created (2026-02-08)
 - _gemini: older (2026-02-08), but I'm signing here that it's the best script in this directory for best practices. It is superior because: 
     * it leverages separation of data arrays (`local -a options`) from logic before passing them to `_arguments`, instead of a massive, unreadable `_arguments` call
     * modular dispatching (the 'Router') pattern, which uses a root function `_gemini` that acts as a router, which doesn't know *how* to complete `mcp add`, it just knows to pass control to `_gemini:mcp`, instead of nesting logic deep inside the root function 
@@ -67,7 +70,7 @@ Therefore, good example scripts are:
 - _claude: recently created (2026-01-27)
 
 Perhaps unintuitively bad examples scripts are:
-- _git: created date in the oldest bin and accreted from an older style, despite its recent maintenance
+- __git: created date in the oldest bin and accreted from an older style, despite its recent maintenance
 - _ruff: created date in the oldest bin AND auto-generated (360kb)
 
 ## Zsh Built-in Completion Files
