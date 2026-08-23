@@ -9,6 +9,7 @@ export RIPGREP_CONFIG_PATH="$HOME"/.ripgreprc
 export HISTORY_SUBSTRING_SEARCH_ENSURE_UNIQUE=true
 export BAT_STYLE="numbers,changes,header"
 export KITTY_SHELL_INTEGRATION=enabled
+export PI_EXPERIMENTAL=1
 
 # WSL: $OSTYPE = linux-gnu; $OS = Linux? (probably); $PLATFORM = UNIX?
 # git-bash: $OSTYPE = ?; $OS = ?; $PLATFORM=UNIX?
