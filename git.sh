@@ -876,16 +876,17 @@ function git-structured-diff(){
   local assume_yes=false
   local parse_file_paths=false
   local -a git_diff_args
+  local -a file_paths
   local arg
   for arg in "$@"; do
     if $parse_file_paths; then
-      git_diff_args+=("$arg")
+      file_paths+=("$arg")
       continue
     fi
     case "$arg" in
       --only-line-ranges) only_line_ranges=1 ;;
       -y|--yes) assume_yes=true ;;
-      --) parse_file_paths=true; git_diff_args+=("$arg") ;;
+      --) parse_file_paths=true ;;
       *) git_diff_args+=("$arg") ;;
     esac
   done
@@ -897,28 +898,27 @@ function git-structured-diff(){
   (( only_line_ranges )) && self_args+=(--only-line-ranges)
   $assume_yes && self_args+=(-y)
 
-  function .emit-new-files-diff() {
-    # Staged new files (added but not committed)
-    command git --no-pager diff --cached --diff-filter=A
-    # Untracked files: emit synthetic diff so .parse-diff handles them identically
+  function .emit-untracked-files-diff() {
     while IFS= read -r filepath; do
       [[ -f "$filepath" ]] || continue
-      local n
-      n=$(wc -l < "$filepath")
+      local line_count
+      line_count=$(awk 'END { print NR }' "$filepath")
       printf "diff --git a/%s b/%s\nnew file mode 100644\n--- /dev/null\n+++ b/%s\n@@ -0,0 +1,%d @@\n" \
-        "$filepath" "$filepath" "$filepath" "$n"
-      while IFS= read -r line; do printf "+%s\n" "$line"; done < "$filepath"
-    done < <(command git ls-files --others --exclude-standard)
+        "$filepath" "$filepath" "$filepath" "$line_count"
+      while IFS= read -r line || [[ -n "$line" ]]; do
+        printf "+%s\n" "$line"
+      done < "$filepath"
+    done < <(command git ls-files --others --exclude-standard -- "$@")
   }
 
-  if (( ${#git_diff_args[@]} == 0 )) && ! is_piped; then
+  if (( ${#git_diff_args[@]} == 0 && ${#file_paths[@]} == 0 )) && ! is_piped; then
     if $assume_yes || is_piping || ! is_interactive; then
       log.info "No data provided and can’t ask user interactively. Defaulting to ‘git --no-pager diff $(gdargs+) | $0’."
-      { command git --no-pager diff; .emit-new-files-diff } | git-structured-diff "${self_args[@]}"
+      { command git --no-pager diff; command git --no-pager diff --cached --diff-filter=A; .emit-untracked-files-diff } | git-structured-diff "${self_args[@]}"
       return 0
     fi
     confirm "No data in stdin. Run ‘git --no-pager diff $(gdargs+) | $0’?" || return 0
-    { command git --no-pager diff; .emit-new-files-diff } | git-structured-diff "${self_args[@]}"
+    { command git --no-pager diff; command git --no-pager diff --cached --diff-filter=A; .emit-untracked-files-diff } | git-structured-diff "${self_args[@]}"
     return 0
   fi
   
@@ -1264,19 +1264,11 @@ function git-structured-diff(){
     '
   }
   
-  # Detect whether args contain a rev spec (non-flag, non-separator arg).
-  # If all args are flags, new/untracked files are invisible to git diff and need augmentation.
-  local has_revspec=0
-  local arg
-  for arg in "${git_diff_args[@]}"; do
-    [[ "$arg" != -* && "$arg" != "--" ]] && has_revspec=1 && break
-  done
-
-  if (( ${#git_diff_args[@]} > 0 )); then
-    if (( has_revspec )); then
-      command git --no-pager diff "${git_diff_args[@]}" | .parse-diff
+  if (( ${#git_diff_args[@]} > 0 || ${#file_paths[@]} > 0 )); then
+    if $parse_file_paths; then
+      { command git --no-pager diff "${git_diff_args[@]}" -- "${file_paths[@]}"; .emit-untracked-files-diff "${file_paths[@]}" } | .parse-diff
     else
-      { command git --no-pager diff "${git_diff_args[@]}"; .emit-new-files-diff } | .parse-diff
+      { command git --no-pager diff "${git_diff_args[@]}"; .emit-untracked-files-diff } | .parse-diff
     fi
     return 0
   fi
