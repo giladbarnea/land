@@ -249,12 +249,22 @@ function gac() {
   fi
 
   local commit_exitcode
-  git commit "${git_commit_args[@]}"
+  git commit --quiet "${git_commit_args[@]}"
   commit_exitcode=$?
   if (( commit_exitcode != 0 )); then
     log.fatal Failed
+    return "$commit_exitcode"
   fi
-  return "$commit_exitcode"
+
+  local commit_shortstat="$(git show --shortstat --format='' HEAD)"
+  local commit_files commit_insertions commit_deletions
+  [[ "$commit_shortstat" =~ '([0-9]+ files? )' ]] && commit_files="${match[1]}"
+  [[ "$commit_shortstat" =~ '([0-9]+) insertion' ]] && commit_insertions="${match[1]}"
+  [[ "$commit_shortstat" =~ '([0-9]+) deletion' ]] && commit_deletions="${match[1]}"
+  printf "${Cgrn}✓${C0} Committed ${Cb}%s${Cb0} ${CbrBlk}→ %s · %s${C0}${Cgrn}+%s${C0} ${Cred}-%s${C0}\n" \
+    "$(git rev-parse --short HEAD)" "$(git_current_branch)" \
+    "${commit_files:-}" "${commit_insertions:-0}" "${commit_deletions:-0}" >&2
+  return 0
 }
 
 # # gacp [-y,--yes] [COMMIT_MSG | git-commit-args...] [-- paths...]
@@ -281,8 +291,9 @@ function gacp() {
     log.warn Aborting
     return 3
   fi
+  local push_range_start="$(git rev-parse --short '@{upstream}' 2>/dev/null)"
   local exitcode
-  git push
+  git push --quiet
   exitcode=$?
 
   # If permission denied, probably tried to push to forked upstream, and a remote upstream is not set (e.g. new repo).
@@ -296,7 +307,14 @@ function gacp() {
       return 3
     fi
     vex git push "${git_push_args[@]}"
-    return $?
+    exitcode=$?
+  fi
+
+  if (( exitcode == 0 )); then
+    printf "${Cgrn}✓${C0} Pushed ${Cb}%s${Cb0} ${CbrBlk}→ %s · %s..%s${C0}\n" \
+      "$(git_current_branch)" \
+      "$(git rev-parse --abbrev-ref --symbolic-full-name '@{upstream}' 2>/dev/null || echo origin)" \
+      "${push_range_start:-∅}" "$(git rev-parse --short HEAD)" >&2
   fi
   return $exitcode
 }
