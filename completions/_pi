@@ -50,12 +50,16 @@ _pi() {
 
   # Registered by installed extensions, so this list tracks the local install.
   local -a extension_options=(
+    '--subagents-workflow-file=[Run a workflow script at startup]:path:_files'
     '--fff-mode[FFF mode]:mode:(tools-and-ui tools-only override)'
     '--fff-frecency-db[Path to the frecency database]:path:_files'
     '--fff-history-db[Path to the query history database]:path:_files'
     '--fff-enable-root-scan[Allow indexing when launched from the filesystem root]'
     '--fff-enable-home-scan[Index the home dir when launched from $HOME]'
+    '--fff-follow-symlinks[Index through directory symlinks]'
+    '--fff-warn-home-scan[Warn when indexing $HOME]'
     '--mcp-config[Path to MCP config file]:path:_files'
+    '--plan[Start in plan mode]'
   )
 
   local -a subcommands=(
@@ -373,6 +377,7 @@ _pi_tools() {
   _values -s , 'tool' \
     'read[Read file contents]' \
     'bash[Execute bash commands]' \
+    'powershell[Execute PowerShell commands on Windows]' \
     'edit[Edit files with find/replace]' \
     'write[Write files]' \
     'grep[Search file contents]' \

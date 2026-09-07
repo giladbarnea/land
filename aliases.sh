@@ -516,11 +516,13 @@ function define_editors_aliases(){
 	
 	
 	local -a editors=(
-		# code
+		code
 		# pc
 		# sublime
+		tode
 		bat
 		nvim
+		n    # nvim
 		cursor
 		cur
 		l    # less
@@ -529,7 +531,6 @@ function define_editors_aliases(){
 	local -A aliases_file_paths=(                                                 
 		zshhist  "$HOME/.zsh_history"                                     
 		zshrc    "$HOME/.zshrc"                                           
-		pages    "$HOME/dev/termwiki/termwiki/private_pages/pages.py"     
 		land  "$LAND"                                               
 	)
 
