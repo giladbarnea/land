@@ -93,20 +93,20 @@ alias claudehn='claudeh --no-session-persistence -p'
 _claude_standard_levels=(low:l medium:m high:h)
 _claude_extended_levels=(${_claude_standard_levels[@]} xhigh:x max:max)
 
-for _alias in ${(k)aliases[(I)claude*]}; do
-    [[ "${aliases[$_alias]}" != ":claude "* ]] && continue
-    _levels=(${_claude_standard_levels[@]})
-    if [[ "${aliases[$_alias]}" == *--model=opus* || "${aliases[$_alias]}" == *--model=fable* || "${aliases[$_alias]}" == *--model=sonnet* ]]; then
-        _levels=(${_claude_extended_levels[@]})
+for _claude_alias in ${(k)aliases[(I)claude*]}; do
+    [[ "${aliases[$_claude_alias]}" != ":claude "* ]] && continue
+    _claude_levels=(${_claude_standard_levels[@]})
+    if [[ "${aliases[$_claude_alias]}" == *--model=opus* || "${aliases[$_claude_alias]}" == *--model=fable* || "${aliases[$_claude_alias]}" == *--model=sonnet* ]]; then
+        _claude_levels=(${_claude_extended_levels[@]})
     fi
-    for _entry in "${_levels[@]}"; do
-        _level="${_entry%%:*}"
-        _suffix="${_entry##*:}"
-        alias "${_alias}${_suffix}"="${_alias} --effort ${_level}"
-        alias "${_alias}n${_suffix}"="${_alias}n --effort ${_level}"
+    for _claude_level_entry in "${_claude_levels[@]}"; do
+        _claude_level="${_claude_level_entry%%:*}"
+        _claude_level_suffix="${_claude_level_entry##*:}"
+        alias "${_claude_alias}${_claude_level_suffix}"="${_claude_alias} --effort ${_claude_level}"
+        alias "${_claude_alias}n${_claude_level_suffix}"="${_claude_alias}n --effort ${_claude_level}"
     done
 done
-unset _alias _levels _entry _level _suffix
+unset _claude_alias _claude_levels _claude_level_entry _claude_level _claude_level_suffix
 #endregion claude aliases
 
 #region codex aliases
@@ -119,56 +119,55 @@ _gpt_levels=(low:l medium:m high:h xhigh:x max:max)
 _codex_unique_levels=(ultra:u)
 
 # codexll (Luna low), codextm (Terra medium), codexsx (Sol xhigh), codexau (Astra ultra), etc.
-for _model_entry in "${_gpt_56_models[@]/#/gpt-5.6-}" "${_gpt_6_models[@]/#/gpt-6-}"; do
-    _model="${_model_entry%%:*}"
-    _model_suffix="${_model_entry##*:}"
-    _codex_alias="codex${_model_suffix}"
-    alias "${_codex_alias}"="codexd --model=${_model}"
-    for _level_entry in "${_gpt_levels[@]}" "${_codex_unique_levels[@]}"; do
-        _level="${_level_entry%%:*}"
-        _level_suffix="${_level_entry##*:}"
-        alias "${_codex_alias}${_level_suffix}"="${_codex_alias} --config=\"model_reasoning_effort=${_level}\""
+for _codex_model_entry in "${_gpt_56_models[@]/#/gpt-5.6-}" "${_gpt_6_models[@]/#/gpt-6-}"; do
+    _codex_model="${_codex_model_entry%%:*}"
+    _codex_model_suffix="${_codex_model_entry##*:}"
+    _codex_alias="codex${_codex_model_suffix}"
+    alias "${_codex_alias}"="codexd --model=${_codex_model}"
+    for _codex_level_entry in "${_gpt_levels[@]}" "${_codex_unique_levels[@]}"; do
+        _codex_level="${_codex_level_entry%%:*}"
+        _codex_level_suffix="${_codex_level_entry##*:}"
+        alias "${_codex_alias}${_codex_level_suffix}"="${_codex_alias} --config=\"model_reasoning_effort=${_codex_level}\""
     done
 done
-unset _model_entry _model _model_suffix _codex_alias _level_entry _level _level_suffix _codex_unique_levels
+unset _codex_model_entry _codex_model _codex_model_suffix _codex_alias _codex_level_entry _codex_level _codex_level_suffix _codex_unique_levels
 #endregion codex aliases
 
 #region pi aliases
 
 # picl, pict, pics, pica, ...
-# `_model_entry` here should be renamed `_gpt_model_entry`
-for _model_entry in "${_gpt_56_models[@]/#/gpt-5.6-}" "${_gpt_6_models[@]/#/gpt-6-}"; do
-    _model="${_model_entry%%:*}"
-    _model_suffix="${_model_entry##*:}"
-    alias "pic${_model_suffix}"="pi --model openai-codex/${_model}"
+for _pi_model_entry in "${_gpt_56_models[@]/#/gpt-5.6-}" "${_gpt_6_models[@]/#/gpt-6-}"; do
+    _pi_model="${_pi_model_entry%%:*}"
+    _pi_model_suffix="${_pi_model_entry##*:}"
+    alias "pic${_pi_model_suffix}"="pi --model openai-codex/${_pi_model}"
 done
-unset _model_entry _model _model_suffix
+unset _pi_model_entry _pi_model _pi_model_suffix
 
-_base_pi_no_args=(--no-extensions --no-prompt-templates --no-themes --no-session --no-skills)
+_pi_no_arguments=(--no-extensions --no-prompt-templates --no-themes --no-session --no-skills)
+_pi_nono_arguments=( ${_pi_no_arguments[@]} --no-tools --no-context-files)
 
-# `_alias` here should be renamed `_pi_alias`
-for _alias in ${(k)aliases[(I)pi*]}; do
-    [[ "${aliases[$_alias]}" != "pi "* ]] && continue
-    if [[ "${aliases[$_alias]}" == *openai-codex/gpt-(5.6|6)-* ]]; then
-        _levels=(${_gpt_levels[@]})
-    elif [[ "${aliases[$_alias]}" == *claude-fable-* || "${aliases[$_alias]}" == *claude-opus-* || "${aliases[$_alias]}" == *claude-sonnet-* ]]; then
-        _levels=(${_claude_extended_levels[@]})
-    elif [[ "${aliases[$_alias]}" == *claude* ]]; then
-        _levels=(${_claude_standard_levels[@]})
+for _pi_alias in ${(k)aliases[(I)pi*]}; do
+    [[ "${aliases[$_pi_alias]}" != "pi "* ]] && continue
+    if [[ "${aliases[$_pi_alias]}" == *openai-codex/gpt-(5.6|6)-* ]]; then
+        _pi_levels=(${_gpt_levels[@]})
+    elif [[ "${aliases[$_pi_alias]}" == *claude-fable-* || "${aliases[$_pi_alias]}" == *claude-opus-* || "${aliases[$_pi_alias]}" == *claude-sonnet-* ]]; then
+        _pi_levels=(${_claude_extended_levels[@]})
+    elif [[ "${aliases[$_pi_alias]}" == *claude* ]]; then
+        _pi_levels=(${_claude_standard_levels[@]})
     else
-        _levels=(off:o low:l medium:m high:h xhigh:x max:max)
+        _pi_levels=(off:o low:l medium:m high:h xhigh:x max:max)
     fi
-    alias "${_alias}-no"="${_alias} ${(j: :)_base_pi_no_args}"
-    alias "${_alias}-nono"="${_alias} ${(j: :)_base_pi_no_args} --no-tools"
-    for _entry in "${_levels[@]}"; do
-        _level="${_entry%%:*}"
-        _suffix="${_entry##*:}"
-        alias "${_alias}${_suffix}"="${_alias} --thinking ${_level}"
-        alias "${_alias}${_suffix}-no"="${_alias}${_suffix} ${(j: :)_base_pi_no_args}"
-        alias "${_alias}${_suffix}-nono"="${_alias}${_suffix} ${(j: :)_base_pi_no_args} --no-tools --no-context-files"
+    alias "${_pi_alias}-no"="${_pi_alias} ${(j: :)_pi_no_arguments}"
+    alias "${_pi_alias}-nono"="${_pi_alias} ${(j: :)_pi_nono_arguments}"
+    for _pi_level_entry in "${_pi_levels[@]}"; do
+        _pi_level="${_pi_level_entry%%:*}"
+        _pi_level_suffix="${_pi_level_entry##*:}"
+        alias "${_pi_alias}${_pi_level_suffix}"="${_pi_alias} --thinking ${_pi_level}"
+        alias "${_pi_alias}${_pi_level_suffix}-no"="${_pi_alias}${_pi_level_suffix} ${(j: :)_pi_no_arguments}"
+        alias "${_pi_alias}${_pi_level_suffix}-nono"="${_pi_alias}${_pi_level_suffix} ${(j: :)_pi_nono_arguments}"
     done
 done
-unset _alias _levels _entry _level _suffix _base_pi_no_args _claude_standard_levels _claude_extended_levels _gpt_56_models _gpt_6_models _gpt_levels
+unset _pi_alias _pi_levels _pi_level_entry _pi_level _pi_level_suffix _pi_no_arguments _pi_nono_arguments _claude_standard_levels _claude_extended_levels _gpt_56_models _gpt_6_models _gpt_levels
 #endregion pi aliases
 
 # # pi [opts...]
@@ -200,10 +199,14 @@ function pi() {
 		--skill
 		--prompt-template
 		--theme
+		--use-theme
+		--tui-mode
 		--export
 		--fff-mode
 		--fff-frecency-db
 		--fff-history-db
+		--subagents-workflow-file
+		--mcp-config
 		-e
 		-n
 		-t
@@ -217,6 +220,10 @@ function pi() {
 
 	while [[ "$#" -gt 0 ]]; do
 		case "$1" in
+			--list-models|--list-models=*)
+				command pi "${args_besides_prompt[@]}" "$@"
+				return $?
+				;;
 			--print|-p)
 				running_interactively=false
 				args_besides_prompt+=("$1")
