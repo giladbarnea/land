@@ -830,7 +830,7 @@ function join(){
 }
 
 # # xt CONTENT/FILEPATH -t,--tag,-st,--stdin-tag TAG [-i,--indent NUM] [-k,--kebab] [-q,--quiet]
-# # xt TAG [-i,--indent NUM] [-k,--kebab] [-q,--quiet] <<< CONTENT/FILEPATH
+# # xt TAG [CONTENT/FILEPATH] [-i,--indent NUM] [-k,--kebab] [-q,--quiet] [<<< CONTENT/FILEPATH]
 # Wraps the string in XML tag.
 # Examples:
 # ```bash
@@ -856,8 +856,11 @@ function join(){
 # ```
 function xt(){
 	local content tag formatted_content
-	local quiet=true  # makes the --quiet flag redundant, but can't bother refactor callers
-	local kebab=false
+	local -a positionals
+	local quiet
+	quiet=true  # makes the --quiet flag redundant, but can't bother refactor callers
+	local kebab
+	kebab=false
 	local indent_length
 	while [[ $# -gt 0 ]]; do
 		case "$1" in
@@ -875,24 +878,18 @@ function xt(){
 								;;
 			-q|--quiet) quiet=true ;;
 			-k|--kebab) kebab=true ;;
-			*) 
-								if is_piped; then
-										[[ -n "$tag" ]] && {
-												log.error "Multiple positional arguments provided while reading content from stdin. Usage:\n$(docstring \"$0\")"
-												return 1
-										}
-										content="$(<&0)"
-										tag="$1"
-								else
-										if [[ -n "$content" ]]; then
-												log.error "Multiple positional arguments provided. Usage:\n$(docstring "$0")"
-												return 1
-										fi
-										content="$1"
-								fi
+			*) positionals+=("$1") ;;
 		esac
 		shift
 	done
+	(( ${#positionals[@]} > 2 )) && { log.error "Too many positional arguments. Usage:\n$(docstring "$0")"; return 1; }
+	# With -t, the positional is the content. Without it, the first positional is the tag and the content comes second or from stdin.
+	if [[ -n "$tag" ]]; then
+		content="${positionals[1]}"
+	else
+		tag="${positionals[1]}"
+		content="${positionals[2]}"
+	fi
 	[[ ! "$content" ]] && is_piped && content="$(<&0)"
 	[[ ! "$tag" ]] && { log.error "No tag provided." ; return 1 ; }
 	[[ ! "$content" ]] && { log.error "No content provided." ; return 1 ; }

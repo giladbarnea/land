@@ -1,4 +1,58 @@
-#compdef str
+#compdef shorten truncate-middle truncate-sampled isnum
 
-_isnum(){ compadd -x "$(docstring isnum)" ; } ;
-compdef _isnum isnum
+typeset -ga _str_shape_specs=(
+  'uniform:Equal windows, evenly spaced'
+  'u:Windows cluster at both ends and grow there'
+  'decline:Windows cluster at the start and shrink toward the end'
+  'incline:Windows cluster at the end and grow toward it'
+)
+
+_str_shapes() {
+  _describe -t shapes 'window density shape' _str_shape_specs
+}
+
+# The STRING positional comes first. Options may follow it, which plain _arguments allows by default.
+# `-A '-*'` would disable exactly that, so it is intentionally absent here.
+
+_str:shorten() {
+  _arguments \
+    '(-m --max-length)'{-m,--max-length=}'[Max length in chars (default: $COLUMNS or 120)]:max length:_guard "[0-9]#" "max length"' \
+    '1:string:' \
+    '2:max length:_guard "[0-9]#" "max length"'
+}
+
+_str:truncate-middle() {
+  _arguments \
+    '(-m --max-length)'{-m,--max-length=}'[Max length in chars (default: one screen, $LINES * $COLUMNS)]:max length:_guard "[0-9]#" "max length"' \
+    '1:string:'
+}
+
+_str:truncate-sampled() {
+  _arguments \
+    '(-m --max-length)'{-m,--max-length=}'[Max length in chars (default: one screen, $LINES * $COLUMNS)]:max length:_guard "[0-9]#" "max length"' \
+    '(-n --count)'{-n,--count=}'[Number of windows (default: 5, min 2)]:window count:_guard "[0-9]#" "window count"' \
+    '(--positions --sizes)--shape=[Window density shape. Dictates both positions and sizes]:shape:_str_shapes' \
+    '(--shape)--positions=[Window start as a fraction 0..1. zsh arithmetic over i, k and pi (default: uniform)]:expression:' \
+    '(--shape)--sizes=[Relative window weights. zsh arithmetic over i, k and pi (default: uniform)]:expression:' \
+    '1:string:'
+}
+
+_str:isnum() {
+  compadd -x "$(docstring isnum "${LAND}/str.sh")"
+}
+
+_str() {
+  case "${words[1]}" in
+    (shorten) _str:shorten ;;
+    (truncate-middle) _str:truncate-middle ;;
+    (truncate-sampled) _str:truncate-sampled ;;
+    (isnum) _str:isnum ;;
+    (*) return 1 ;;
+  esac
+}
+
+if [[ "${funcstack[1]}" == _str ]]; then
+  _str "$@"
+else
+  compdef _str shorten truncate-middle truncate-sampled isnum
+fi

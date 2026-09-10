@@ -2303,11 +2303,10 @@ function llm-commit-msg(){
 		fi
 		# Files at or below the floor are never truncated. The floor is the char count of 25 dense technical Markdown lines.
 		# The rest of the budget is split among the larger files in proportion to their size, never below the floor.
-		# An oversized file is middle-truncated: equal char counts from its head and tail around a marker.
-		local -i floor_length
+		# An oversized file is sampled in a U shape: one window per floor-sized chunk of its budget, at most 9, clustered and larger at both ends.
+		local -i floor_length max_windows_count
 		floor_length=4500
-		local truncation_marker
-		truncation_marker=$'\n[... truncated ...]\n'
+		max_windows_count=9
 		local -i file_length large_files_length protected_length
 		large_files_length=0
 		protected_length=0
@@ -2321,7 +2320,7 @@ function llm-commit-msg(){
 		done
 		local -i large_files_budget
 		large_files_budget=$(( max_diff_length - protected_length ))
-		local -i target_length half_length
+		local -i target_length windows_count
 		for file_path in "${diff_targets[@]}"; do
 			file_length=${#diff_per_file[$file_path]}
 			(( file_length > floor_length )) || continue
@@ -2329,10 +2328,13 @@ function llm-commit-msg(){
 			if (( target_length < floor_length )); then
 				target_length=$floor_length
 			fi
-			if (( file_length > target_length )); then
-				half_length=$(( (target_length - ${#truncation_marker}) / 2 ))
-				diff_per_file[$file_path]="${diff_per_file[$file_path][1,$half_length]}${truncation_marker}${diff_per_file[$file_path][-$half_length,-1]}"
+			windows_count=$(( target_length / floor_length ))
+			if (( windows_count < 2 )); then
+				windows_count=2
+			elif (( windows_count > max_windows_count )); then
+				windows_count=$max_windows_count
 			fi
+			diff_per_file[$file_path]="$(truncate-sampled "${diff_per_file[$file_path]}" -m "$target_length" -n "$windows_count" --shape u)" || { log.error "truncate-sampled failed for ${file_path}."; return 1; }
 		done
 	fi
 	local tagged_git_diff
