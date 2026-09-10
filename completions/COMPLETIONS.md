@@ -4,7 +4,7 @@ Not: scripts starting with a dot, e.g. `._yt-dlp`.
 Not: auto-generated, huge scripts, like `_ruff`. 
 Not: thin wrappers to underlying functions that create the completion code that live outside this repo, like _kitty, ._stern. 
 Not: older files (in the git sense) that use bad completions techniques
-Not: `_agy` and `_moshi` — not good examples (`_moshi` is auto-generated).
+Not: `_agy` and `_moshi` — not good examples (`_moshi` is auto-generated; `_agy` never applies the `_arguments -A '-*'` + rest-state technique, so it fails to handle options appearing after positional/subcommand arguments).
 
 Run the following snippet to sort the completion scripts by created and modified dates:
 ```bash
@@ -24,7 +24,7 @@ for file in "${scripts[@]}"; do
 done | sort -k4,4r -k6,6r;
 ```
 
-As of Aug 23, 2026, this is the script's output:
+As of Sep 10, 2026, this is the script's output:
 ```
 │ File       │ Created                   │ Modified                  │
 │ ────────── │ ───────────────────────── │ ───────────────────────── │
@@ -32,7 +32,7 @@ As of Aug 23, 2026, this is the script's output:
 │ _agy       │ 2026-06-09T16:13:05+03:00 │ 2026-06-09T17:12:19+03:00 │
 │ _ch        │ 2026-04-23T12:59:10+03:00 │ 2026-07-09T22:37:20+03:00 │
 │ _skills    │ 2026-04-19T09:27:40+03:00 │ 2026-08-06T13:20:18+03:00 │
-│ _pi        │ 2026-04-07T11:32:03+03:00 │ 2026-08-23T12:47:39+03:00 │
+│ _pi        │ 2026-04-07T11:32:03+03:00 │ 2026-09-07T13:37:17+03:00 │
 │ _gemini    │ 2026-02-08T09:51:15+02:00 │ 2026-06-09T17:12:19+03:00 │
 │ _codex     │ 2026-02-08T08:44:51+02:00 │ 2026-05-08T09:15:02+03:00 │
 │ _claude    │ 2026-01-27T13:07:39+02:00 │ 2026-06-11T20:35:20+03:00 │
@@ -58,16 +58,11 @@ As of Aug 23, 2026, this is the script's output:
 │ _str       │ 2025-10-15T11:52:53+03:00 │ 2025-10-15T11:52:53+03:00 │
 ```
 
-Therefore, good example scripts are:
-- _pi: the most recently updated script in this directory (2026-08-23). Router pattern with a nested sub-router (`_pi:auth`), option data kept in arrays outside the `_arguments` call, and options completed in the rest state so they still work after positional arguments
-- _ch: recently created (2026-04-23) and among the freshest files overall
-- _codex: recently modified (2026-05-08), recently created (2026-02-08)
-- _gemini: older (2026-02-08), but I'm signing here that it's the best script in this directory for best practices. It is superior because: 
-    * it leverages separation of data arrays (`local -a options`) from logic before passing them to `_arguments`, instead of a massive, unreadable `_arguments` call
-    * modular dispatching (the 'Router') pattern, which uses a root function `_gemini` that acts as a router, which doesn't know *how* to complete `mcp add`, it just knows to pass control to `_gemini:mcp`, instead of nesting logic deep inside the root function 
-    * state-based argument handling: uses `_arguments -C` with `->state` to handle complex flows where the completion needs to change based on the position (Command vs. Arguments), rather than a single complex argument specification
-    * Robust registration (the footer): end with an explicit `compdef ...` rather than executing the function.
-- _claude: recently created (2026-01-27)
+Therefore, good example scripts are, best to worst:
+- _pi: the most recently updated script in this directory (2026-09-07). Router pattern with a nested sub-router (`_pi:auth`), mutually-exclusive option groups declared inline, rest-state handling so options keep completing after positional arguments, and half a dozen live dynamic completers backed by real data (provider list, model IDs parsed from `pi --list-models` and cached, installed sources parsed from `pi list`, session IDs scanned off `.jsonl` files on disk, theme names off the filesystem).
+- _ch: state-based routing with `-A '-*'` plus a rest state applied consistently across every subcommand, and a well-organized custom parser for the tool-filter mini-language that separates parsing, validation, and match-emission into single-purpose functions.
+- _herdr: the most recently created script in this directory (2026-07-19). Clean router pattern, a single reusable `_herdr_object_selectors` helper driven by a live `jq` snapshot instead of duplicated selector logic per subcommand, and correct rest-state handling in `_herdr:read` so options keep completing after the pane selector.
+- _skills: recently created (2026-04-19). Router pattern with genuine reuse — it sources the real `skills.sh` at completion time instead of reimplementing its logic — though the `sk*` short-command dispatch (`skr`/`ske`/`skcd`/`skt`) repeats similar option/provider-detection logic across several functions instead of sharing one.
 
 Perhaps unintuitively bad examples scripts are:
 - __git: created date in the oldest bin and accreted from an older style, despite its recent maintenance

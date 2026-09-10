@@ -912,7 +912,8 @@ function git-structured-diff(){
     [[ "$YES" == 1 ]] && assume_yes=true
   fi
 
-  local parse_diff_program='
+  local parse_diff_program
+  parse_diff_program='
     BEGIN {
       only_line_ranges += 0;
       # Block accumulators (current patch)
@@ -1250,7 +1251,8 @@ function git-structured-diff(){
     }
   '
 
-  local no_arguments=$(( ${#git_diff_args[@]} == 0 && ${#file_paths[@]} == 0 ))
+  local no_arguments
+  no_arguments=$(( ${#git_diff_args[@]} == 0 && ${#file_paths[@]} == 0 ))
   if (( no_arguments )) && is_piped; then
     awk -v only_line_ranges="$only_line_ranges" "$parse_diff_program"
     return $?
@@ -1264,8 +1266,10 @@ function git-structured-diff(){
   fi
 
   # Untracked files are diffed against /dev/null by git itself, from the repo root, so their paths and binary handling match tracked files.
-  local repo_root="$(command git rev-parse --show-toplevel)"
-  local -a untracked_files=( ${(f)"$(command git ls-files --others --exclude-standard --full-name -- "${file_paths[@]}")"} )
+  local repo_root
+  repo_root="$(command git rev-parse --show-toplevel)" || return 1
+  local -a untracked_files
+  untracked_files=( ${(f)"$(command git ls-files --others --exclude-standard --full-name -- "${file_paths[@]}")"} )
   local untracked_file
   {
     if (( no_arguments )); then
