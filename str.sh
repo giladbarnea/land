@@ -505,27 +505,47 @@ function truncate-middle(){
   print -r -- "${string[1,$half_length]}${marker}${string[-$half_length,-1]}"
 }
 
-# # truncate-sampled <STRING / stdin> -m,--max-length N [-n,--count K (Default: 5, min 2)] [--positions EXPR (Default: 'i/(k-1)')] [--sizes EXPR (Default: '1')]
+# # truncate-sampled <STRING / stdin> [-m,--max-length N (Default: one screen, $LINES * $COLUMNS)] [-n,--count K (Default: 5, min 2)] [--shape {uniform,u,decline,incline} (Default: uniform) | --positions EXPR --sizes EXPR]
 # Keeps K windows spread across a (possibly multiline) string so the result fits in N chars. Each gap becomes a "[... skipped X chars ...]" line.
-# EXPRs are zsh arithmetic over i (window index, 0-based), k (count) and pi.
-# --positions yields each window's start as a fraction 0..1 of the string. --sizes yields relative weights that share the char budget.
+# --shape names the density curve of the windows along the string. It dictates both positions and sizes:
+#   uniform  Equal windows, evenly spaced.
+#   u        Windows cluster at both ends and grow there. Structure lives in the head and the tail.
+#   decline  Windows cluster at the start and shrink toward the end. Logs, transcripts and rollouts that front-load their structure.
+#   incline  Windows cluster at the end and grow toward it. Content whose latest part matters most.
+# --positions and --sizes are the explicit alternative to --shape, and cannot be combined with it. They are zsh arithmetic over i (window index, 0-based), k (count) and pi.
+# --positions yields each window's start as a fraction 0..1 of the string. --sizes yields relative weights that share the char budget. An omitted one is uniform.
 # Example:
+# `truncate-sampled "$big" --shape u`  # Fits one screen.
 # `truncate-sampled "$(seq 1 5000)" -m 300 -n 4`
-# `truncate-sampled "$big" -m 200000 -n 7 --positions '(1-cos(pi*i/(k-1)))/2' --sizes '1+abs(2*i/(k-1)-1)'`  # End-heavy positions, larger windows at the ends.
+# `truncate-sampled "$big" -m 200000 -n 7 --shape u`
+# `truncate-sampled "$big" -m 200000 --positions '(i/(k-1))**2'`  # Decline positions with equal window sizes.
 function truncate-sampled(){
   setopt localoptions force_float
   zmodload zsh/mathfunc
+  local -A shape_positions=(
+    [uniform]='i/(k-1)'
+    [u]='(1-cos(pi*i/(k-1)))/2'
+    [decline]='(i/(k-1))**2'
+    [incline]='1-(1-i/(k-1))**2'
+  )
+  local -A shape_sizes=(
+    [uniform]='1'
+    [u]='1+abs(2*i/(k-1)-1)'
+    [decline]='2-i/(k-1)'
+    [incline]='1+i/(k-1)'
+  )
   local string
-  local -i max_length=-1
+  local -i max_length=$(( ${${LINES:#0}:-40} * ${${COLUMNS:#0}:-120} ))
   local -i k=5
-  local positions='i/(k-1)'
-  local sizes='1'
+  local shape positions sizes
   while [[ $# -gt 0 ]]; do
     case "$1" in
       --max-length=*) max_length="${1#*=}" ;;
       -m|--max-length) max_length="$2" ; shift ;;
       --count=*) k="${1#*=}" ;;
       -n|--count) k="$2" ; shift ;;
+      --shape=*) shape="${1#*=}" ;;
+      --shape) shape="$2" ; shift ;;
       --positions=*) positions="${1#*=}" ;;
       --positions) positions="$2" ; shift ;;
       --sizes=*) sizes="${1#*=}" ;;
@@ -535,10 +555,21 @@ function truncate-sampled(){
     shift
   done
   [[ -z "$string" ]] && is_piped && string="$(<&0)"
-  (( max_length < 0 || k < 2 )) && {
-    log.error "$0: -m,--max-length is required and -n,--count must be at least 2.\nUsage:\n$(docstring "$0")"
+  (( k < 2 )) && {
+    log.error "$0: -n,--count must be at least 2.\nUsage:\n$(docstring "$0")"
     return 1
   }
+  [[ -n "$shape" && ( -n "$positions" || -n "$sizes" ) ]] && {
+    log.error "$0: --shape dictates both positions and sizes. It cannot be combined with --positions or --sizes."
+    return 1
+  }
+  shape="${shape:-uniform}"
+  [[ -z "${shape_positions[$shape]}" ]] && {
+    log.error "$0: Unknown --shape '$shape'. Choose from: ${(k)shape_positions}"
+    return 1
+  }
+  positions="${positions:-${shape_positions[$shape]}}"
+  sizes="${sizes:-${shape_sizes[$shape]}}"
   local -i total=${#string}
   (( total <= max_length )) && {
     print -r -- "$string"
