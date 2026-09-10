@@ -1248,19 +1248,37 @@ function git-structured-diff(){
     END {
       close_file();
     }
-    '
-  }
-  
-  if (( ${#git_diff_args[@]} > 0 || ${#file_paths[@]} > 0 )); then
-    if $parse_file_paths; then
-      { command git --no-pager diff "${git_diff_args[@]}" -- "${file_paths[@]}"; .emit-untracked-files-diff "${file_paths[@]}" } | .parse-diff
+  '
+
+  local no_arguments=$(( ${#git_diff_args[@]} == 0 && ${#file_paths[@]} == 0 ))
+  if (( no_arguments )) && is_piped; then
+    awk -v only_line_ranges="$only_line_ranges" "$parse_diff_program"
+    return $?
+  fi
+  if (( no_arguments )); then
+    if $assume_yes || is_piping || ! is_interactive; then
+      log.info "No data provided and can’t ask user interactively. Defaulting to ‘git --no-pager diff $(gdargs+) | $0’."
     else
-      { command git --no-pager diff "${git_diff_args[@]}"; .emit-untracked-files-diff } | .parse-diff
+      confirm "No data in stdin. Run ‘git --no-pager diff $(gdargs+) | $0’?" || return 0
     fi
-    return 0
   fi
 
-  .parse-diff
+  # Untracked files are diffed against /dev/null by git itself, from the repo root, so their paths and binary handling match tracked files.
+  local repo_root="$(command git rev-parse --show-toplevel)"
+  local -a untracked_files=( ${(f)"$(command git ls-files --others --exclude-standard --full-name -- "${file_paths[@]}")"} )
+  local untracked_file
+  {
+    if (( no_arguments )); then
+      command git --no-pager diff
+      command git --no-pager diff --cached --diff-filter=A
+    else
+      command git --no-pager diff "${git_diff_args[@]}" -- "${file_paths[@]}"
+    fi
+    for untracked_file in "${untracked_files[@]}"; do
+      # --no-index exits 1 when the files differ, which is always the case here. Only higher codes are errors.
+      command git -C "$repo_root" --no-pager diff --no-index /dev/null "$untracked_file" || (( $? == 1 ))
+    done
+  } | awk -v only_line_ranges="$only_line_ranges" "$parse_diff_program"
 }
 
 
