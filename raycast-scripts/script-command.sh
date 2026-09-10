@@ -14,4 +14,5 @@
 # @raycast.icon 🤖
 # @raycast.packageName Raycast Scripts
 
-/Applications/kitty.app/Contents/MacOS/kitten quick-access-terminal
+nohup /Applications/kitty.app/Contents/MacOS/kitten quick-access-terminal \
+  </dev/null >/dev/null 2>&1 &

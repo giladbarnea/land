@@ -20,6 +20,7 @@ function html2md(){
 #   --ocr-lang TEXT                      Comma-separated language codes
 #   --pipeline [standard|vlm|asr]        Processing pipeline (default: standard)
 #   --pdf-backend [pypdfium2|dlparse_v1|dlparse_v2|dlparse_v4]  PDF backend
+# Use `--pdf-backend pypdfium2` when Docling replaces large text regions with images.
 #   --verbose, -v                        Increase verbosity (-v for info, -vv for debug)
 #   --num-threads INTEGER                Number of threads (default: 8)
 #   --device [auto|cpu|cuda|mps]         Processing device (default: auto)

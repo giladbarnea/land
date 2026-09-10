@@ -2135,10 +2135,11 @@ function llm-search(){
 }
 
 
-# # llm-commit-msg [-y,--yes] [--append-prompt APPEND_STRING] [--one-by-one[=true|false] (default false)] [-- PATH...]
+# # llm-commit-msg [-y,--yes] [--append-prompt APPEND_STRING] [--one-by-one[=true|false] (default false)] [--max-diff-length N (default 1,000,000 ≈ 1 MB)] [-- PATH...]
 # Generates a commit message for the given files against HEAD.
 # Paths must come after a '--' separator, consistent with git and llm-what-changed.
 # If no paths are provided, uses all available files with -y or prompts which files to use otherwise.
+# If the combined diff exceeds --max-diff-length chars, confirms (-y assumes yes) and shortens each file's diff to fit.
 function llm-commit-msg(){
 	setopt localoptions pipefail errreturn
 	local -a diff_targets=()
@@ -2147,10 +2148,13 @@ function llm-commit-msg(){
 	local append_prompt=''
 	local assume_yes=false
 	local parse_paths=false
+	local -i max_diff_length=1000000
 	while [[ $# -gt 0 ]]; do
 		case "$1" in
 			--append-prompt=*) append_prompt="${1#*=}" ;;
 			--append-prompt) append_prompt="$2" ; shift ;;
+			--max-diff-length=*) max_diff_length="${1#*=}" ;;
+			--max-diff-length) max_diff_length="$2" ; shift ;;
 			--one-by-one) one_by_one=true ;;
 			--one-by-one=*) one_by_one="${1#*=}" ;;
 			-y|--yes) $parse_paths && diff_targets+=("$1") || assume_yes=true ;;
@@ -2262,11 +2266,57 @@ function llm-commit-msg(){
 			return 0
 		fi
 		notif.info "Aggregating into a single commit message..."
-    pi --model openai-codex/gpt-5.6-luna --thinking low --no-session --no-skills --no-prompt-templates --no-extensions --no-tools --no-themes --no-context-files --print "$(cat "$tmp_file")"
-	else
-		llm-what-changed "${llm_what_changed_options[@]}" --force-prompt "$llm_prompt" HEAD -- "${diff_targets[@]}"
+    pi --model openai-codex/gpt-5.6-luna --thinking low --no-session --no-skills --no-prompt-templates --no-extensions --no-tools --no-themes --no-context-files --print < "$tmp_file"
+		return 0
 	fi
-	
+
+	local -a structured_diff_options=(--src-prefix='[SOURCE] ' --dst-prefix='[DESTINATION] ' HEAD)
+	$assume_yes && structured_diff_options+=(-y)
+	local -A diff_per_file
+	local file_path
+	local -i total_length=0
+	for file_path in "${diff_targets[@]}"; do
+		diff_per_file[$file_path]="$(git-structured-diff "${structured_diff_options[@]}" -- "$file_path")"
+		total_length+=${#diff_per_file[$file_path]}
+	done
+	if (( total_length > max_diff_length )); then
+		log.warn "Diff is ${total_length} chars, above the ${max_diff_length} limit."
+		if ! $assume_yes && ! confirm "Shorten each file's diff to fit under ${max_diff_length} chars?"; then
+			return 1
+		fi
+		# Files at or below the floor are never truncated. The floor is the char count of 25 dense technical Markdown lines.
+		# The rest of the budget is split among the larger files in proportion to their size, never below the floor.
+		# An oversized file is middle-truncated: equal char counts from its head and tail around a marker.
+		local -i floor_length=4500
+		local truncation_marker=$'\n[... truncated ...]\n'
+		local -i file_length large_files_length=0 protected_length=0
+		for file_path in "${diff_targets[@]}"; do
+			file_length=${#diff_per_file[$file_path]}
+			if (( file_length > floor_length )); then
+				large_files_length=$(( large_files_length + file_length ))
+			else
+				protected_length=$(( protected_length + file_length ))
+			fi
+		done
+		local -i large_files_budget=$(( max_diff_length - protected_length ))
+		local -i target_length half_length
+		for file_path in "${diff_targets[@]}"; do
+			file_length=${#diff_per_file[$file_path]}
+			(( file_length > floor_length )) || continue
+			target_length=$(( large_files_budget * file_length / large_files_length ))
+			if (( target_length < floor_length )); then
+				target_length=$floor_length
+			fi
+			if (( file_length > target_length )); then
+				half_length=$(( (target_length - ${#truncation_marker}) / 2 ))
+				diff_per_file[$file_path]="${diff_per_file[$file_path][1,$half_length]}${truncation_marker}${diff_per_file[$file_path][-$half_length,-1]}"
+			fi
+		done
+	fi
+	local tagged_git_diff="$(for file_path in "${diff_targets[@]}"; do print -r -- "${diff_per_file[$file_path]}"; done)"
+	local full_prompt="$(printf "%s\n\n%s" "$tagged_git_diff" "$(xt -q "$llm_prompt" --tag 'user-instructions')")"
+	log.notice "Running pi with full prompt (${#full_prompt} chars):"
+	print -r -- "$full_prompt" | pi --model openai-codex/gpt-5.6-luna --thinking low --no-session --no-skills --no-prompt-templates --no-extensions --no-tools --no-context-files --no-themes --print
 }
 
 # # llm-what-changed [-y,--yes] [git diff OPT...] [--force-prompt PROMPT='What has changed? Clearly, ...'] [--append-prompt APPEND_STRING] [--dry-run] [--one-by-one[=true|false] (default false)] [-- TREEISH...]
@@ -2372,7 +2422,7 @@ function llm-what-changed(){
 	else
 	    log.notice "Running llm with full prompt:"
 		  # llm "$(print -r -- "$full_prompt")" --no-format-stdin --no-md --quiet --no-clear
-      pi --model openai-codex/gpt-5.6-luna --thinking low --no-session --no-skills --no-prompt-templates --no-extensions --no-tools --no-context-files --no-themes --print "$(print -r -- "$full_prompt")"
+      print -r -- "$full_prompt" | pi --model openai-codex/gpt-5.6-luna --thinking low --no-session --no-skills --no-prompt-templates --no-extensions --no-tools --no-context-files --no-themes --print
 	fi
 }
 
