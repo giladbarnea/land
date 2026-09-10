@@ -912,36 +912,7 @@ function git-structured-diff(){
     [[ "$YES" == 1 ]] && assume_yes=true
   fi
 
-  local -a self_args
-  (( only_line_ranges )) && self_args+=(--only-line-ranges)
-  $assume_yes && self_args+=(-y)
-
-  function .emit-untracked-files-diff() {
-    while IFS= read -r filepath; do
-      [[ -f "$filepath" ]] || continue
-      local line_count
-      line_count=$(awk 'END { print NR }' "$filepath")
-      printf "diff --git a/%s b/%s\nnew file mode 100644\n--- /dev/null\n+++ b/%s\n@@ -0,0 +1,%d @@\n" \
-        "$filepath" "$filepath" "$filepath" "$line_count"
-      while IFS= read -r line || [[ -n "$line" ]]; do
-        printf "+%s\n" "$line"
-      done < "$filepath"
-    done < <(command git ls-files --others --exclude-standard -- "$@")
-  }
-
-  if (( ${#git_diff_args[@]} == 0 && ${#file_paths[@]} == 0 )) && ! is_piped; then
-    if $assume_yes || is_piping || ! is_interactive; then
-      log.info "No data provided and can’t ask user interactively. Defaulting to ‘git --no-pager diff $(gdargs+) | $0’."
-      { command git --no-pager diff; command git --no-pager diff --cached --diff-filter=A; .emit-untracked-files-diff } | git-structured-diff "${self_args[@]}"
-      return 0
-    fi
-    confirm "No data in stdin. Run ‘git --no-pager diff $(gdargs+) | $0’?" || return 0
-    { command git --no-pager diff; command git --no-pager diff --cached --diff-filter=A; .emit-untracked-files-diff } | git-structured-diff "${self_args[@]}"
-    return 0
-  fi
-  
-  function .parse-diff(){
-    awk -v only_line_ranges="$only_line_ranges" '
+  local parse_diff_program='
     BEGIN {
       only_line_ranges += 0;
       # Block accumulators (current patch)
@@ -949,7 +920,7 @@ function git-structured-diff(){
       delete change_lines;
 
       # File state
-      file_open = 0; file_path = ""; file_status = "";
+      file_open = 0; file_path = "";
       file_binary = 0; file_dissim = "";
       file_lines = 0;
 
@@ -976,10 +947,10 @@ function git-structured-diff(){
 
       # Determine tag and line span based on additions/deletions
       tag = (add_count>0 && del_count>0) ? "modified" : (add_count>0 ? "added" : "deleted");
-      start = block_after_start;
+      start = (tag == "deleted") ? block_before_start : block_after_start;
       end   = (add_count>0 ? start + add_count - 1 : start);
       label = range_label(start, end, 0);
-      # For pure deletions, keep new-side anchor but include count if multi-line
+      # For pure deletions, anchor on the old side (the only side the lines exist on) and include the count if multi-line
       if (tag == "deleted" && del_count > 1) {
         label = sprintf("line %d, removed %d lines", start, del_count);
       }
@@ -1199,16 +1170,14 @@ function git-structured-diff(){
         sub(/^b\//, "", b_path);
         path = (b_path != "" && b_path != "/dev/null") ? b_path : a_path;
         if (path != "") open_file(path);
-        file_status = "M";
         next;
       }
 
       # Count per-file input lines for large-file breadcrumb threshold
       if (file_open) file_lines++;
 
-      # New / deleted file markers influence coarse status but are not printed
-      if ($0 ~ /^new file mode/) { file_status = "A"; next; }
-      if ($0 ~ /^deleted file mode/) { file_status = "D"; next; }
+      # Git metadata lines are not printed
+      if ($0 ~ /^(new|deleted) file mode/) { next; }
       if ($0 ~ /^rename (from|to)/ || $0 ~ /^copy (from|to)/ || $0 ~ /^index /) { next; }
 
       # Similarity/dissimilarity: capture and keep in content

@@ -505,6 +505,72 @@ function truncate-middle(){
   print -r -- "${string[1,$half_length]}${marker}${string[-$half_length,-1]}"
 }
 
+# # truncate-sampled <STRING / stdin> -m,--max-length N [-n,--count K (Default: 5, min 2)] [--positions EXPR (Default: 'i/(k-1)')] [--sizes EXPR (Default: '1')]
+# Keeps K windows spread across a (possibly multiline) string so the result fits in N chars. Each gap becomes a "[... skipped X chars ...]" line.
+# EXPRs are zsh arithmetic over i (window index, 0-based), k (count) and pi.
+# --positions yields each window's start as a fraction 0..1 of the string. --sizes yields relative weights that share the char budget.
+# Example:
+# `truncate-sampled "$(seq 1 5000)" -m 300 -n 4`
+# `truncate-sampled "$big" -m 200000 -n 7 --positions '(1-cos(pi*i/(k-1)))/2' --sizes '1+abs(2*i/(k-1)-1)'`  # End-heavy positions, larger windows at the ends.
+function truncate-sampled(){
+  setopt localoptions force_float
+  zmodload zsh/mathfunc
+  local string
+  local -i max_length=-1
+  local -i k=5
+  local positions='i/(k-1)'
+  local sizes='1'
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --max-length=*) max_length="${1#*=}" ;;
+      -m|--max-length) max_length="$2" ; shift ;;
+      --count=*) k="${1#*=}" ;;
+      -n|--count) k="$2" ; shift ;;
+      --positions=*) positions="${1#*=}" ;;
+      --positions) positions="$2" ; shift ;;
+      --sizes=*) sizes="${1#*=}" ;;
+      --sizes) sizes="$2" ; shift ;;
+      *) string="$1" ;;
+    esac
+    shift
+  done
+  [[ -z "$string" ]] && is_piped && string="$(<&0)"
+  (( max_length < 0 || k < 2 )) && {
+    log.error "$0: -m,--max-length is required and -n,--count must be at least 2.\nUsage:\n$(docstring "$0")"
+    return 1
+  }
+  local -i total=${#string}
+  (( total <= max_length )) && {
+    print -r -- "$string"
+    return 0
+  }
+  local -F pi=$(( 4 * atan(1) ))
+  local marker_format=$'\n[... skipped %d chars ...]\n'
+  local -i marker_length=$(( ${#marker_format} - 2 + ${#total} ))
+  local -i available=$(( max_length - k * marker_length ))
+  local -i i
+  local -a weights=()
+  local -F weight_sum=0
+  for (( i = 0; i < k; i++ )); do
+    weights+=( $(( sizes )) )
+    (( weight_sum += weights[-1] ))
+  done
+  local -i cursor=0 start size skipped
+  local marker output=''
+  for (( i = 0; i < k; i++ )); do
+    size=$(( int(available * weights[i + 1] / weight_sum) ))
+    start=$(( int(positions * (total - size)) ))
+    (( start < cursor )) && start=$cursor
+    (( start + size > total )) && size=$(( total - start ))
+    skipped=$(( start - cursor ))
+    (( skipped > 0 )) && { printf -v marker "$marker_format" "$skipped"; output+="$marker"; }
+    output+="${string[start + 1, start + size]}"
+    cursor=$(( start + size ))
+  done
+  (( total - cursor > 0 )) && { printf -v marker "$marker_format" "$(( total - cursor ))"; output+="$marker"; }
+  print -r -- "$output"
+}
+
 # # shorten <STRING / stdin> [[-m ]MAX_LENGTH (Default: $COLUMNS or 120)]
 # Show beginning and end of string with ellipsis in between if longer than MAX_LENGTH chars.
 # Use -m to avoid ambiguity.
