@@ -472,37 +472,15 @@ function stomp(){
   strip "$text"
 }
 
-# # truncate-middle <STRING / stdin> -m,--max-length MAX_LENGTH [--marker MARKER (Default: "\n[... truncated ...]\n")]
-# Keeps an equal number of chars from the head and the tail of a (possibly multiline) string, joined by MARKER, so the result fits in MAX_LENGTH chars.
+# # truncate-middle <STRING / stdin> [-m,--max-length N (Default: one screen, $LINES * $COLUMNS)]
+# Keeps an equal number of chars from the head and the tail of a (possibly multiline) string, joined by a "[... skipped X chars ...]" line, so the result fits in N chars.
 # Counts chars, not lines or words, so the cut can land mid-line. Returns the string unchanged if it already fits.
+# This is `truncate-sampled` with two windows.
 # Example:
 # `truncate-middle "$(seq 1 1000)" -m 40`
 # `git-structured-diff -- big.jsonl | truncate-middle -m 200000`
 function truncate-middle(){
-  local string
-  local -i max_length=-1
-  local marker=$'\n[... truncated ...]\n'
-  while [[ $# -gt 0 ]]; do
-    case "$1" in
-      --max-length=*) max_length="${1#*=}" ;;
-      -m|--max-length) max_length="$2" ; shift ;;
-      --marker=*) marker="${1#*=}" ;;
-      --marker) marker="$2" ; shift ;;
-      *) string="$1" ;;
-    esac
-    shift
-  done
-  [[ -z "$string" ]] && is_piped && string="$(<&0)"
-  (( max_length < 0 )) && {
-    log.error "$0: -m,--max-length is required.\nUsage:\n$(docstring "$0")"
-    return 1
-  }
-  (( ${#string} <= max_length )) && {
-    print -r -- "$string"
-    return 0
-  }
-  local -i half_length=$(( (max_length - ${#marker}) / 2 ))
-  print -r -- "${string[1,$half_length]}${marker}${string[-$half_length,-1]}"
+  truncate-sampled -n 2 "$@"
 }
 
 # # truncate-sampled <STRING / stdin> [-m,--max-length N (Default: one screen, $LINES * $COLUMNS)] [-n,--count K (Default: 5, min 2)] [--shape {uniform,u,decline,incline} (Default: uniform) | --positions EXPR --sizes EXPR]
@@ -579,6 +557,10 @@ function truncate-sampled(){
   local marker_format=$'\n[... skipped %d chars ...]\n'
   local -i marker_length=$(( ${#marker_format} - 2 + ${#total} ))
   local -i available=$(( max_length - k * marker_length ))
+  (( available < 0 )) && {
+    log.error "$0: -m $max_length is below the marker overhead of $k windows ($(( k * marker_length )) chars). Raise -m or lower -n."
+    return 1
+  }
   local -i i
   local -a weights=()
   local -F weight_sum=0
@@ -610,7 +592,7 @@ function shorten(){
   local string
   local -i UNSPECIFIED=-1
 	local -i max_length="$UNSPECIFIED"
-  local -i default_max_length=${COLUMNS:-120}
+  local -i default_max_length=${${COLUMNS:#0}:-120}
   
   local -a args
   while [[ $# -gt 0 ]]; do
