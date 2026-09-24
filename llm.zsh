@@ -2296,7 +2296,7 @@ function llm-commit-msg(){
 			return 0
 		fi
 		notif.info "Aggregating into a single commit message..."
-		pi --model openai-codex/gpt-5.6-luna --thinking low --no-session --no-skills --no-prompt-templates --no-extensions --no-tools --no-themes --no-context-files --print < "$tmp_file" || { log.error "pi failed."; return 1; }
+		pi --model openai-codex/gpt-6-luna --thinking low --no-session --no-skills --no-prompt-templates --no-extensions --no-tools --no-themes --no-context-files --print < "$tmp_file" || { log.error "pi failed."; return 1; }
 		return 0
 	fi
 
@@ -2359,7 +2359,7 @@ function llm-commit-msg(){
 	local full_prompt
 	full_prompt="$(printf "%s\n\n%s" "$tagged_git_diff" "$user_instructions")"
 	log.notice "Running pi with full prompt (${#full_prompt} chars):"
-	print -r -- "$full_prompt" | pi --model openai-codex/gpt-5.6-luna --thinking low --no-session --no-skills --no-prompt-templates --no-extensions --no-tools --no-context-files --no-themes --print || { log.error "pi failed."; return 1; }
+	print -r -- "$full_prompt" | pi --model openai-codex/gpt-6-luna --thinking low --no-session --no-skills --no-prompt-templates --no-extensions --no-tools --no-context-files --no-themes --print || { log.error "pi failed."; return 1; }
 }
 
 # # llm-what-changed [-y,--yes] [git diff OPT...] [--force-prompt PROMPT='What has changed? Clearly, ...'] [--append-prompt APPEND_STRING] [--dry-run] [--one-by-one[=true|false] (default false)] [-- TREEISH...]
@@ -2465,7 +2465,7 @@ function llm-what-changed(){
 	else
 	    log.notice "Running llm with full prompt:"
 		  # llm "$(print -r -- "$full_prompt")" --no-format-stdin --no-md --quiet --no-clear
-      print -r -- "$full_prompt" | pi --model openai-codex/gpt-5.6-luna --thinking low --no-session --no-skills --no-prompt-templates --no-extensions --no-tools --no-context-files --no-themes --print
+      print -r -- "$full_prompt" | pi --model openai-codex/gpt-6-luna --thinking low --no-session --no-skills --no-prompt-templates --no-extensions --no-tools --no-context-files --no-themes --print
 	fi
 }
 
