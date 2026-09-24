@@ -7,6 +7,14 @@
 # f1:refresh-preview
 
 # export FZF_CTRL_P_OPTS="--preview 'tree -C {} | head -200'"
+
+# The walk that feeds fzf, and the ranking of its output.
+# `fzf-rank` puts shallow-and-recent candidates first. `--tiebreak=index` in
+# FZF_DEFAULT_OPTS makes fzf keep that order for equally-good matches.
+# The excluded trees are vendored, never navigation targets, and four out of
+# five candidates under ~/dev. ctrl-x reloads with them included.
+export FZF_WALK_COMMAND='fd --hidden --no-ignore --exclude .git --exclude node_modules --exclude .venv --exclude site-packages --exclude __pycache__'
+
 export FZF_BINDINGS=(
 
   # --bind "'down:down+execute(. fzf.sh; source ${LAND}/zenity.sh; notif.success \"export | grep FZF_PREVIEW_LINES\")'"
@@ -31,22 +39,22 @@ export FZF_BINDINGS=(
    --bind "'ctrl-/:preview(. fzf.sh; .fzf-preview <(.fzf-print-bindings))'"
 
   # alt-d: reload to search dirs
-  --bind "'ctrl-d:reload(fd --hidden --no-ignore --type d)'"
+  --bind "'ctrl-d:reload($FZF_WALK_COMMAND --type d | fzf-rank)'"
 
   # alt-f: reload to search files
-  --bind "'ctrl-f:reload(fd --hidden --no-ignore --type f)'"
+  --bind "'ctrl-f:reload($FZF_WALK_COMMAND --type f | fzf-rank)'"
 
-  # alt-x: reload to search without dir/file filtering
-  --bind "'ctrl-x:reload(fd --hidden --no-ignore)'"
+  # alt-x: reload to search everything, vendored trees included
+  --bind "'ctrl-x:reload(fd --hidden --no-ignore --exclude .git | fzf-rank)'"
 
    # +: reload with unlimited max-depth
-   --bind "'ctrl-u:reload(fd --hidden --no-ignore --max-depth=999)'"
+   --bind "'ctrl-u:reload($FZF_WALK_COMMAND --max-depth=999 | fzf-rank)'"
    # --bind "'load:reload(fd --hidden --no-ignore --max-depth=6)'"
 )
 
 export FZF_PREVIEW_WINDOW_OPTS='down,75%:wrap'
-export FZF_DEFAULT_COMMAND='fd --hidden --no-ignore --exclude .git'
-export FZF_DEFAULT_OPTS="--preview-window=$FZF_PREVIEW_WINDOW_OPTS --tiebreak=length,end,begin,index --border=none --cycle --reverse --exit-0 --select-1 --inline-info --ansi --tabstop=2 --keep-right --scroll-off=1 --no-bold ${FZF_BINDINGS[*]}"
+export FZF_DEFAULT_COMMAND="$FZF_WALK_COMMAND | fzf-rank"
+export FZF_DEFAULT_OPTS="--preview-window=$FZF_PREVIEW_WINDOW_OPTS --tiebreak=index --border=none --cycle --reverse --exit-0 --select-1 --inline-info --ansi --tabstop=2 --keep-right --scroll-off=1 --no-bold ${FZF_BINDINGS[*]}"
 
 # alt-backspace
 function .fzf-move-to-trash(){
@@ -163,12 +171,12 @@ function fzfx() {
   local copy_res=false
   local retry_deeper="respect-user-esc"
   local max_depth min_depth exact_depth
-  local temp_fzf_command="$FZF_DEFAULT_COMMAND"
+  local -a walk_args=()
   while [[ $# -gt 0 ]]; do
     case "$1" in
     # * fd args
-    -d) temp_fzf_command="$FZF_DEFAULT_COMMAND --type d" ;;
-    -f) temp_fzf_command="$FZF_DEFAULT_COMMAND --type f" ;;
+    -d) walk_args+=(--type d) ;;
+    -f) walk_args+=(--type f) ;;
     --max-depth) max_depth="$2" ; shift ;;
     --max-depth=*) max_depth="${1#*=}" ;;
     --min-depth) min_depth="$2" ; shift ;;
@@ -203,9 +211,10 @@ function fzfx() {
   done
 
   # ** Prepare fzf (fd) command
-  [[ -n "$min_depth" ]] && temp_fzf_command+=" --min-depth=$min_depth"
-  [[ -n "$exact_depth" ]] && temp_fzf_command+=" --exact-depth=$exact_depth"
-  [[ -n "$max_depth" ]] && temp_fzf_command+=" --max-depth=$max_depth"
+  [[ -n "$min_depth" ]] && walk_args+=("--min-depth=$min_depth")
+  [[ -n "$exact_depth" ]] && walk_args+=("--exact-depth=$exact_depth")
+  [[ -n "$max_depth" ]] && walk_args+=("--max-depth=$max_depth")
+  local temp_fzf_command="$FZF_WALK_COMMAND ${walk_args[*]} | fzf-rank"
   if [[ "$show_preview" = true ]]; then
     fzf_flags+=(--ansi --preview ". fzf.sh; .fzf-preview {}")
   fi

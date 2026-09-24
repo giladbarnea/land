@@ -59,9 +59,10 @@ As of Sep 10, 2026, this is the script's output:
 ```
 
 Therefore, good example scripts are, best to worst:
-- _pi: the most recently updated script in this directory (2026-09-07). Router pattern with a nested sub-router (`_pi:auth`), mutually-exclusive option groups declared inline, rest-state handling so options keep completing after positional arguments, and half a dozen live dynamic completers backed by real data (provider list, model IDs parsed from `pi --list-models` and cached, installed sources parsed from `pi list`, session IDs scanned off `.jsonl` files on disk, theme names off the filesystem).
-- _ch: state-based routing with `-A '-*'` plus a rest state applied consistently across every subcommand, and a well-organized custom parser for the tool-filter mini-language that separates parsing, validation, and match-emission into single-purpose functions.
-- _herdr: the most recently created script in this directory (2026-07-19). Clean router pattern, a single reusable `_herdr_object_selectors` helper driven by a live `jq` snapshot instead of duplicated selector logic per subcommand, and correct rest-state handling in `_herdr:read` so options keep completing after the pane selector.
+- _pi: the most recently updated script in this directory (2026-09-07). Router pattern with a nested sub-router (`_pi:auth`), mutually-exclusive option groups declared inline, and half a dozen live dynamic completers backed by real data (provider list, model IDs parsed from `pi --list-models` and cached, installed sources parsed from `pi list`, session IDs scanned off `.jsonl` files on disk, theme names off the filesystem).
+- _ch: state-based routing applied consistently across every subcommand, and a well-organized custom parser for the tool-filter mini-language that separates parsing, validation, and match-emission into single-purpose functions.
+- _herdr: the most recently created script in this directory (2026-07-19). Clean router pattern, a single reusable `_herdr_object_selectors` helper driven by a live `jq` snapshot instead of duplicated selector logic per subcommand.
+- _str: the plain-function case (2026-09-10). Positionals plus options with no router state, `_guard` for numeric values, a `_describe` spec table for `--shape`, and inline mutually-exclusive option groups. Read it before copying `-A '-*'` from the scripts above; see the first gotcha.
 - _skills: recently created (2026-04-19). Router pattern with genuine reuse — it sources the real `skills.sh` at completion time instead of reimplementing its logic — though the `sk*` short-command dispatch (`skr`/`ske`/`skcd`/`skt`) repeats similar option/provider-detection logic across several functions instead of sharing one.
 
 Perhaps unintuitively bad examples scripts are:
@@ -103,31 +104,26 @@ Commands:
 Therefore, immediately run `claude plugin --help | tee -a /tmp/claude-help-all.txt` and `claude mcp --help | tee -a /tmp/claude-help-all.txt`.
 `claude plugin --help` will itself reveal more subcommands (`claude plugin marketplace`), which in turn also have nested subcommands (`claude plugin marketplace list`), and so on. Traverse exhaust the whole tree breadth-first to cultivate a complete help-all file. Only then apply the best practices in `_gemini` to the current situation and proceed to implement.
 
-Tip: use `_arguments -A '-*'` when the CLI accepts options after positional arguments, so zsh keeps completing option-like words even after free args have already appeared.
-
 ## Gotchas
 
-### `_arguments -A '-*'` is necessary but not sufficient
+### Options after positionals: plain `_arguments` already does it
 
-`_arguments -A '-*'` allows option-like words to be completed after positional arguments. It does not decide what should happen after all declared positionals are already consumed.
+Plain `_arguments` completes options after positional arguments by default. Do not add `-A '-*'` for that: the zsh manual defines `-A` as "do not complete options after the first non-option argument", so it disables exactly what you want. Use `-A` only where it belongs: a wrapper whose first positional is another command, like `sudo`.
 
-If a command accepts options after one or more positional arguments, add an explicit rest state and complete options there:
+`_str` is the reference example for the plain form:
 
 ```zsh
-_arguments -A '-*' -C \
+_arguments \
   "${options[@]}" \
-  '1:first:...' \
-  '2:second:...' \
-  '*:: :->rest'
-
-case $state in
-  (rest)
-    _arguments -A '-*' -C "${options[@]}"
-    ;;
-esac
+  '1:string:' \
+  '2:max length:_guard "[0-9]#" "max length"'
 ```
 
-Avoid using `_default` as that rest completion unless files, commands, and other default completions are valid at that position. `_default` can mask the original "no more arguments" problem by introducing file completion where only options should be offered.
+### Rest states are for subcommand dispatch
+
+A `'*:: :->rest'` state, as in `_pi` and `_herdr`, exists to dispatch on `line[1]`. It is not a way to re-enable options. With `*::` the rest state's `words` starts at the first positional, which then plays the command word. That only works when there is exactly one positional before the options. A second positional, as in `shorten STRING MAX_LENGTH`, becomes a stray argument in the rest call and completion fails.
+
+Avoid using `_default` as a rest completion unless files, commands, and other default completions are valid at that position. `_default` can mask the original "no more arguments" problem by introducing file completion where only options should be offered.
 
 ### Guard root positional completions
 

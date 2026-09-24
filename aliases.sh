@@ -268,7 +268,8 @@ function pi() {
 	if [[ "$running_interactively" = true ]]; then
 		command pi "${args_besides_prompt[@]}" "$full_prompt" < /dev/tty
 	else
-		command pi "${args_besides_prompt[@]}" "$full_prompt"
+		# Over stdin, not argv: a prompt around 1 MB as a positional argument crashes pi with "RangeError: Maximum call stack size exceeded".
+		print -r -- "$full_prompt" | command pi "${args_besides_prompt[@]}"
 	fi
 }
 

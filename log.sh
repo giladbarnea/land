@@ -314,7 +314,7 @@ function input() {
 			feedback_symbol='✘'
 		fi
 		# shellcheck disable=SC2028
-		echo "\b\b\b\b\b\b${user_choice_color}${Cb}${feedback_symbol}${C0}     "
+		echo "\b\b\b\b\b\b${user_choice_color}${Cb}${feedback_symbol}${C0}     " >&2
 		return $confirmed_code
 	else
 		read user_choice

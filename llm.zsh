@@ -820,8 +820,8 @@ function llm-embed-dir(){
 
 	local extension
 	for extension in "${extensions[@]}"; do
-		[[ ! "$extension" ]] && continue
-		llm embed-multi "$collection" --files "$directory_path" "**/*.$extension"
+		[[ ! "${extension}" ]] && continue
+		llm embed-multi "${collection}" --files "${directory_path}" "**/*.${extension}"
 	done
 }
 
@@ -830,14 +830,29 @@ function llm-embed-dir(){
 
 # region [-------- Templates --------]
 
-# # simplify [llm options...]
+# # simplify <text/STDIN> [pi options...]
 # Simplifies the given input using the `simplify` template (assistant system prompt).
-# Unsupported llm options: -t,--template
+# "text" parsing precedence: first non-opt positional arg if one is provided, otherwise piped STDIN, otherwise failure
 function simplify(){
-	local -a llm_args=(
-		--template "$(.llm-merge-templates assistant simplify)"
-	)
-	llm --stdin-tag 'text' --no-md --no-clear "$@" "${llm_args[@]}"
+  local text
+  local -a pi_opts=()
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      -*) pi_opts+=("$1") ;;
+      *) if [[ "$text" ]]; then pi_opts+=("$1") ; else text="$1" ; fi ;;
+    esac
+    shift
+  done
+  if [[ ! "$text" ]]; then
+    if is_piped; then
+      text="$(<&0)"
+    else
+      log.error "No text provided and no piped input received."
+      return 1
+    fi
+  fi
+  
+  picsh-nono --no-tools --system-prompt "$(<~/.pi/agent/prompts/simplify.md)" -p "$(xt text <<< "${text}" )" "${pi_opts[@]}" | copee
 }
 
 # # compress [-r,--rate {aggressive|high-quality=high-quality}] [llm options...]

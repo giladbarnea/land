@@ -1,0 +1,60 @@
+#!/usr/bin/env python3
+"""Order the candidate paths on stdin before fzf sees them.
+
+fzf scores match quality only. Everything else it can do is a tiebreak, and its
+tiebreaks cannot express "recently modified" at all. So the weighing happens
+here and fzf preserves it with `--tiebreak=index`.
+"""
+
+import math
+import os
+import signal
+import sys
+import time
+
+DEPTH_WEIGHT = float(os.environ.get("FZF_RANK_DEPTH_WEIGHT", "1.0"))
+AGE_WEIGHT = float(os.environ.get("FZF_RANK_AGE_WEIGHT", "1.0"))
+UNREADABLE_AGE_DAYS = 365.0
+# One lstat costs ~20us on APFS. Past this many candidates the recency weight
+# costs more wall time than it is worth, so rank on shape alone.
+MAX_STAT_CANDIDATES = 200_000
+
+
+def rank(path: bytes, age_days: float) -> float:
+    """Lower sorts earlier. One extra directory level costs one doubling of age.
+
+    >>> rank(b"src/main.py", 0.0) < rank(b"src/lib/main.py", 0.0)
+    True
+    >>> rank(b"src/lib/main.py", 0.0) < rank(b"src/main.py", 3.0)
+    True
+    >>> rank(b"src/lib/main.py", 30.0) < rank(b"src/main.py", 365.0)
+    True
+    """
+    depth = path.count(b"/") + (0 if path.endswith(b"/") else 1)
+    return (
+        DEPTH_WEIGHT * depth
+        + AGE_WEIGHT * math.log2(1.0 + age_days)
+        + len(path) / 1000.0
+    )
+
+
+def age_days(path: bytes, now: float) -> float:
+    try:
+        return max((now - os.lstat(path).st_mtime) / 86400.0, 0.0)
+    except OSError:
+        return UNREADABLE_AGE_DAYS
+
+
+def main() -> None:
+    signal.signal(signal.SIGPIPE, signal.SIG_DFL)  # Die quietly when fzf closes the pipe.
+    paths: list[bytes] = sys.stdin.buffer.read().splitlines()
+    now = time.time()
+    if len(paths) > MAX_STAT_CANDIDATES:
+        paths.sort(key=lambda path: rank(path, 0.0))
+    else:
+        paths.sort(key=lambda path: rank(path, age_days(path, now)))
+    sys.stdout.buffer.writelines(path + b"\n" for path in paths)
+
+
+if __name__ == "__main__":
+    main()
