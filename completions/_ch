@@ -478,7 +478,7 @@ _ch() {
 
   case $state in
     (root_arg)
-      if (( CURRENT == 1 )); then
+      if (( CURRENT == 2 )); then
         _describe -t subcommands 'ch commands' _ch_subcommands && ret=0
         _ch_session_selector && ret=0
       fi

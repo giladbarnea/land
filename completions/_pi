@@ -385,7 +385,7 @@ _pi_tools() {
     'ls[List directory contents]'
 }
 
-# As of 26-08-23. Up-to-date provider list:
+# As of 26-09-24. Up-to-date provider list:
 # /opt/homebrew/lib/node_modules/@earendil-works/pi-coding-agent/docs/providers.md
 _pi_providers() {
   local expl
@@ -406,6 +406,7 @@ _pi_providers() {
     groq
     huggingface
     kimi-coding
+    meta
     minimax
     minimax-cn
     mistral
