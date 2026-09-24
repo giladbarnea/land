@@ -109,6 +109,8 @@ Therefore, immediately run `claude plugin --help | tee -a /tmp/claude-help-all.t
 
 Test in a real completion session, not by reading the script. Start a `zsh -f -i` under `zsh/zpty`, run `compinit` with this directory first in `fpath`, type a partial command line, and send a Tab.
 
+`comptest.zsh` in this directory does this. Run `./comptest.zsh 'claude plugin ma' 'pi --provider '` to see what Tab does for each line. It is a starting point, not a rule. Write a custom temporary script when that suits the task better.
+
 Two traps:
 1. The pty shell runs your input only while you keep reading its output. After each `zpty -w`, drain with repeated `zpty -r -t` calls and short sleeps. If you do not, the shell echoes the line and never runs it.
 2. A `compadd` override that records matches is useful to see the lists that `_describe` builds, but it is not a full check. It misses many flag options from `_arguments`, and it inserts nothing. For the final check, use the unmodified completion system and read back the command line or the match listing after the Tab.
