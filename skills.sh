@@ -734,48 +734,37 @@ function _skills_base_dir() {
 }
 
 function _skills_parse_access_arguments() {
+  # Parse `[-g] [-p PROVIDER] [--] POSITIONAL...` for the sk* commands.
+  # Sets reply to (global provider positional...). Rejects more than MAX_POSITIONALS positionals.
   emulate -L zsh
-  local caller_name="$1"
-  shift
+  local caller_name="$1" argument=""
+  local -i max_positionals="$2"
+  shift 2
 
-  local global="false" provider="" skill_name="" expect_provider="false" argument=""
+  local global="false" provider="" expect_provider="false"
+  local -a positionals
   reply=()
 
   while [[ $# -gt 0 ]]; do
     argument="$1"
+    shift
 
     if [[ "$expect_provider" == "true" ]]; then
       provider="$argument"
       expect_provider="false"
-      shift
       continue
     fi
 
     case "$argument" in
-      --)
-        shift
-        while [[ $# -gt 0 ]]; do
-          [[ -n "$skill_name" ]] || skill_name="$1"
-          shift
-        done
-        break
-        ;;
-      -g)
-        global="true"
-        ;;
-      -p)
-        expect_provider="true"
-        ;;
+      --) positionals+=("$@"); set -- ;;
+      -g) global="true" ;;
+      -p) expect_provider="true" ;;
       -*)
         echo "$caller_name: unknown flag '$argument'" >&2
         return 1
         ;;
-      *)
-        [[ -n "$skill_name" ]] || skill_name="$argument"
-        ;;
+      *)  positionals+=("$argument") ;;
     esac
-
-    shift
   done
 
   if [[ "$expect_provider" == "true" ]]; then
@@ -783,176 +772,12 @@ function _skills_parse_access_arguments() {
     return 1
   fi
 
-  reply=("$global" "$provider" "$skill_name")
-}
-
-function _skills_parse_read_arguments() {
-  emulate -L zsh
-  local caller_name="$1"
-  shift
-
-  local global="false" provider="" skill_name="" skill_file_path="" expect_provider="false" argument=""
-  local -i positional_count=0
-  reply=()
-
-  while [[ $# -gt 0 ]]; do
-    argument="$1"
-
-    if [[ "$expect_provider" == "true" ]]; then
-      provider="$argument"
-      expect_provider="false"
-      shift
-      continue
-    fi
-
-    case "$argument" in
-      --)
-        shift
-        while [[ $# -gt 0 ]]; do
-          case $positional_count in
-            0) skill_name="$1" ;;
-            1) skill_file_path="$1" ;;
-            *)
-              echo "$caller_name: unexpected argument '$1'" >&2
-              return 1
-              ;;
-          esac
-          (( positional_count += 1 ))
-          shift
-        done
-        break
-        ;;
-      -g)
-        global="true"
-        ;;
-      -p)
-        expect_provider="true"
-        ;;
-      -*)
-        echo "$caller_name: unknown flag '$argument'" >&2
-        return 1
-        ;;
-      *)
-        case $positional_count in
-          0) skill_name="$argument" ;;
-          1) skill_file_path="$argument" ;;
-          *)
-            echo "$caller_name: unexpected argument '$argument'" >&2
-            return 1
-            ;;
-        esac
-        (( positional_count += 1 ))
-        ;;
-    esac
-
-    shift
-  done
-
-  if [[ "$expect_provider" == "true" ]]; then
-    echo "$caller_name: option '-p' requires a provider" >&2
+  if (( ${#positionals} > max_positionals )); then
+    echo "$caller_name: unexpected argument '${positionals[max_positionals + 1]}'" >&2
     return 1
   fi
 
-  reply=("$global" "$provider" "$skill_name" "$skill_file_path")
-}
-
-function _skills_parse_create_arguments() {
-  emulate -L zsh
-  local caller_name="$1"
-  shift
-
-  local global="false" provider="" skill_path="" expect_provider="false" argument=""
-  local -i positional_count=0
-  reply=()
-
-  while [[ $# -gt 0 ]]; do
-    argument="$1"
-
-    if [[ "$expect_provider" == "true" ]]; then
-      if [[ "$argument" == -* ]]; then
-        echo "$caller_name: option '-p' requires a provider" >&2
-        return 1
-      fi
-      provider="$argument"
-      expect_provider="false"
-      shift
-      continue
-    fi
-
-    case "$argument" in
-      --)
-        shift
-        while [[ $# -gt 0 ]]; do
-          case $positional_count in
-            0) skill_path="$1" ;;
-            *)
-              echo "$caller_name: unexpected argument '$1'" >&2
-              return 1
-              ;;
-          esac
-          (( positional_count += 1 ))
-          shift
-        done
-        break
-        ;;
-      -g)
-        global="true"
-        ;;
-      -p)
-        expect_provider="true"
-        ;;
-      -*)
-        echo "$caller_name: unknown flag '$argument'" >&2
-        return 1
-        ;;
-      *)
-        case $positional_count in
-          0) skill_path="$argument" ;;
-          *)
-            echo "$caller_name: unexpected argument '$argument'" >&2
-            return 1
-            ;;
-        esac
-        (( positional_count += 1 ))
-        ;;
-    esac
-
-    shift
-  done
-
-  if [[ "$expect_provider" == "true" ]]; then
-    echo "$caller_name: option '-p' requires a provider" >&2
-    return 1
-  fi
-
-  if [[ -z "$skill_path" ]]; then
-    echo "Usage: $caller_name [-g] [-p pi|claude|codex|gemini|antigravity] NEW-SKILL-PATH" >&2
-    return 1
-  fi
-
-  reply=("$global" "$provider" "$skill_path")
-}
-
-function _skills_expand_leading_tilde() {
-  emulate -L zsh
-  local path="$1"
-
-  case "$path" in
-    "~")   REPLY="$HOME" ;;
-    "~/"*) REPLY="$HOME/${path#"~/"}" ;;
-    *)     REPLY="$path" ;;
-  esac
-}
-
-function _skills_remove_trailing_slashes() {
-  emulate -L zsh
-  local path="$1"
-
-  while [[ "$path" != "/" && "$path" == */ ]]; do
-    path="${path%/}"
-  done
-
-  REPLY="$path"
+  reply=("$global" "$provider" "${positionals[@]}")
 }
 
 function _skills_strip() {
@@ -976,19 +801,6 @@ function _skills_yaml_double_quote() {
   REPLY="\"$value\""
 }
 
-function _skills_is_bare_skill_path() {
-  emulate -L zsh
-  local path="$1"
-
-  [[ -n "$path" && "$path" != */* ]] || return 1
-
-  case "$path" in
-    .agents|.pi|.claude|.codex|.gemini|.antigravity) return 1 ;;
-  esac
-
-  return 0
-}
-
 function _skills_provider_base_relative_path() {
   emulate -L zsh
   local provider="${1-}" root_dir="${2:-$PWD}" parent_dir=""
@@ -1008,186 +820,6 @@ function _skills_provider_base_relative_path() {
   fi
 
   REPLY="$parent_dir/skills"
-}
-
-function _skills_canonicalize_base_dir_for_create() {
-  emulate -L zsh
-  local base_dir="$1"
-
-  _skills_canonicalize_pi_home_skills_dir "$base_dir"
-  REPLY="${REPLY:A}"
-}
-
-function _skills_find_nearest_agents_base_dir() {
-  emulate -L zsh
-  local current_dir="${PWD:A}" candidate=""
-
-  while true; do
-    if [[ "$current_dir:t" == "skills" ]] && [[ "$current_dir:h:t" == ".agents" ]]; then
-      _skills_resolve_existing_dir "$current_dir"
-      return 0
-    fi
-
-    candidate="$current_dir/.agents/skills"
-    if [[ -d "$candidate" ]]; then
-      _skills_resolve_existing_dir "$candidate"
-      return 0
-    fi
-
-    [[ "$current_dir" == "/" ]] && break
-    current_dir="$current_dir:h"
-  done
-
-  return 1
-}
-
-function _skills_create_default_base_dir() {
-  emulate -L zsh
-  local global="$1" provider="${2-}" base_dir="" root_dir="$PWD"
-
-  if [[ "$global" == "true" ]]; then
-    root_dir="$HOME"
-  elif [[ -z "$provider" ]] && _skills_find_nearest_agents_base_dir >/dev/null 2>&1; then
-    _skills_canonicalize_base_dir_for_create "$REPLY"
-    return 0
-  elif [[ -n "$provider" ]] && _skills_find_local_base_dir "$provider" >/dev/null 2>&1; then
-    _skills_canonicalize_base_dir_for_create "$REPLY"
-    return 0
-  fi
-
-  _skills_provider_base_relative_path "$provider" "$root_dir" || return 1
-  base_dir="$root_dir/$REPLY"
-  _skills_canonicalize_base_dir_for_create "$base_dir"
-}
-
-function _skills_split_create_skill_path() {
-  emulate -L zsh
-  local target_path="$1" caller_name="$2"
-  local leaf="" provider_from_path="" base_dir="" skill_name=""
-  reply=()
-
-  target_path="${target_path:a}"
-  leaf="${target_path:t}"
-
-  if [[ "${target_path:h:t}" == "skills" ]]; then
-    base_dir="${target_path:h}"
-    skill_name="$leaf"
-    _skills_detect_provider_from_base_dir "$base_dir" || return 1
-    provider_from_path="$REPLY"
-    _skills_canonicalize_base_dir_for_create "$base_dir"
-    reply=("$provider_from_path" "$REPLY" "$skill_name")
-    return 0
-  fi
-
-  if [[ "$leaf" == "skills" ]]; then
-    base_dir="$target_path"
-    _skills_detect_provider_from_base_dir "$base_dir" || return 1
-    provider_from_path="$REPLY"
-    _skills_canonicalize_base_dir_for_create "$base_dir"
-    reply=("$provider_from_path" "$REPLY" "")
-    return 0
-  fi
-
-  case "$leaf" in
-    .agents)
-      provider_from_path="agents"
-      base_dir="$target_path/skills"
-      ;;
-    .claude|.codex|.gemini|.antigravity)
-      provider_from_path="${leaf#.}"
-      base_dir="$target_path/skills"
-      ;;
-    .pi)
-      provider_from_path="pi"
-      _skills_provider_base_relative_path "pi" "${target_path:h}" || return 1
-      base_dir="${target_path:h}/$REPLY"
-      ;;
-    agent)
-      if [[ "${target_path:h:t}" != ".pi" ]]; then
-        echo "$caller_name: skill path '$target_path' must be a skill name or a direct child of a skills directory" >&2
-        return 1
-      fi
-      provider_from_path="pi"
-      base_dir="$target_path/skills"
-      ;;
-    *)
-      echo "$caller_name: skill path '$target_path' must be a skill name or a direct child of a skills directory" >&2
-      return 1
-      ;;
-  esac
-
-  _skills_canonicalize_base_dir_for_create "$base_dir"
-  reply=("$provider_from_path" "$REPLY" "")
-}
-
-function _skills_resolve_create_skill_dir() {
-  emulate -L zsh
-  local global="$1" provider="${2-}" skill_path="$3" caller_name="$4"
-  local path="" target_path="" provider_from_path="" base_dir="" skill_name="" expected_base_dir=""
-
-  _skills_expand_leading_tilde "$skill_path"
-  path="$REPLY"
-  _skills_remove_trailing_slashes "$path"
-  path="$REPLY"
-
-  if [[ -z "$path" ]]; then
-    echo "$caller_name: missing new skill path" >&2
-    return 1
-  fi
-
-  if _skills_is_bare_skill_path "$path"; then
-    _skills_create_default_base_dir "$global" "$provider" || return 1
-    REPLY="$REPLY/$path"
-    return 0
-  fi
-
-  if [[ "$global" == "true" && ( "$path" == ./* || "$path" == ../* ) ]]; then
-    echo "$caller_name: -g contradicts explicitly relative path '$skill_path'" >&2
-    return 1
-  fi
-
-  if [[ "$path" == /* ]]; then
-    target_path="$path"
-  elif [[ "$global" == "true" ]]; then
-    target_path="$HOME/$path"
-  else
-    target_path="$PWD/$path"
-  fi
-  target_path="${target_path:a}"
-
-  _skills_split_create_skill_path "$target_path" "$caller_name" || return 1
-  provider_from_path="${reply[1]}"
-  base_dir="${reply[2]}"
-  skill_name="${reply[3]}"
-
-  if [[ -n "$provider" && "$provider_from_path" != "$provider" ]]; then
-    echo "$caller_name: -p $provider contradicts skill path '$skill_path' (resolved provider: $provider_from_path)" >&2
-    return 1
-  fi
-
-  if [[ "$global" == "true" ]]; then
-    if [[ "$provider_from_path" == "unknown" ]]; then
-      echo "$caller_name: -g requires a home provider path, got '$skill_path'" >&2
-      return 1
-    fi
-
-    _skills_provider_base_relative_path "$provider_from_path" "$HOME" || return 1
-    expected_base_dir="$HOME/$REPLY"
-    _skills_canonicalize_base_dir_for_create "$expected_base_dir"
-    expected_base_dir="$REPLY"
-
-    if [[ "${base_dir:a}" != "${expected_base_dir:a}" ]]; then
-      echo "$caller_name: -g contradicts skill path '$skill_path' (expected $expected_base_dir, got $base_dir)" >&2
-      return 1
-    fi
-  fi
-
-  if [[ -z "$skill_name" ]]; then
-    echo "$caller_name: missing skill name in '$skill_path'" >&2
-    return 1
-  fi
-
-  REPLY="$base_dir/$skill_name"
 }
 
 function _skills_prompt_required_value() {
@@ -1292,7 +924,7 @@ function _skills_resolve_skill_file_path() {
 
 function _skills_format_path_with_home_tilde() {
   emulate -L zsh
-  local path="$1" home_dir="$HOME"
+  local path="$1" home_dir="${HOME:A}"
 
   if [[ "$path" == "$home_dir" ]]; then
     REPLY='~'
@@ -1309,7 +941,7 @@ function _skills_format_path_with_home_tilde() {
 
 function _skills_format_path_relative_to_pwd() {
   emulate -L zsh
-  local target_path="$1" from_path="${2:-$PWD}"
+  local target_path="$1" from_path="${2:-${PWD:A}}"
   local -a from_segments target_segments relative_segments
   local -i common_length=0 index=0
 
@@ -1423,33 +1055,37 @@ function _skills_collect_non_binary_files_recursively() {
   done
 }
 
+function _skills_read_files_recursively() {
+  emulate -L zsh
+  local root="$1"
+
+  _skills_collect_non_binary_files_recursively "$root"
+  (( ${#reply} )) || {
+    echo "skr: no readable files in $root" >&2
+    return 1
+  }
+  bat "${reply[@]}"
+}
+
 function skr() {
   # Read a skill. Usage: skr [-g] [-p pi|claude|codex|gemini|antigravity] [skill-name] [skill-file-path]
   emulate -L zsh
-  local global="false" provider="" skill_name="" skill_file_path="" target=""
+  local global="false" provider="" skill_name="" skill_file_path=""
   local base_dir=""
 
-  _skills_parse_read_arguments "skr" "$@" || return 1
+  _skills_parse_access_arguments "skr" 2 "$@" || return 1
   global="${reply[1]}"
   provider="${reply[2]}"
-  skill_name="${reply[3]}"
-  skill_file_path="${reply[4]}"
+  skill_name="${reply[3]-}"
+  skill_file_path="${reply[4]-}"
 
   _skills_base_dir "$global" "$provider" || return 1
   base_dir="$REPLY"
 
   if [[ -z "$skill_name" ]]; then
-    [[ -z "$skill_file_path" ]] || {
-      echo "skr: unexpected file path '$skill_file_path' without a skill name" >&2
-      return 1
-    }
-    _skills_collect_non_binary_files_recursively "$base_dir"
-    (( ${#reply} )) && bat "${reply[@]}"
+    _skills_read_files_recursively "$base_dir"
     return
   fi
-
-  _skills_resolve_target "$skill_name" "$base_dir" "skr" || return 1
-  target="$REPLY"
 
   if [[ -n "$skill_file_path" ]]; then
     _skills_resolve_skill_file_path "$skill_name" "$base_dir" "$skill_file_path" "skr" || return 1
@@ -1457,28 +1093,49 @@ function skr() {
     return
   fi
 
+  _skills_resolve_target "$skill_name" "$base_dir" "skr" || return 1
   if [[ "$_skills_target_mode" == "file" ]]; then
-    bat "$target"
+    bat "$REPLY"
   else
-    _skills_collect_non_binary_files_recursively "$target"
-    (( ${#reply} )) && bat "${reply[@]}"
+    _skills_read_files_recursively "$REPLY"
   fi
 }
 
-function skcr() {
-  # Create a skill. Usage: skcr [-g] [-p pi|claude|codex|gemini|antigravity] NEW-SKILL-PATH
+function _skills_create_base_dir() {
+  # Base dir for a new skill: the one the sk* commands resolve, else the default dir for the scope.
   emulate -L zsh
-  local global="false" provider="" skill_path="" skill_dir="" skill_file=""
-  local skill_name_value="" skill_description_value="" skill_name_yaml="" skill_description_yaml=""
-  local editor_status=0
+  local global="$1" provider="$2" root_dir="$PWD"
 
-  _skills_parse_create_arguments "skcr" "$@" || return 1
+  _skills_base_dir "$global" "$provider" 2>/dev/null && return 0
+
+  [[ "$global" == "true" ]] && root_dir="$HOME"
+  _skills_provider_base_relative_path "$provider" "$root_dir" || return 1
+  REPLY="$root_dir/$REPLY"
+}
+
+function skcr() {
+  # Create a skill. Usage: skcr [-g] [-p pi|claude|codex|gemini|antigravity] SKILL-NAME
+  emulate -L zsh
+  local global="false" provider="" skill_name="" skill_dir="" skill_file=""
+  local skill_name_yaml="" skill_description_yaml=""
+
+  _skills_parse_access_arguments "skcr" 1 "$@" || return 1
   global="${reply[1]}"
   provider="${reply[2]}"
-  skill_path="${reply[3]}"
+  skill_name="${reply[3]-}"
 
-  _skills_resolve_create_skill_dir "$global" "$provider" "$skill_path" "skcr" || return 1
-  skill_dir="$REPLY"
+  if [[ -z "$skill_name" ]]; then
+    echo "Usage: skcr [-g] [-p pi|claude|codex|gemini|antigravity] SKILL-NAME" >&2
+    return 1
+  fi
+
+  if [[ "$skill_name" == */* ]]; then
+    echo "skcr: '$skill_name' is a path. Pass a skill name and pick the directory with -g and -p" >&2
+    return 1
+  fi
+
+  _skills_create_base_dir "$global" "$provider" || return 1
+  skill_dir="$REPLY/$skill_name"
   skill_file="$skill_dir/SKILL.md"
 
   if [[ -e "$skill_dir" || -L "$skill_dir" ]]; then
@@ -1486,35 +1143,22 @@ function skcr() {
     return 1
   fi
 
-  skill_name_value="${skill_dir:t}"
-  mkdir -p "$skill_dir" || return 1
-
-  _skills_prompt_required_value "skcr" "description" "Skill description:" || {
-    rmdir "$skill_dir" 2>/dev/null
-    return 1
-  }
-  skill_description_value="$REPLY"
-
-  _skills_yaml_double_quote "$skill_name_value"
-  skill_name_yaml="$REPLY"
-  _skills_yaml_double_quote "$skill_description_value"
+  _skills_prompt_required_value "skcr" "description" "Skill description:" || return 1
+  _skills_yaml_double_quote "$REPLY"
   skill_description_yaml="$REPLY"
+  _skills_yaml_double_quote "$skill_name"
+  skill_name_yaml="$REPLY"
 
+  mkdir -p "$skill_dir" || return 1
   {
     print -- "---"
     print -- "name: $skill_name_yaml"
     print -- "description: $skill_description_yaml"
     print -- "---"
     print
-  } > "$skill_file" || {
-    rm -f "$skill_file"
-    rmdir "$skill_dir" 2>/dev/null
-    return 1
-  }
+  } > "$skill_file" || return 1
 
   ${EDITOR:-vim} "$skill_file"
-  editor_status=$?
-  return $editor_status
 }
 
 function ske() {
@@ -1523,10 +1167,10 @@ function ske() {
   local global="false" provider="" skill_name=""
   local base_dir=""
 
-  _skills_parse_access_arguments "ske" "$@" || return 1
+  _skills_parse_access_arguments "ske" 1 "$@" || return 1
   global="${reply[1]}"
   provider="${reply[2]}"
-  skill_name="${reply[3]}"
+  skill_name="${reply[3]-}"
 
   _skills_base_dir "$global" "$provider" || return 1
   base_dir="$REPLY"
@@ -1546,10 +1190,10 @@ function skcd() {
   local global="false" provider="" skill_name=""
   local base_dir=""
 
-  _skills_parse_access_arguments "skcd" "$@" || return 1
+  _skills_parse_access_arguments "skcd" 1 "$@" || return 1
   global="${reply[1]}"
   provider="${reply[2]}"
-  skill_name="${reply[3]}"
+  skill_name="${reply[3]-}"
 
   _skills_base_dir "$global" "$provider" || return 1
   base_dir="$REPLY"
@@ -1573,10 +1217,10 @@ function skt() {
   local global="false" provider="" skill_name=""
   local base_dir=""
 
-  _skills_parse_access_arguments "skt" "$@" || return 1
+  _skills_parse_access_arguments "skt" 1 "$@" || return 1
   global="${reply[1]}"
   provider="${reply[2]}"
-  skill_name="${reply[3]}"
+  skill_name="${reply[3]-}"
 
   _skills_base_dir "$global" "$provider" || return 1
   base_dir="$REPLY"
@@ -1595,62 +1239,23 @@ function skt() {
 }
 
 function skl() {
-  # List all existing skill directories. Usage: skl [-g] [-p pi|claude|codex|gemini|antigravity]
-  # Lists local (project) skills if any exist; otherwise falls back to global.
+  # List the skill names skr/ske/skcd/skt accept, each as the path it resolves to.
+  # Usage: skl [-g] [-p pi|claude|codex|gemini|antigravity]
   emulate -L zsh
   local global="false" provider="" skill_name=""
+  local base_dir=""
 
-  _skills_parse_access_arguments "skl" "$@" || return 1
+  _skills_parse_access_arguments "skl" 0 "$@" || return 1
   global="${reply[1]}"
   provider="${reply[2]}"
-  skill_name="${reply[3]}"
 
-  if [[ -n "$skill_name" ]]; then
-    echo "skl: unexpected argument '$skill_name' (skl lists all skills, not a specific one)" >&2
-    return 1
-  fi
+  _skills_base_dir "$global" "$provider" || return 1
+  base_dir="$REPLY"
 
-  local -aU base_dirs
-  local -a providers_to_check
-  local p=""
-
-  if [[ -n "$provider" ]]; then
-    providers_to_check=("$provider")
-  else
-    providers_to_check=("" pi claude codex gemini antigravity)
-  fi
-
-  for p in "${providers_to_check[@]}"; do
-    _skills_base_dir "$global" "$p" 2>/dev/null && base_dirs+=("$REPLY")
-  done
-
-  # When not explicitly global: if no local base dirs found, try global as fallback.
-  if [[ "$global" != "true" ]] && (( ${#base_dirs} == 0 )); then
-    for p in "${providers_to_check[@]}"; do
-      _skills_base_dir "true" "$p" 2>/dev/null && base_dirs+=("$REPLY")
-    done
-  fi
-
-  base_dirs+=("$HOME/.agents/plugins"/*/skills(N/))
-
-  if (( ${#base_dirs} == 0 )); then
-    echo "skl: no skill directories found" >&2
-    return 1
-  fi
-
-  local base_dir="" scope="" display_base="" skill_name_entry=""
-  for base_dir in "${base_dirs[@]}"; do
-    if [[ "$base_dir" == "$HOME"/* ]]; then
-      scope="global"
-    else
-      scope="local"
-    fi
-    _skills_describe_base_dir_source "$base_dir" "$scope"
-    display_base="$REPLY"
-
-    _skills_collect_resolvable_skill_names "$base_dir" || continue
-    for skill_name_entry in "${reply[@]}"; do
-      echo "$display_base/$skill_name_entry"
-    done
+  _skills_collect_accessible_skill_names "$base_dir" || return 1
+  for skill_name in "${reply[@]}"; do
+    _skills_resolve_skill_dir "$skill_name" "$base_dir" "skl" || return 1
+    _skills_format_source_path_for_display "$REPLY"
+    echo "$REPLY"
   done
 }

@@ -198,7 +198,7 @@ _skills_complete_access_command() {
   if (( CURRENT > 2 )); then
     completed_arguments=("${(@)words[2,CURRENT-1]}")
     _skills_load_runtime_helpers || return 1
-    _skills_parse_access_arguments "_skills_complete_access_command" "${completed_arguments[@]}" 2>/dev/null || return 1
+    _skills_parse_access_arguments "_skills_complete_access_command" 1 "${completed_arguments[@]}" 2>/dev/null || return 1
     parsed_arguments=("${reply[@]}")
     global="${parsed_arguments[1]}"
     provider="${parsed_arguments[2]}"
@@ -229,13 +229,6 @@ _skills_complete_skill_file_paths() {
   compadd "$expl[@]" -a relative_file_paths
 }
 
-_skills_complete_create_command() {
-  _arguments -A '-*' -s -S \
-    '(-g)-g[Use user-level skills directory]' \
-    '-p[Provider for skills directory]:provider:_skills_complete_access_providers' \
-    '1:new skill path:_files -/' && return 0
-}
-
 _skills_complete_skr_command() {
   emulate -L zsh
   local current_word="${words[CURRENT]-}" previous_word="${words[CURRENT-1]-}"
@@ -255,7 +248,7 @@ _skills_complete_skr_command() {
   if (( CURRENT > 2 )); then
     completed_arguments=("${(@)words[2,CURRENT-1]}")
     _skills_load_runtime_helpers || return 1
-    _skills_parse_read_arguments "_skills_complete_skr_command" "${completed_arguments[@]}" 2>/dev/null || return 1
+    _skills_parse_access_arguments "_skills_complete_skr_command" 2 "${completed_arguments[@]}" 2>/dev/null || return 1
     parsed_arguments=("${reply[@]}")
     global="${parsed_arguments[1]}"
     provider="${parsed_arguments[2]}"
@@ -281,7 +274,7 @@ _skills_ske() {
 }
 
 _skills_skcr() {
-  _skills_complete_create_command
+  _skills_complete_flags_only
 }
 
 _skills_skcd() {
@@ -292,7 +285,7 @@ _skills_skt() {
   _skills_complete_access_command
 }
 
-_skills_skl() {
+_skills_complete_flags_only() {
   emulate -L zsh
   local current_word="${words[CURRENT]-}" previous_word="${words[CURRENT-1]-}"
 
@@ -305,6 +298,10 @@ _skills_skl() {
     _skills_complete_access_options
     return $?
   fi
+}
+
+_skills_skl() {
+  _skills_complete_flags_only
 }
 
 if [ "${funcstack[1]}" = "_skills" ]; then

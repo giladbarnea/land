@@ -126,7 +126,7 @@
   assert "$output" contains 'could not find local pi skills'
 }
 
-@test 'skcr from home with pi provider creates home pi agent skill and derives name from path' {
+@test 'skcr from home with pi provider creates home pi agent skill' {
   mkdir -p "$HOME/.pi/skills"
   cd "$HOME"
   export EDITOR=true
@@ -147,26 +147,50 @@
   [[ ! -e "$HOME/.pi/skills/newskill" ]] || fail "Expected skcr not to create legacy $HOME/.pi/skills/newskill."
 }
 
-@test 'skcr rejects provider flag that contradicts explicit provider path' {
+@test 'skcr rejects a path in place of a skill name' {
   export EDITOR=true
   function input() { print -r -- 'Should not be called' }
 
-  run skcr -p pi .agents/skills/newskill
+  run skcr .claude/skills/newskill
 
   assert $state equals 1
-  assert "$output" contains '-p pi contradicts skill path'
-  [[ ! -e .agents/skills/newskill ]] || fail "Expected contradictory skcr invocation not to create .agents/skills/newskill."
+  assert "$output" contains "skcr: '.claude/skills/newskill' is a path"
+  [[ ! -e .claude/skills/newskill ]] || fail "Expected skcr not to create .claude/skills/newskill from a path argument."
 }
 
-@test 'skcr rejects global flag with explicitly relative path' {
+@test 'skcr creates in the nearest skills directory' {
+  skills_test_make_skill .agents/skills/existing
+  mkdir -p nested
+  cd nested
+  export EDITOR=true
+  function input() { print -r -- 'A nested skill' }
+
+  run skcr newskill
+
+  assert $state equals 0
+  assert "$SKILLS_TEST_PROJECT/.agents/skills/newskill/SKILL.md" is_file
+  [[ ! -e .agents ]] || fail "Expected skcr to reuse the parent .agents/skills, not create nested/.agents."
+}
+
+@test 'skcr creates the provider default directory when none exists' {
+  export EDITOR=true
+  function input() { print -r -- 'A claude skill' }
+
+  run skcr -p claude newskill
+
+  assert $state equals 0
+  assert "$SKILLS_TEST_PROJECT/.claude/skills/newskill/SKILL.md" is_file
+}
+
+@test 'skcr refuses to overwrite an existing skill' {
+  skills_test_make_skill .agents/skills/existing
   export EDITOR=true
   function input() { print -r -- 'Should not be called' }
 
-  run skcr -g ./.agents/skills/newskill
+  run skcr existing
 
   assert $state equals 1
-  assert "$output" contains '-g contradicts explicitly relative path'
-  [[ ! -e .agents/skills/newskill ]] || fail "Expected contradictory global-relative skcr invocation not to create .agents/skills/newskill."
+  assert "$output" contains 'skcr: skill already exists'
 }
 
 @test 'skr falls back from global bare skills to a global plugin skill' {
@@ -240,7 +264,47 @@
   run skl -g
 
   assert $state equals 0
-  assert "$output" contains 'global: ~/.agents/plugins/interaction/skills/ai-to-ai'
+  assert "$output" contains '/.agents/plugins/interaction/skills/ai-to-ai'
+}
+
+@test 'skl lists local skills relative to the project without a scope label' {
+  skills_test_make_skill .agents/skills/local-skill
+
+  run skl
+
+  assert $state equals 0
+  assert "$output" same_as './.agents/skills/local-skill'
+}
+
+@test 'skl lists only the nearest skills directory plus global plugins' {
+  skills_test_make_skill .agents/skills/local-skill
+  skills_test_make_skill "$HOME/.pi/agent/skills/home-pi-skill"
+  skills_test_make_skill "$HOME/.agents/plugins/interaction/skills/ai-to-ai"
+
+  run skl
+
+  assert $state equals 0
+  assert "$output" contains './.agents/skills/local-skill'
+  assert "$output" contains '/.agents/plugins/interaction/skills/ai-to-ai'
+  [[ "$output" != *'home-pi-skill'* ]] || fail "Expected a local listing not to mix in home provider skills. Output: $output"
+}
+
+@test 'skl rejects a skill name' {
+  skills_test_make_skill .agents/skills/local-skill
+
+  run skl local-skill
+
+  assert $state equals 1
+  assert "$output" contains "skl: unexpected argument 'local-skill'"
+}
+
+@test 'skr rejects a third positional' {
+  skills_test_make_skill .agents/skills/local-skill
+
+  run skr local-skill SKILL.md extra
+
+  assert $state equals 1
+  assert "$output" contains "skr: unexpected argument 'extra'"
 }
 
 @test 'ske edits a global plugin skill through its bare name' {
