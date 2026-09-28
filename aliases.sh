@@ -69,7 +69,7 @@ alias c=command
 alias ca=cursor-agent
 
 #region claude aliases
-alias :claude='/usr/bin/env -u CLAUDE_CODE_OAUTH_TOKEN -u ANTHROPIC_API_KEY claude --dangerously-skip-permissions --no-chrome'
+alias :claude='/usr/bin/env -u CLAUDE_CODE_OAUTH_TOKEN -u ANTHROPIC_API_KEY claude --dangerously-skip-permissions'
 
 alias claudef=':claude --model=fable'
 
@@ -113,8 +113,8 @@ unset _claude_alias _claude_levels _claude_level_entry _claude_level _claude_lev
 alias codexd='/usr/bin/env -u OPENAI_API_KEY codex --yolo'
 compdef _codex codexd
 
-_gpt_56_models=(sol:s terra:t)
-_gpt_6_models=(astra:a luna:l)
+_gpt_56_models=()
+_gpt_6_models=(astra:a sol:s terra:t luna:l)
 _gpt_levels=(low:l medium:m high:h xhigh:x max:max)
 _codex_unique_levels=(ultra:u)
 

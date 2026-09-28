@@ -3,6 +3,7 @@
 @setup {
   set -e
   load ${LAND}/skills.sh
+  load ${LAND}/paths.sh
 
   export SKILLS_TEST_ROOT="$(mktemp -d)"
   export HOME="$SKILLS_TEST_ROOT/home"
@@ -116,14 +117,29 @@
   [[ -L .claude/skills/retired ]] || fail "Expected declined orphan removal to keep .claude/skills/retired."
 }
 
+@test 'project access stays at the git root and never includes global plugins' {
+  git init -q
+  skills_test_make_skill .agents/skills/local-skill
+  skills_test_make_skill "$HOME/.agents/skills/global-skill"
+  skills_test_make_skill "$HOME/.agents/plugins/interaction/skills/ai-to-ai"
+  mkdir -p nested/deeper
+  cd nested/deeper
+
+  run skl
+
+  assert $state equals 0
+  assert "$output" contains 'local-skill/SKILL.md'
+  [[ "$output" != *'global-skill'* && "$output" != *'interaction'* ]] || fail "Expected only project scope. Output: $output"
+}
+
 @test 'local pi access from home does not accept legacy home pi skills' {
   mkdir -p "$HOME/.pi/skills"
   cd "$HOME"
 
-  run _skills_base_dir false pi
+  run skl -p pi
 
   assert $state equals 1
-  assert "$output" contains 'could not find local pi skills'
+  assert "$output" contains 'no Git repository'
 }
 
 @test 'skcr from home with pi provider creates home pi agent skill' {
@@ -138,7 +154,7 @@
     esac
   }
 
-  run skcr -p pi newskill
+  run skcr -g -p pi newskill
 
   assert $state equals 0
   assert "$HOME/.pi/agent/skills/newskill/SKILL.md" is_file
@@ -158,7 +174,8 @@
   [[ ! -e .claude/skills/newskill ]] || fail "Expected skcr not to create .claude/skills/newskill from a path argument."
 }
 
-@test 'skcr creates in the nearest skills directory' {
+@test 'skcr creates at the git root from a nested directory' {
+  git init -q
   skills_test_make_skill .agents/skills/existing
   mkdir -p nested
   cd nested
@@ -172,7 +189,8 @@
   [[ ! -e .agents ]] || fail "Expected skcr to reuse the parent .agents/skills, not create nested/.agents."
 }
 
-@test 'skcr creates the provider default directory when none exists' {
+@test 'skcr creates the provider default directory at the git root when none exists' {
+  git init -q
   export EDITOR=true
   function input() { print -r -- 'A claude skill' }
 
@@ -183,6 +201,7 @@
 }
 
 @test 'skcr refuses to overwrite an existing skill' {
+  git init -q
   skills_test_make_skill .agents/skills/existing
   export EDITOR=true
   function input() { print -r -- 'Should not be called' }
@@ -191,6 +210,147 @@
 
   assert $state equals 1
   assert "$output" contains 'skcr: skill already exists'
+}
+
+@test 'skcd enters a global plugin root by its name' {
+  mkdir -p "$HOME/.agents/skills"
+  skills_test_make_skill "$HOME/.agents/plugins/interaction/skills/ai-to-ai"
+
+  skcd -g interaction || fail 'Expected skcd to accept a plugin name without a root SKILL.md.'
+
+  assert "${PWD:A}" same_as "${HOME:A}/.agents/plugins/interaction"
+}
+
+@test 'plugin access uses the root consistently across read edit and tree commands' {
+  mkdir -p "$HOME/.agents/skills"
+  local plugin_dir="${HOME:A}/.agents/plugins/interaction"
+  skills_test_make_skill "$plugin_dir/skills/ai-to-ai"
+  print -- 'plugin root body' > "$plugin_dir/roles.md"
+  print -- 'nested skill body' >> "$plugin_dir/skills/ai-to-ai/SKILL.md"
+  export BAT_PAGER=cat
+  export EDITOR=skills_test_print_editor_target
+  function skills_test_print_editor_target() { print -r -- "$1" }
+  function tree() { print -r -- "${argv[-1]}" }
+
+  run ske -g interaction
+  assert $state equals 0
+  assert "$output" same_as "$plugin_dir"
+
+  run skt -g interaction
+  assert $state equals 0
+  assert "$output" same_as "$plugin_dir"
+
+  run skr -g interaction
+  assert $state equals 0
+  assert "$output" contains 'plugin root body'
+  assert "$output" contains 'nested skill body'
+
+  run skr -g interaction roles.md
+  assert $state equals 0
+  assert "$output" contains 'plugin root body'
+  [[ "$output" != *'nested skill body'* ]] || fail 'Expected skr with a relative file path to read only that file.'
+}
+
+@test 'plugin roots belong only to their selected scope and provider' {
+  git init -q
+  skills_test_make_skill .agents/plugins/interaction/skills/local-skill
+  skills_test_make_skill "$HOME/.pi/agent/plugins/interaction/skills/pi-skill"
+  skills_test_make_skill "$HOME/.agents/plugins/interaction/skills/global-skill"
+
+  skcd interaction || fail 'Expected the project plugin root.'
+  assert "${PWD:A}" same_as "${SKILLS_TEST_PROJECT:A}/.agents/plugins/interaction"
+
+  cd "$SKILLS_TEST_PROJECT"
+  skcd -g -p pi interaction || fail 'Expected the Pi plugin root.'
+  assert "${PWD:A}" same_as "${HOME:A}/.pi/agent/plugins/interaction"
+}
+
+@test 'existing skills take precedence over plugin roots with the same name' {
+  skills_test_make_skill "$HOME/.agents/skills/interaction"
+  skills_test_make_skill "$HOME/.agents/plugins/interaction/skills/interaction"
+
+  skcd -g interaction || fail 'Expected the bare skill to resolve.'
+  assert "${PWD:A}" same_as "${HOME:A}/.agents/skills/interaction"
+
+  cd "$SKILLS_TEST_PROJECT"
+  rm -r "$HOME/.agents/skills/interaction"
+  skcd -g interaction || fail 'Expected the nested plugin skill to resolve.'
+  assert "${PWD:A}" same_as "${HOME:A}/.agents/plugins/interaction/skills/interaction"
+}
+
+@test 'plugin support does not accept ordinary directories without SKILL.md' {
+  mkdir -p "$HOME/.agents/skills/invalid"
+
+  run skcd -g invalid
+
+  assert $state equals 1
+  assert "$output" contains 'missing SKILL.md'
+}
+
+@test 'skr rejects relative files that escape the plugin root' {
+  mkdir -p "$HOME/.agents/skills"
+  skills_test_make_skill "$HOME/.agents/plugins/interaction/skills/ai-to-ai"
+  print -- 'outside the plugin' > "$HOME/.agents/plugins/outside.md"
+
+  run skr -g interaction ../outside.md
+
+  assert $state equals 1
+  assert "$output" contains 'resolves outside'
+}
+
+@test 'plugin names and relative files appear in completion' {
+  mkdir -p "$HOME/.agents/skills"
+  skills_test_make_skill "$HOME/.agents/plugins/interaction/skills/ai-to-ai"
+  print -- 'plugin root body' > "$HOME/.agents/plugins/interaction/roles.md"
+  function compdef() { : }
+  load ${LAND}/completions/_skills
+  _skills_runtime_helpers_loaded=1
+  function _description() { : }
+  function compadd() {
+    local array_name="${argv[-1]}"
+    print -rl -- "${(@P)array_name}"
+  }
+
+  run _skills_complete_access_skill_names true ''
+  assert $state equals 0
+  assert "$output" contains 'interaction'
+  assert "$output" contains 'ai-to-ai'
+
+  run _skills_complete_skill_file_paths true '' interaction
+  assert $state equals 0
+  assert "$output" contains 'roles.md'
+  assert "$output" contains 'skills/ai-to-ai/SKILL.md'
+
+  git init -q
+  skills_test_make_skill .agents/skills/project-skill
+  skills_test_make_skill .pi/plugins/pi-plugin/skills/pi-skill
+  local -a words=(skl '')
+  local -i CURRENT=2
+  run _skills
+  assert $state equals 0
+  assert "$output" contains 'project-skill'
+  [[ "$output" != *'interaction'* ]] || fail 'Expected local completion to exclude global plugins.'
+
+  words=(skl -p pi '')
+  CURRENT=4
+  run _skills
+  assert $state equals 0
+  assert "$output" contains 'pi-plugin'
+  assert "$output" contains 'pi-skill'
+  [[ "$output" != *'project-skill'* ]] || fail 'Expected provider completion not to mix .agents skills.'
+
+  words=(skl -g '')
+  CURRENT=3
+  run _skills
+  assert $state equals 0
+  assert "$output" contains 'interaction'
+  [[ "$output" != *'project-skill'* ]] || fail 'Expected global completion to exclude project content.'
+
+  words=(skr -g interaction '')
+  CURRENT=4
+  run _skills
+  assert $state equals 0
+  assert "$output" contains 'roles.md'
 }
 
 @test 'skr falls back from global bare skills to a global plugin skill' {
@@ -231,7 +391,26 @@
   assert "$output" contains 'linked plugin reference body'
 }
 
-@test 'skr falls back from local bare skills to a global plugin skill' {
+@test 'provider content follows registered skill links without importing source plugins' {
+  skills_test_make_skill "$HOME/.agents/skills/linked-skill"
+  skills_test_make_skill "$HOME/.agents/plugins/unregistered/skills/foreign-skill"
+  mkdir -p "$HOME/.pi/agent/skills"
+  ln -s "$HOME/.agents/skills/linked-skill" "$HOME/.pi/agent/skills/linked-skill"
+  print -- 'linked skill content' >> "$HOME/.agents/skills/linked-skill/SKILL.md"
+  export BAT_PAGER=cat
+
+  run skl -g -p pi
+  assert $state equals 0
+  assert "$output" contains 'linked-skill/SKILL.md'
+  [[ "$output" != *'unregistered'* ]] || fail 'Expected Pi scope not to import .agents plugins.'
+
+  run skr -g -p pi pi skills/linked-skill/SKILL.md
+  assert $state equals 0
+  assert "$output" contains 'linked skill content'
+}
+
+@test 'skr does not fall back from local scope to a global plugin skill' {
+  git init -q
   mkdir -p .agents/skills
   skills_test_make_skill "$HOME/.agents/plugins/interaction/skills/ai-to-ai"
   print -- 'global plugin skill body' >> "$HOME/.agents/plugins/interaction/skills/ai-to-ai/SKILL.md"
@@ -239,8 +418,9 @@
 
   run skr ai-to-ai
 
-  assert $state equals 0
-  assert "$output" contains 'global plugin skill body'
+  assert $state equals 1
+  assert "$output" contains 'not found'
+  [[ "$output" != *'global plugin skill body'* ]] || fail 'Expected global plugin content to remain outside local scope.'
 }
 
 @test 'skr prefers a bare skill over a global plugin skill with the same name' {
@@ -265,19 +445,24 @@
 
   assert $state equals 0
   assert "$output" contains '/.agents/plugins/interaction/skills/ai-to-ai'
+  [[ $'\n'"$output"$'\n' == *$'\n~/.agents/plugins/interaction\n'* ]] || fail "Expected skl to list the plugin root on its own line. Output: $output"
 }
 
-@test 'skl lists local skills relative to the project without a scope label' {
+@test 'skl lists local content recursively relative to the project without a scope label' {
+  git init -q
   skills_test_make_skill .agents/skills/local-skill
 
   run skl
 
   assert $state equals 0
-  assert "$output" same_as './.agents/skills/local-skill'
+  local expected_output=$'./.agents/skills\n./.agents/skills/local-skill\n./.agents/skills/local-skill/SKILL.md'
+  [[ "$output" == "$expected_output" ]] || fail "Expected recursive local paths. Output: $output"
 }
 
-@test 'skl lists only the nearest skills directory plus global plugins' {
+@test 'skl lists only project skills and project plugins' {
+  git init -q
   skills_test_make_skill .agents/skills/local-skill
+  skills_test_make_skill .agents/plugins/local-plugin/skills/nested-skill
   skills_test_make_skill "$HOME/.pi/agent/skills/home-pi-skill"
   skills_test_make_skill "$HOME/.agents/plugins/interaction/skills/ai-to-ai"
 
@@ -285,17 +470,23 @@
 
   assert $state equals 0
   assert "$output" contains './.agents/skills/local-skill'
-  assert "$output" contains '/.agents/plugins/interaction/skills/ai-to-ai'
-  [[ "$output" != *'home-pi-skill'* ]] || fail "Expected a local listing not to mix in home provider skills. Output: $output"
+  assert "$output" contains './.agents/plugins/local-plugin/skills/nested-skill/SKILL.md'
+  [[ "$output" != *'home-pi-skill'* && "$output" != *'interaction'* ]] || fail "Expected no global content. Output: $output"
 }
 
-@test 'skl rejects a skill name' {
+@test 'skl accepts a skill name and lists only its files recursively' {
+  git init -q
   skills_test_make_skill .agents/skills/local-skill
+  skills_test_make_skill .agents/skills/another-skill
+  mkdir -p .agents/skills/local-skill/references
+  print -- 'reference' > .agents/skills/local-skill/references/example.md
 
   run skl local-skill
 
-  assert $state equals 1
-  assert "$output" contains "skl: unexpected argument 'local-skill'"
+  assert $state equals 0
+  assert "$output" contains './.agents/skills/local-skill/SKILL.md'
+  assert "$output" contains './.agents/skills/local-skill/references/example.md'
+  [[ "$output" != *'another-skill'* ]] || fail "Expected only the named skill. Output: $output"
 }
 
 @test 'skr rejects a third positional' {
@@ -317,4 +508,232 @@
 
   assert $state equals 0
   assert "$output" contains '/.agents/plugins/interaction/skills/ai-to-ai/SKILL.md'
+}
+
+@test 'cwd shortcuts work for every access command and creation without leaking other scopes' {
+  local portable_root="$SKILLS_TEST_ROOT/portable/.claude" starting_dir="" access_command=""
+  skills_test_make_skill "$portable_root/skills/here"
+  skills_test_make_skill "$HOME/.agents/skills/elsewhere"
+  skills_test_make_skill "$HOME/.agents/plugins/interaction/skills/global-skill"
+  export BAT_PAGER=cat EDITOR=true
+  function input() { print -r -- 'Created here' }
+
+  for starting_dir in "$portable_root" "$portable_root/skills"; do
+    cd "$starting_dir"
+    for access_command in skr ske skcd skt skl; do
+      run "$access_command" here
+      [[ $state == 0 ]] || fail "Expected $access_command to use $starting_dir. Output: $output"
+      run "$access_command" elsewhere
+      [[ $state == 1 ]] || fail "Expected $access_command not to fall back to global scope. Output: $output"
+    done
+    run skl
+    assert $state equals 0
+    [[ "$output" != *'elsewhere'* && "$output" != *'interaction'* ]] || fail 'Expected the CWD shortcut to be the entire scope.'
+  done
+
+  run skcr created-in-skills
+  assert $state equals 0
+  assert "$portable_root/skills/created-in-skills/SKILL.md" is_file
+  cd "$portable_root"
+  run skcr created-in-parent
+  assert $state equals 0
+  assert "$portable_root/skills/created-in-parent/SKILL.md" is_file
+}
+
+@test 'either scope flag bypasses the cwd shortcut' {
+  git init -q
+  skills_test_make_skill .agents/skills/project-skill
+  skills_test_make_skill .claude/skills/cwd-skill
+  skills_test_make_skill "$HOME/.agents/skills/global-skill"
+  cd .claude
+
+  run skl -p agents
+  assert $state equals 0
+  assert "$output" contains 'project-skill/SKILL.md'
+  [[ "$output" != *'cwd-skill'* && "$output" != *'global-skill'* ]] || fail 'Expected -p to select the project provider.'
+
+  run skl -g
+  assert $state equals 0
+  assert "$output" contains 'global-skill/SKILL.md'
+  [[ "$output" != *'cwd-skill'* && "$output" != *'project-skill'* ]] || fail 'Expected -g to select global scope.'
+}
+
+@test 'all commands fail outside git without a cwd shortcut rather than using ancestor skills' {
+  local access_command=""
+  skills_test_make_skill "$HOME/skills/ancestor"
+  skills_test_make_skill "$HOME/.agents/skills/global-skill"
+  mkdir -p "$HOME/unversioned/nested"
+  cd "$HOME/unversioned/nested"
+  export EDITOR=true
+  function input() { fail 'No-scope creation must fail before prompting.' }
+
+  for access_command in skr ske skcd skt skl skcr; do
+    run "$access_command" missing
+    assert $state equals 1
+    assert "$output" contains 'no Git repository'
+  done
+  [[ ! -e .agents ]] || fail 'Expected skcr not to create a scope in CWD.'
+}
+
+@test 'project scope ignores ancestor plain skills and closer hidden provider directories' {
+  local repository_root="$HOME/projects/repository"
+  skills_test_make_skill "$HOME/skills/ancestor"
+  skills_test_make_skill "$HOME/.agents/skills/global-skill"
+  mkdir -p "$repository_root"
+  cd "$repository_root"
+  git init -q
+  skills_test_make_skill .agents/skills/project-skill
+  skills_test_make_skill nested/.agents/skills/closer-skill
+  mkdir -p nested/deeper
+  cd nested/deeper
+
+  run skl
+  assert $state equals 0
+  assert "$output" contains 'project-skill/SKILL.md'
+  [[ "$output" != *'ancestor'* && "$output" != *'global-skill'* && "$output" != *'closer-skill'* ]] || fail "Expected only the Git-root scope. Output: $output"
+}
+
+@test 'every provider supports project and global plugin-only scopes' {
+  git init -q
+  local provider="" global_parent=""
+  for provider in agents pi claude codex gemini antigravity; do
+    global_parent="$HOME/.$provider"
+    [[ "$provider" == pi ]] && global_parent="$HOME/.pi/agent"
+    skills_test_make_skill ".$provider/plugins/local-plugin/skills/$provider-local"
+    skills_test_make_skill "$global_parent/plugins/global-plugin/skills/$provider-global"
+  done
+
+  for provider in agents pi claude codex gemini antigravity; do
+    run skl -p "$provider"
+    assert $state equals 0
+    assert "$output" contains "$provider-local/SKILL.md"
+    [[ "$output" != *'-global'* ]] || fail "Expected no global content for $provider. Output: $output"
+
+    run skl -g global-plugin -p "$provider"
+    assert $state equals 0
+    assert "$output" contains "$provider-global/SKILL.md"
+    [[ "$output" != *'-local'* ]] || fail "Expected no project content for $provider. Output: $output"
+  done
+}
+
+@test 'no name and the selected provider name are equivalent for all optional-name commands' {
+  skills_test_make_skill "$HOME/.agents/skills/standalone"
+  skills_test_make_skill "$HOME/.agents/plugins/interaction/skills/nested-skill"
+  print -- 'provider credential marker' > "$HOME/.agents/credentials.json"
+  print -- 'plugin roles marker' > "$HOME/.agents/plugins/interaction/roles.md"
+  local access_command="" expected_output=""
+  export BAT_PAGER=cat EDITOR=skills_test_print_targets
+  function skills_test_print_targets() { print -rl -- "$@" }
+
+  for access_command in skr ske skcd skt skl; do
+    run "$access_command" -g
+    assert $state equals 0
+    expected_output="$output"
+    [[ "$output" != *'credentials.json'* && "$output" != *'provider credential marker'* ]] || fail "Expected $access_command to exclude provider configuration."
+
+    run "$access_command" -g agents
+    assert $state equals 0
+    [[ "$output" == "$expected_output" ]] || fail "Expected the selected provider name to keep the scope for $access_command."
+
+    run "$access_command" -g -p agents
+    assert $state equals 0
+    [[ "$output" == "$expected_output" ]] || fail "Expected explicit agents to keep the scope for $access_command."
+  done
+
+  skcd -g agents || fail 'Expected navigation to the provider root.'
+  assert "${PWD:A}" same_as "${HOME:A}/.agents"
+}
+
+@test 'provider names are not positional aliases for provider selection' {
+  skills_test_make_skill "$HOME/.claude/skills/claude-only"
+  skills_test_make_skill "$HOME/.agents/skills/claude"
+
+  run skl -g claude
+  assert $state equals 0
+  assert "$output" contains '/.agents/skills/claude/SKILL.md'
+  [[ "$output" != *'claude-only'* ]] || fail 'Expected a positional name not to select a provider.'
+
+  run skl -g -p claude claude
+  assert $state equals 0
+  assert "$output" contains '/.claude/skills/claude-only/SKILL.md'
+}
+
+@test 'tree and listing of a plugin include root files and hidden metadata' {
+  skills_test_make_skill "$HOME/.agents/plugins/interaction/skills/nested-skill"
+  mkdir -p "$HOME/.agents/plugins/interaction/.claude-plugin"
+  print -- 'roles' > "$HOME/.agents/plugins/interaction/roles.md"
+  print -- '{}' > "$HOME/.agents/plugins/interaction/.claude-plugin/plugin.json"
+  local access_command=""
+
+  for access_command in skl skt; do
+    run "$access_command" -g interaction
+    assert $state equals 0
+    assert "$output" contains 'roles.md'
+    assert "$output" contains 'plugin.json'
+    assert "$output" contains 'SKILL.md'
+  done
+}
+
+@test 'a linked provider skills directory does not redirect provider plugin discovery' {
+  skills_test_make_skill "$HOME/.agents/skills/shared-skill"
+  skills_test_make_skill "$HOME/.agents/plugins/foreign-plugin/skills/foreign-skill"
+  skills_test_make_skill "$HOME/.pi/agent/plugins/pi-plugin/skills/pi-skill"
+  ln -s "$HOME/.agents/skills" "$HOME/.pi/agent/skills"
+
+  run skl -g -p pi
+  assert $state equals 0
+  assert "$output" contains 'shared-skill/SKILL.md'
+  assert "$output" contains 'pi-skill/SKILL.md'
+  [[ "$output" != *'foreign-plugin'* ]] || fail 'Expected the skills link not to change the selected provider.'
+
+  run skl -g foreign-plugin -p pi
+  assert $state equals 1
+  assert "$output" contains 'not found'
+}
+
+@test 'creation flags select the scope even when cwd has skills' {
+  git init -q
+  mkdir -p nested/skills
+  cd nested
+  export EDITOR=true
+  function input() { print -r -- 'New skill' }
+
+  run skcr -p agents project-created
+  assert $state equals 0
+  assert "$SKILLS_TEST_PROJECT/.agents/skills/project-created/SKILL.md" is_file
+  [[ ! -e skills/project-created ]] || fail 'Expected -p to bypass CWD creation.'
+
+  run skcr -g -p codex global-created
+  assert $state equals 0
+  assert "$HOME/.codex/skills/global-created/SKILL.md" is_file
+  [[ ! -e .codex ]] || fail 'Expected -g not to create a project provider directory.'
+}
+
+@test 'invalid provider flags fail before scope selection or creation' {
+  mkdir -p skills
+  local access_command=""
+  for access_command in skr ske skcd skt skl skcr; do
+    run "$access_command" -p invalid new-skill
+    assert $state equals 1
+    assert "$output" contains 'unknown provider'
+
+    run "$access_command" new-skill -p
+    assert $state equals 1
+    assert "$output" contains "requires a provider"
+  done
+  [[ ! -e skills/new-skill ]] || fail 'Expected invalid flags not to create a skill.'
+}
+
+@test 'reader rejects provider configuration and escaped file links' {
+  skills_test_make_skill "$HOME/.agents/skills/example"
+  print -- 'private data' > "$HOME/.agents/credentials.json"
+  ln -s "$HOME/.agents/credentials.json" "$HOME/.agents/skills/example/escaped.md"
+
+  run skr -g agents credentials.json
+  assert $state equals 1
+  assert "$output" contains 'resolves outside'
+
+  run skr -g example escaped.md
+  assert $state equals 1
+  assert "$output" contains 'resolves outside'
 }

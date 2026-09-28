@@ -37,12 +37,8 @@ typeset -gi _skills_runtime_helpers_loaded=0
 
 _skills() {
   case "${words[1]}" in
-    (skr) _skills_skr; return $? ;;
-    (ske) _skills_ske; return $? ;;
-    (skcr) _skills_skcr; return $? ;;
-    (skcd) _skills_skcd; return $? ;;
-    (skt) _skills_skt; return $? ;;
-    (skl) _skills_skl; return $? ;;
+    (skr|ske|skcd|skt|skl) _skills_complete_access_command; return $? ;;
+    (skcr) _skills_complete_flags_only; return $? ;;
     (skills|skills.sh) ;;
     (*) return 1 ;;
   esac
@@ -136,8 +132,8 @@ _skills_complete_access_options() {
 
   option_names=(-g -p)
   option_displays=(
-    '-g -- Use user-level skills directory'
-    '-p -- Provider for skills directory'
+    '-g -- Use only global skills and plugins'
+    '-p -- Select provider (default: agents)'
   )
 
   _description options expl option
@@ -146,6 +142,7 @@ _skills_complete_access_options() {
 
 _skills_complete_access_providers() {
   local -a provider_specs=(
+    'agents:Shared skills and plugins (default)'
     'pi:Pi skills directory'
     'claude:Claude skills directory'
     'codex:Codex skills directory'
@@ -158,34 +155,53 @@ _skills_complete_access_providers() {
 
 _skills_complete_access_skill_names() {
   emulate -L zsh
-  local global="$1" provider="$2" base_dir="" resolution_scope="local" source_label=""
-  local -a skill_names
+  local is_global="$1" provider="$2" source_label=""
+  local -a scope skill_names
   local expl
 
-  [[ "$global" == "true" ]] && resolution_scope="global"
-
   _skills_load_runtime_helpers || return 1
-  _skills_base_dir "$global" "$provider" 2>/dev/null || return 1
-  base_dir="$REPLY"
+  _skills_resolve_scope "$is_global" "$provider" 2>/dev/null || return 1
+  scope=("${reply[@]}")
+  _skills_resolve_target '' "${scope[@]}" completion 2>/dev/null || return 1
 
-  _skills_collect_accessible_skill_names "$base_dir" || return 1
+  _skills_collect_accessible_skill_names "${scope[2]}" "${scope[3]}" "${scope[4]}"
   skill_names=("${reply[@]}")
-  (( ${#skill_names[@]} )) || return 1
-
-  _skills_describe_base_dir_source "$base_dir" "$resolution_scope"
+  _skills_format_source_path_for_display "${scope[1]:A}"
   source_label="$REPLY"
 
-  _description -V "skills-${base_dir//[^[:alnum:]]/_}" expl "skill name from ${source_label} or global plugins"
+  _description -V "skills-${scope[1]//[^[:alnum:]]/_}" expl "name from ${source_label}"
   compadd "$expl[@]" -a skill_names
+}
+
+_skills_complete_skill_file_paths() {
+  emulate -L zsh
+  local is_global="$1" provider="$2" skill_name="$3" target_root="" file_path=""
+  local -a relative_file_paths
+  local expl
+
+  _skills_load_runtime_helpers || return 1
+  _skills_resolve_scope "$is_global" "$provider" 2>/dev/null || return 1
+  _skills_resolve_target "$skill_name" "${reply[@]}" completion 2>/dev/null || return 1
+  target_root="${reply[2]}"
+
+  _skills_collect_paths "${reply[@]:2}"
+  for file_path in "${reply[@]}"; do
+    [[ -f "$file_path" ]] && relative_file_paths+=("${file_path#"$target_root"/}")
+  done
+  (( ${#relative_file_paths} )) || return 1
+
+  _description files expl 'skill or plugin file'
+  compadd "$expl[@]" -a relative_file_paths
 }
 
 _skills_complete_access_command() {
   emulate -L zsh
   local current_word="${words[CURRENT]-}" previous_word="${words[CURRENT-1]-}"
-  local global="false" provider="" skill_name=""
-  local -a completed_arguments parsed_arguments
+  local is_global="false" provider="" skill_name="" relative_file_path=""
+  local -i max_positionals=1
+  local -a completed_arguments
 
-  if [[ "$previous_word" == "-p" ]]; then
+  if [[ "$previous_word" == -p ]]; then
     _skills_complete_access_providers
     return $?
   fi
@@ -195,94 +211,22 @@ _skills_complete_access_command() {
     return $?
   fi
 
-  if (( CURRENT > 2 )); then
-    completed_arguments=("${(@)words[2,CURRENT-1]}")
-    _skills_load_runtime_helpers || return 1
-    _skills_parse_access_arguments "_skills_complete_access_command" 1 "${completed_arguments[@]}" 2>/dev/null || return 1
-    parsed_arguments=("${reply[@]}")
-    global="${parsed_arguments[1]}"
-    provider="${parsed_arguments[2]}"
-    skill_name="${parsed_arguments[3]}"
-  fi
-
-  [[ -z "$skill_name" ]] || return 1
-  _skills_complete_access_skill_names "$global" "$provider"
-}
-
-_skills_complete_skill_file_paths() {
-  emulate -L zsh
-  local global="$1" provider="$2" skill_name="$3" base_dir="" skill_dir=""
-  local -a relative_file_paths
-  local expl
-
+  [[ "${words[1]}" == skr ]] && max_positionals=2
+  (( CURRENT > 2 )) && completed_arguments=("${(@)words[2,CURRENT-1]}")
   _skills_load_runtime_helpers || return 1
-  _skills_base_dir "$global" "$provider" 2>/dev/null || return 1
-  base_dir="$REPLY"
-
-  _skills_resolve_skill_dir "$skill_name" "$base_dir" "_skills_complete_skill_file_paths" >/dev/null 2>&1 || return 1
-  skill_dir="$REPLY"
-
-  relative_file_paths=("${(@f)$(builtin cd "$skill_dir" && print -rl -- **/*(.N))}")
-  (( ${#relative_file_paths[@]} )) || return 1
-
-  _description files expl 'skill file'
-  compadd "$expl[@]" -a relative_file_paths
-}
-
-_skills_complete_skr_command() {
-  emulate -L zsh
-  local current_word="${words[CURRENT]-}" previous_word="${words[CURRENT-1]-}"
-  local global="false" provider="" skill_name="" skill_file_path=""
-  local -a completed_arguments parsed_arguments
-
-  if [[ "$previous_word" == "-p" ]]; then
-    _skills_complete_access_providers
-    return $?
-  fi
-
-  if [[ "$current_word" == -* ]]; then
-    _skills_complete_access_options
-    return $?
-  fi
-
-  if (( CURRENT > 2 )); then
-    completed_arguments=("${(@)words[2,CURRENT-1]}")
-    _skills_load_runtime_helpers || return 1
-    _skills_parse_access_arguments "_skills_complete_skr_command" 2 "${completed_arguments[@]}" 2>/dev/null || return 1
-    parsed_arguments=("${reply[@]}")
-    global="${parsed_arguments[1]}"
-    provider="${parsed_arguments[2]}"
-    skill_name="${parsed_arguments[3]}"
-    skill_file_path="${parsed_arguments[4]}"
-  fi
+  _skills_parse_access_arguments completion "$max_positionals" "${completed_arguments[@]}" 2>/dev/null || return 1
+  is_global="${reply[1]}"
+  provider="${reply[2]}"
+  skill_name="${reply[3]-}"
+  relative_file_path="${reply[4]-}"
 
   if [[ -z "$skill_name" ]]; then
-    _skills_complete_access_skill_names "$global" "$provider"
+    _skills_complete_access_skill_names "$is_global" "$provider"
     return $?
   fi
 
-  [[ -z "$skill_file_path" ]] || return 1
-  _skills_complete_skill_file_paths "$global" "$provider" "$skill_name"
-}
-
-_skills_skr() {
-  _skills_complete_skr_command
-}
-
-_skills_ske() {
-  _skills_complete_access_command
-}
-
-_skills_skcr() {
-  _skills_complete_flags_only
-}
-
-_skills_skcd() {
-  _skills_complete_access_command
-}
-
-_skills_skt() {
-  _skills_complete_access_command
+  [[ "${words[1]}" == skr && -z "$relative_file_path" ]] || return 1
+  _skills_complete_skill_file_paths "$is_global" "$provider" "$skill_name"
 }
 
 _skills_complete_flags_only() {
@@ -298,10 +242,6 @@ _skills_complete_flags_only() {
     _skills_complete_access_options
     return $?
   fi
-}
-
-_skills_skl() {
-  _skills_complete_flags_only
 }
 
 if [ "${funcstack[1]}" = "_skills" ]; then
