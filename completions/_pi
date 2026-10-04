@@ -1,5 +1,7 @@
 #compdef pi
 
+source "${${(%):-%x}:A:h}/_pi_skill_completion"
+
 _pi() {
   local curcontext="$curcontext" state line
   local -i ret=1
@@ -29,7 +31,7 @@ _pi() {
     '--thinking[Set thinking level]:level:(off minimal low medium high xhigh max)'
     '*'{-e,--extension}'[Load an extension file]:path:_files'
     '(-ne --no-extensions)'{-ne,--no-extensions}'[Disable extension discovery (explicit -e paths still work)]'
-    '*--skill[Load a skill file or directory]:path:_files'
+    '*--skill[Load a skill file or directory]:path:_pi_skill_paths'
     '(-ns --no-skills)'{-ns,--no-skills}'[Disable skills discovery and loading]'
     '*--prompt-template[Load a prompt template file or directory]:path:_files'
     '(-np --no-prompt-templates)'{-np,--no-prompt-templates}'[Disable prompt template discovery and loading]'
@@ -291,6 +293,24 @@ _pi_package_source() {
       _message 'extension source'
       ;;
   esac
+}
+
+# --skill takes a path. A bare word completes skill names like `skl -p pi` and inserts their paths.
+_pi_skill_paths() {
+  local is_global
+  local -i ret=1
+
+  case $PREFIX in
+    (*/*|~*|.*)
+      _files
+      return
+      ;;
+  esac
+
+  for is_global in false true; do
+    _pi_skill_completion --paths "$is_global" pi && ret=0
+  done
+  return $ret
 }
 
 _pi_session_reference() {

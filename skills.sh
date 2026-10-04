@@ -856,8 +856,8 @@ function _skills_collect_accessible_skill_names() {
   local -a skill_files
   local -aU names=("$provider")
 
-  skill_files=("$skills_dir"/*/SKILL.md(ND.))
-  [[ -n "$plugins_dir" ]] && skill_files+=("$plugins_dir"/*/skills/*/SKILL.md(ND.))
+  skill_files=("$skills_dir"/*/SKILL.md(ND-.))
+  [[ -n "$plugins_dir" ]] && skill_files+=("$plugins_dir"/*/skills/*/SKILL.md(ND-.))
   for skill_file in "${skill_files[@]}"; do
     names+=("${skill_file:h:t}")
   done

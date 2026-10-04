@@ -33,7 +33,7 @@ typeset -ga _skills_git_hook_values=(
   pre-push
 )
 
-typeset -gi _skills_runtime_helpers_loaded=0
+source "${${(%):-%x}:A:h}/_pi_skill_completion"
 
 _skills() {
   case "${words[1]}" in
@@ -112,20 +112,6 @@ _skills_git_hook_names() {
   _values -s , 'git hook' "${_skills_git_hook_values[@]}"
 }
 
-_skills_load_runtime_helpers() {
-  emulate -L zsh
-  (( _skills_runtime_helpers_loaded )) && return 0
-
-  local completion_file="${functions_source[_skills]-}" skills_file=""
-  [[ -n "$completion_file" ]] || return 1
-
-  skills_file="${completion_file:A:h:h}/skills.sh"
-  [[ -f "$skills_file" ]] || return 1
-
-  source "$skills_file" || return 1
-  _skills_runtime_helpers_loaded=1
-}
-
 _skills_complete_access_options() {
   local expl
   local -a option_names option_displays
@@ -151,26 +137,6 @@ _skills_complete_access_providers() {
   )
 
   _describe -t providers 'provider' provider_specs
-}
-
-_skills_complete_access_skill_names() {
-  emulate -L zsh
-  local is_global="$1" provider="$2" source_label=""
-  local -a scope skill_names
-  local expl
-
-  _skills_load_runtime_helpers || return 1
-  _skills_resolve_scope "$is_global" "$provider" 2>/dev/null || return 1
-  scope=("${reply[@]}")
-  _skills_resolve_target '' "${scope[@]}" completion 2>/dev/null || return 1
-
-  _skills_collect_accessible_skill_names "${scope[2]}" "${scope[3]}" "${scope[4]}"
-  skill_names=("${reply[@]}")
-  _skills_format_source_path_for_display "${scope[1]:A}"
-  source_label="$REPLY"
-
-  _description -V "skills-${scope[1]//[^[:alnum:]]/_}" expl "name from ${source_label}"
-  compadd "$expl[@]" -a skill_names
 }
 
 _skills_complete_skill_file_paths() {
@@ -221,7 +187,7 @@ _skills_complete_access_command() {
   relative_file_path="${reply[4]-}"
 
   if [[ -z "$skill_name" ]]; then
-    _skills_complete_access_skill_names "$is_global" "$provider"
+    _pi_skill_completion "$is_global" "$provider"
     return $?
   fi
 

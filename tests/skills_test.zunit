@@ -311,7 +311,7 @@
     print -rl -- "${(@P)array_name}"
   }
 
-  run _skills_complete_access_skill_names true ''
+  run _pi_skill_completion true ''
   assert $state equals 0
   assert "$output" contains 'interaction'
   assert "$output" contains 'ai-to-ai'

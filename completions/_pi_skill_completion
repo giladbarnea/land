@@ -1,0 +1,54 @@
+# Skill completion shared by `_skills` and `_pi`. Sourced, not autoloaded.
+# It runs the real skills.sh scope helpers at completion time instead of reimplementing them.
+
+typeset -gi _skills_runtime_helpers_loaded=0
+
+_skills_load_runtime_helpers() {
+  emulate -L zsh
+  (( _skills_runtime_helpers_loaded )) && return 0
+
+  local completion_file="${functions_source[_skills_load_runtime_helpers]-}" skills_file=""
+  [[ -n "$completion_file" ]] || return 1
+
+  skills_file="${completion_file:A:h:h}/skills.sh"
+  [[ -f "$skills_file" ]] || return 1
+
+  source "$skills_file" || return 1
+  _skills_runtime_helpers_loaded=1
+}
+
+# # _pi_skill_completion [--paths] IS_GLOBAL PROVIDER
+# Completes the skill, plugin, and provider names of one skills.sh scope.
+# --paths shows the names but inserts their directories, for options that take a path, like `pi --skill`.
+_pi_skill_completion() {
+  emulate -L zsh
+  local insert_paths=false
+  [[ "$1" == --paths ]] && { insert_paths=true; shift; }
+  local is_global="$1" provider="$2" source_label="" skill_name=""
+  local -a scope skill_names skill_paths
+  local expl
+
+  _skills_load_runtime_helpers || return 1
+  _skills_resolve_scope "$is_global" "$provider" 2>/dev/null || return 1
+  scope=("${reply[@]}")
+  _skills_resolve_target '' "${scope[@]}" completion 2>/dev/null || return 1
+
+  _skills_collect_accessible_skill_names "${scope[2]}" "${scope[3]}" "${scope[4]}"
+  skill_names=("${reply[@]}")
+  _skills_format_source_path_for_display "${scope[1]:A}"
+  source_label="$REPLY"
+  _description -V "skills-${scope[1]//[^[:alnum:]]/_}" expl "name from ${source_label}"
+
+  if [[ "$insert_paths" == false ]]; then
+    compadd "$expl[@]" -a skill_names
+    return
+  fi
+
+  # -U skips matching against the typed word, so filter the names here.
+  skill_names=(${(M)skill_names:#${(b)PREFIX}*})
+  for skill_name in "${skill_names[@]}"; do
+    _skills_resolve_target "$skill_name" "${scope[@]}" completion 2>/dev/null || return 1
+    skill_paths+=("${(D)reply[2]:A}")
+  done
+  compadd "$expl[@]" -U -Q -d skill_names -a skill_paths
+}
