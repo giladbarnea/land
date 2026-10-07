@@ -24,7 +24,9 @@ function is_sudo() {
 }
 
 # # is_piped
-# Whether stdin is available.
+# Returns 0 when stdin is not connected to a terminal (TTY).
+# Input comes from a pipe, file, or another non-terminal source, not directly from your keyboard.
+# This does not check whether input data is ready.
 # This situation is piped:
 # echo foo | is_piped && echo piped
 function is_piped() {
@@ -33,7 +35,9 @@ function is_piped() {
 }
 
 # # is_piping
-# Whether stdout is available.
+# Returns 0 when stdout is not connected to a terminal (TTY).
+# Output goes to a pipe, file, or another program, not directly to your terminal application.
+# Another program may still display that output on your screen.
 # This situation is piping:
 # { is_piping && echo piping ; } | cat
 function is_piping(){

@@ -409,7 +409,7 @@ function loadnvm() {
 #region ------------[ ls / eza ]------------
 
 unalias ls 2>/dev/null
-if command -v eza &>/dev/null; then
+if is_human && command -v eza &>/dev/null; then
 	# shellcheck disable=SC2032
 	function ls() {
 		local targetdir
