@@ -71,34 +71,23 @@ alias ca=cursor-agent
 #region claude aliases
 alias :claude='/usr/bin/env -u CLAUDE_CODE_OAUTH_TOKEN -u ANTHROPIC_API_KEY claude --dangerously-skip-permissions'
 
-alias claudef=':claude --model=fable'
-
-alias claudeo=':claude --model=opus'
-
-alias claudes=':claude --model=sonnet'
-
-alias claudeh=':claude --model=haiku'
-
 alias claudehappy='() { if [[ -f ~/.claude-code-personal-1y-oauth-token ]]; then happy --claude-env CLAUDE_CODE_OAUTH_TOKEN="$(<~/.claude-code-personal-1y-oauth-token)" --yolo "$@"; else echo "[claudehappy] error: ~/.claude-code-personal-1y-oauth-token does not exist" ; return 1; fi ; }'
 
-alias claudefn='claudef --no-session-persistence -p'
-
-alias claudeon='claudeo --no-session-persistence -p'
-
-alias claudesn='claudes --no-session-persistence -p'
-
-alias claudehn='claudeh --no-session-persistence -p'
-
+_claude_models=(fable:f opus:o sonnet:s haiku:h)
+_claude_extended_models=(fable opus sonnet)
 # Suffixes: low=l, medium=m, high=h, xhigh=x, max=max (medium stays `m` so `max` is unambiguous).
 _claude_standard_levels=(low:l medium:m high:h)
 _claude_extended_levels=(${_claude_standard_levels[@]} xhigh:x max:max)
 
-for _claude_alias in ${(k)aliases[(I)claude*]}; do
-    [[ "${aliases[$_claude_alias]}" != ":claude "* ]] && continue
+# claudeo (Opus), claudeon (Opus non-interactive), claudeox (Opus xhigh), claudeonx (Opus non-interactive xhigh), etc.
+for _claude_model_entry in "${_claude_models[@]}"; do
+    _claude_model="${_claude_model_entry%%:*}"
+    _claude_model_suffix="${_claude_model_entry##*:}"
+    _claude_alias="claude${_claude_model_suffix}"
+    alias "${_claude_alias}"=":claude --model=${_claude_model}"
+    alias "${_claude_alias}n"="${_claude_alias} --no-session-persistence -p"
     _claude_levels=(${_claude_standard_levels[@]})
-    if [[ "${aliases[$_claude_alias]}" == *--model=opus* || "${aliases[$_claude_alias]}" == *--model=fable* || "${aliases[$_claude_alias]}" == *--model=sonnet* ]]; then
-        _claude_levels=(${_claude_extended_levels[@]})
-    fi
+    (( ${_claude_extended_models[(Ie)$_claude_model]} )) && _claude_levels=(${_claude_extended_levels[@]})
     for _claude_level_entry in "${_claude_levels[@]}"; do
         _claude_level="${_claude_level_entry%%:*}"
         _claude_level_suffix="${_claude_level_entry##*:}"
@@ -106,20 +95,19 @@ for _claude_alias in ${(k)aliases[(I)claude*]}; do
         alias "${_claude_alias}n${_claude_level_suffix}"="${_claude_alias}n --effort ${_claude_level}"
     done
 done
-unset _claude_alias _claude_levels _claude_level_entry _claude_level _claude_level_suffix
+unset _claude_models _claude_extended_models _claude_model_entry _claude_model _claude_model_suffix _claude_alias _claude_levels _claude_level_entry _claude_level _claude_level_suffix
 #endregion claude aliases
 
 #region codex aliases
 alias codexd='/usr/bin/env -u OPENAI_API_KEY codex --yolo'
 compdef _codex codexd
 
-_gpt_56_models=()
-_gpt_6_models=(astra:a sol:s terra:t luna:l)
+_gpt_models=(gpt-6-astra:a gpt-6.1-sol:s gpt-5.6-terra:t gpt-6-luna:l)
 _gpt_levels=(low:l medium:m high:h xhigh:x max:max)
 _codex_unique_levels=(ultra:u)
 
 # codexll (Luna low), codextm (Terra medium), codexsx (Sol xhigh), codexau (Astra ultra), etc.
-for _codex_model_entry in "${_gpt_56_models[@]/#/gpt-5.6-}" "${_gpt_6_models[@]/#/gpt-6-}"; do
+for _codex_model_entry in "${_gpt_models[@]}"; do
     _codex_model="${_codex_model_entry%%:*}"
     _codex_model_suffix="${_codex_model_entry##*:}"
     _codex_alias="codex${_codex_model_suffix}"
@@ -136,7 +124,7 @@ unset _codex_model_entry _codex_model _codex_model_suffix _codex_alias _codex_le
 #region pi aliases
 
 # picl, pict, pics, pica, ...
-for _pi_model_entry in "${_gpt_56_models[@]/#/gpt-5.6-}" "${_gpt_6_models[@]/#/gpt-6-}"; do
+for _pi_model_entry in "${_gpt_models[@]}"; do
     _pi_model="${_pi_model_entry%%:*}"
     _pi_model_suffix="${_pi_model_entry##*:}"
     alias "pic${_pi_model_suffix}"="pi --model openai-codex/${_pi_model}"
@@ -148,7 +136,7 @@ _pi_nono_arguments=( ${_pi_no_arguments[@]} --no-tools --no-context-files)
 
 for _pi_alias in ${(k)aliases[(I)pi*]}; do
     [[ "${aliases[$_pi_alias]}" != "pi "* ]] && continue
-    if [[ "${aliases[$_pi_alias]}" == *openai-codex/gpt-(5.6|6)-* ]]; then
+    if [[ "${aliases[$_pi_alias]}" == *openai-codex/gpt-* ]]; then
         _pi_levels=(${_gpt_levels[@]})
     elif [[ "${aliases[$_pi_alias]}" == *claude-fable-* || "${aliases[$_pi_alias]}" == *claude-opus-* || "${aliases[$_pi_alias]}" == *claude-sonnet-* ]]; then
         _pi_levels=(${_claude_extended_levels[@]})
@@ -167,7 +155,7 @@ for _pi_alias in ${(k)aliases[(I)pi*]}; do
         alias "${_pi_alias}${_pi_level_suffix}-nono"="${_pi_alias}${_pi_level_suffix} ${(j: :)_pi_nono_arguments}"
     done
 done
-unset _pi_alias _pi_levels _pi_level_entry _pi_level _pi_level_suffix _pi_no_arguments _pi_nono_arguments _claude_standard_levels _claude_extended_levels _gpt_56_models _gpt_6_models _gpt_levels
+unset _pi_alias _pi_levels _pi_level_entry _pi_level _pi_level_suffix _pi_no_arguments _pi_nono_arguments _claude_standard_levels _claude_extended_levels _gpt_models _gpt_levels
 #endregion pi aliases
 
 # # pi [opts...]
