@@ -8,8 +8,8 @@ _pi() {
   typeset -A opt_args
 
   local -a root_options=(
-    '--provider[Provider name (default: google)]:name:_pi_providers'
-    '--model[Model pattern or ID]:pattern:_pi_model_ids'
+    '--provider[Provider to search for --model (requires --model)]:name:_pi_providers'
+    '--model[Model pattern or ID (supports provider/id and optional \:<thinking>)]:pattern:_pi_model_ids'
     '--api-key[API key]:key:_default'
     '--system-prompt[System prompt]:text:_default'
     '*--append-system-prompt[Append text or file contents to the system prompt]:text:_default'
@@ -26,11 +26,12 @@ _pi() {
     '--models[Comma-separated model patterns for Ctrl+P cycling]:patterns:_pi_models_patterns'
     '(-nt --no-tools)'{-nt,--no-tools}'[Disable all tools by default (built-in and extension)]'
     '(-nbt --no-builtin-tools)'{-nbt,--no-builtin-tools}'[Disable built-in tools by default but keep extension/custom tools enabled]'
-    '(-t --tools)'{-t,--tools}'[Comma-separated allowlist of tool names to enable]:tools:_pi_tools'
-    '(-xt --exclude-tools)'{-xt,--exclude-tools}'[Comma-separated denylist of tool names to disable]:tools:_pi_tools'
+    '(-t --tools)'{-t,--tools}'[Comma-separated allowlist of tool names or patterns to enable]:tools:_pi_tools'
+    '(-xt --exclude-tools)'{-xt,--exclude-tools}'[Comma-separated denylist of tool names or patterns to disable]:tools:_pi_tools'
     '--thinking[Set thinking level]:level:(off minimal low medium high xhigh max)'
-    '*'{-e,--extension}'[Load an extension file]:path:_files'
-    '(-ne --no-extensions)'{-ne,--no-extensions}'[Disable extension discovery (explicit -e paths still work)]'
+    '*'{-e,--extension}'[Load an extension file or builtin\:<name>]:path:_files'
+    '(-ne --no-extensions)'{-ne,--no-extensions}'[Disable extension discovery and built-in extensions (explicit -e paths still work)]'
+    '--no-mcp[Disable built-in MCP support: no servers connect and no MCP tools]'
     '*--skill[Load a skill file or directory]:path:_pi_skill_paths'
     '(-ns --no-skills)'{-ns,--no-skills}'[Disable skills discovery and loading]'
     '*--prompt-template[Load a prompt template file or directory]:path:_files'
@@ -52,7 +53,6 @@ _pi() {
 
   # Registered by installed extensions, so this list tracks the local install.
   local -a extension_options=(
-    '--subagents-workflow-file=[Run a workflow script at startup]:path:_files'
     '--fff-mode[FFF mode]:mode:(tools-and-ui tools-only override)'
     '--fff-frecency-db[Path to the frecency database]:path:_files'
     '--fff-history-db[Path to the query history database]:path:_files'
@@ -60,7 +60,6 @@ _pi() {
     '--fff-enable-home-scan[Index the home dir when launched from $HOME]'
     '--fff-follow-symlinks[Index through directory symlinks]'
     '--fff-warn-home-scan[Warn when indexing $HOME]'
-    '--mcp-config[Path to MCP config file]:path:_files'
     '--plan[Start in plan mode]'
   )
 
@@ -72,6 +71,7 @@ _pi() {
     'list:List installed extensions from settings'
     'config:Open TUI to enable or disable package resources'
     'auth:Print credentials or check provider readiness'
+    'mcp:Check MCP servers, sign in to or out of OAuth servers'
   )
 
   _arguments -A '-*' -C -s -S \
@@ -113,6 +113,10 @@ _pi() {
           ;;
         (auth)
           _pi:auth
+          ret=$?
+          ;;
+        (mcp)
+          _pi:mcp
           ret=$?
           ;;
         (*)
@@ -255,6 +259,82 @@ _pi:auth() {
   return $ret
 }
 
+_pi:mcp() {
+  local curcontext="$curcontext" state line
+  local -i ret=1
+
+  local -a mcp_commands=(
+    'add:Add or replace a server in mcp.json'
+    'remove:Remove a server from mcp.json'
+    'list:Show state, tools, and errors'
+    'login:Sign in through the browser'
+    'logout:Delete the stored OAuth credentials'
+  )
+
+  local -a local_options=(
+    '(-l --local)'{-l,--local}'[Use .pi/mcp.json in the current project instead of the global file]'
+  )
+
+  _arguments -C -s -S \
+    '(-h --help)'{-h,--help}'[Show help for mcp]' \
+    '1: :->mcp_command' \
+    '*:: :->mcp_rest' && ret=0
+
+  case $state in
+    (mcp_command)
+      _describe -t mcp-commands 'pi mcp commands' mcp_commands && ret=0
+      ;;
+    (mcp_rest)
+      case $line[1] in
+        (add)
+          # `pi mcp add <server> [options] -- <command> [args...]`: words after `--` are the server's own command line.
+          local -i separator_index=${words[(I)--]}
+          if (( separator_index && separator_index < CURRENT )); then
+            words=("${(@)words[separator_index+1,-1]}")
+            (( CURRENT -= separator_index ))
+            _normal && ret=0
+            return $ret
+          fi
+          _arguments -s -S \
+            "${local_options[@]}" \
+            '--url[Streamable HTTP server URL (instead of a command)]:url:_urls' \
+            '*--env[Environment variable for a stdio server]:KEY=VALUE:' \
+            '--cwd[Working directory for a stdio server]:dir:_files -/' \
+            '*--header[HTTP header]:KEY=VALUE:' \
+            '--bearer-token-env-var[Environment variable whose value is sent as the bearer token]:name:_parameters' \
+            '--oauth-client-id[Pre-registered OAuth client id]:id:' \
+            '--oauth-client-secret[OAuth client secret (may be ${NAME} or !command)]:secret:' \
+            '--oauth-callback-port[Fixed OAuth callback port]:port:' \
+            '--oauth-client-name[Client name sent when registering with the OAuth server]:name:' \
+            '--exposure[How the server tools are exposed]:mode:(codemode deferred direct hidden)' \
+            '--description[What the server offers, shown in the system prompt]:text:' \
+            '1:server name:' && ret=0
+          ;;
+        (remove)
+          _arguments -s -S \
+            "${local_options[@]}" \
+            '1:server:_pi_mcp_servers' && ret=0
+          ;;
+        (list)
+          _arguments -s -S \
+            '--json[Print the list as JSON]' && ret=0
+          ;;
+        (login)
+          _arguments -s -S \
+            '--timeout[How long login waits for the browser (default: 300)]:seconds:' \
+            '1:server:_pi_mcp_servers' && ret=0
+          ;;
+        (logout)
+          _arguments -s -S \
+            '1:server:_pi_mcp_servers' && ret=0
+          ;;
+      esac
+      ;;
+  esac
+
+  return $ret
+}
+
 _pi_at_file() {
   compset -P '@'
   _files
@@ -373,6 +453,21 @@ _pi_session_ids() {
   (( ${#session_ids[@]} )) || return 1
   session_ids=(${(u)session_ids})
   _wanted session_ids expl 'session id' compadd -a session_ids
+}
+
+_pi_mcp_servers() {
+  local expl mcp_file
+  local -a servers
+
+  _pi_resolve_agent_dir
+  for mcp_file in ${~REPLY}/mcp.json .pi/mcp.json; do
+    [[ -f $mcp_file ]] || continue
+    servers+=(${(f)"$(jq -r '.mcpServers // {} | keys[]' "$mcp_file" 2>/dev/null)"})
+  done
+
+  (( ${#servers[@]} )) || return 1
+  servers=(${(u)servers})
+  _wanted servers expl 'mcp server' compadd -a servers
 }
 
 _pi_session_files() {

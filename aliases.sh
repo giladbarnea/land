@@ -58,15 +58,13 @@ hash -d pic="$HOME/Pictures"
 hash -d lib="$HOME/Library"
 hash -d appsup="$HOME/Library/Application Support"
 hash -d iclouddocs=/Users/giladbarnea/Library/Mobile\ Documents/com\~apple\~CloudDocs/
-hash -d t="$HOME/Library/Application Support/io.datasette.llm/templates"
-hash -d c="$HOME/.claude"
+hash -d c="$HOME/clients"
 
 # ----------------------
 # *** Custom Aliases ***
 # ----------------------
 alias b=bat
 alias c=command
-alias ca=cursor-agent
 
 #region claude aliases
 alias :claude='/usr/bin/env -u CLAUDE_CODE_OAUTH_TOKEN -u ANTHROPIC_API_KEY claude --dangerously-skip-permissions'
@@ -125,7 +123,7 @@ unset _codex_model_entry _codex_model _codex_model_suffix _codex_alias _codex_le
 _pi_claude_extended_models=(claude-fable-5-1:f claude-opus-5-5:o claude-sonnet-5-5:s)
 _pi_claude_standard_models=(claude-haiku-4-5:h)
 _pi_no_arguments=(--no-extensions --no-prompt-templates --no-themes --no-session --no-skills)
-_pi_nono_arguments=( ${_pi_no_arguments[@]} --no-tools --no-context-files)
+_pi_nono_arguments=( ${_pi_no_arguments[@]} --no-tools --no-context-files --no-mcp)
 
 # # _define_pi_aliases <ALIAS> <MODEL> <LEVEL_ENTRIES...>
 # pics, pics-no, pics-nono, picsx, picsx-no, picsx-nono, etc.
@@ -134,7 +132,7 @@ function _define_pi_aliases() {
     local model="$2"
     shift 2
     local level_entry level level_suffix
-    alias "${alias_name}"="pi --model ${model}"
+    alias "${alias_name}"=":pi --model ${model}"
     alias "${alias_name}-no"="${alias_name} ${(j: :)_pi_no_arguments}"
     alias "${alias_name}-nono"="${alias_name} ${(j: :)_pi_nono_arguments}"
     for level_entry in "$@"; do
@@ -164,9 +162,9 @@ unfunction _define_pi_aliases
 unset _pi_model_entry _pi_claude_extended_models _pi_claude_standard_models _pi_no_arguments _pi_nono_arguments _claude_standard_levels _claude_extended_levels _gpt_models _gpt_levels
 #endregion pi aliases
 
-# # pi [opts...]
-# Thin `pi` wrapper. Normalizes passing prompts from stdin, positionally, or both. 
-function pi() {
+# # :pi [opts...]
+# Thin `pi` wrapper. Normalizes passing prompts from stdin, positionally, or both.
+function :pi() {
 	local stdin
 	local full_prompt
 	local running_interactively=true
@@ -199,8 +197,6 @@ function pi() {
 		--fff-mode
 		--fff-frecency-db
 		--fff-history-db
-		--subagents-workflow-file
-		--mcp-config
 		-e
 		-n
 		-t
@@ -239,7 +235,7 @@ function pi() {
 			-*)
 				args_besides_prompt+=("$1")
 				if [[ ${options_that_take_value[(Ie)$1]} -gt 0 ]]; then
-					[[ "$2" ]] || { print -u2 -- "pi: Missing value for $1"; return 1; }
+					[[ "$2" ]] || { print -u2 -- ":pi: Missing value for $1"; return 1; }
 					args_besides_prompt+=("$2")
 					shift 2
 				else
@@ -266,6 +262,7 @@ function pi() {
 		print -r -- "$full_prompt" | command pi "${args_besides_prompt[@]}"
 	fi
 }
+compdef _pi :pi
 
 function :gemini() {
 	local -a args_besides_prompt=()
