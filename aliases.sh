@@ -71,6 +71,39 @@ alias :claude='/usr/bin/env -u CLAUDE_CODE_OAUTH_TOKEN -u ANTHROPIC_API_KEY clau
 
 alias claudehappy='() { if [[ -f ~/.claude-code-personal-1y-oauth-token ]]; then happy --claude-env CLAUDE_CODE_OAUTH_TOKEN="$(<~/.claude-code-personal-1y-oauth-token)" --yolo "$@"; else echo "[claudehappy] error: ~/.claude-code-personal-1y-oauth-token does not exist" ; return 1; fi ; }'
 
+# # _claude_forked_session_name <TITLE> <FORK_ID_PART>
+# Tags a forked session's title with `[f:FORK_ID_PART]`: replaces an existing `[f:xxxx]` in the leading `[...]` parts,
+# else appends the tag after them, else prepends it.
+# _claude_forked_session_name '[10-06][top][f:2556] evo' 9afc  # → [10-06][top][f:9afc] evo
+# _claude_forked_session_name '[10-06][top] evo' 9afc          # → [10-06][top][f:9afc] evo
+# _claude_forked_session_name 'evo' 9afc                       # → [f:9afc] evo
+function _claude_forked_session_name() {
+    setopt local_options extended_glob
+    local title="$1"
+    local fork_tag="[f:$2]"
+    local bracket_prefix="${(M)title##(\[[^]]#\])##}"
+    local rest="${title:${#bracket_prefix}}"
+    [[ -z "$bracket_prefix" ]] && { print -r -- "${fork_tag}${title:+ $title}"; return; }
+    [[ "$bracket_prefix" == *\[f:[a-z0-9](#c4)\]* ]] && { print -r -- "${bracket_prefix//\[f:[a-z0-9](#c4)\]/$fork_tag}${rest}"; return; }
+    print -r -- "${bracket_prefix}${fork_tag}${rest}"
+}
+
+# # :claude-fork <CLAUDE_ALIAS> [SESSION_NAME_OR_ID] [claude opts...]
+# Runs `CLAUDE_ALIAS --fork-session -r ...`. Given a session, also names the fork after it (see _claude_forked_session_name).
+function :claude-fork() {
+    local claude_alias="$1"
+    shift
+    local forked_session_metadata forked_session_id forked_session_name
+    local -a fork_arguments=("$@")
+    if [[ -n "$1" && "$1" != -* ]] && forked_session_metadata="$(ch "$1" -l)"; then
+        forked_session_id="$(yq .session_id <<< "$forked_session_metadata")"
+        forked_session_name="$(yq '.custom_title // ""' <<< "$forked_session_metadata")"
+        forked_session_name="$(_claude_forked_session_name "$forked_session_name" "${${(s:-:)forked_session_id}[2]}")"
+        fork_arguments=("$forked_session_id" -n "$forked_session_name" "${@:2}")
+    fi
+    eval "$claude_alias --fork-session -r \"\${fork_arguments[@]}\""
+}
+
 _claude_models=(fable:f opus:o sonnet:s haiku:h)
 _claude_extended_models=(fable opus sonnet)
 # Suffixes: low=l, medium=m, high=h, xhigh=x, max=max (medium stays `m` so `max` is unambiguous).
@@ -84,6 +117,8 @@ for _claude_model_entry in "${_claude_models[@]}"; do
     _claude_alias="claude${_claude_model_suffix}"
     alias "${_claude_alias}"=":claude --model=${_claude_model}"
     alias "${_claude_alias}-no"="${_claude_alias} --no-session-persistence -p"
+    alias "${_claude_alias}-fork"=":claude-fork ${_claude_alias}"
+    alias "${_claude_alias}-fork-no"=":claude-fork ${_claude_alias}-no"
     _claude_levels=(${_claude_standard_levels[@]})
     (( ${_claude_extended_models[(Ie)$_claude_model]} )) && _claude_levels=(${_claude_extended_levels[@]})
     for _claude_level_entry in "${_claude_levels[@]}"; do
@@ -91,6 +126,8 @@ for _claude_model_entry in "${_claude_models[@]}"; do
         _claude_level_suffix="${_claude_level_entry##*:}"
         alias "${_claude_alias}${_claude_level_suffix}"="${_claude_alias} --effort ${_claude_level}"
         alias "${_claude_alias}${_claude_level_suffix}-no"="${_claude_alias}${_claude_level_suffix} --no-session-persistence -p"
+        alias "${_claude_alias}${_claude_level_suffix}-fork"=":claude-fork ${_claude_alias}${_claude_level_suffix}"
+        alias "${_claude_alias}${_claude_level_suffix}-fork-no"=":claude-fork ${_claude_alias}${_claude_level_suffix}-no"
     done
 done
 unset _claude_models _claude_extended_models _claude_model_entry _claude_model _claude_model_suffix _claude_alias _claude_levels _claude_level_entry _claude_level _claude_level_suffix
