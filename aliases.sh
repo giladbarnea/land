@@ -122,40 +122,46 @@ unset _codex_model_entry _codex_model _codex_model_suffix _codex_alias _codex_le
 #endregion codex aliases
 
 #region pi aliases
-
-# picl, pict, pics, pica, ...
-for _pi_model_entry in "${_gpt_models[@]}"; do
-    _pi_model="${_pi_model_entry%%:*}"
-    _pi_model_suffix="${_pi_model_entry##*:}"
-    alias "pic${_pi_model_suffix}"="pi --model openai-codex/${_pi_model}"
-done
-unset _pi_model_entry _pi_model _pi_model_suffix
-
+_pi_claude_extended_models=(claude-fable-5-1:f claude-opus-5-5:o claude-sonnet-5-5:s)
+_pi_claude_standard_models=(claude-haiku-4-5:h)
 _pi_no_arguments=(--no-extensions --no-prompt-templates --no-themes --no-session --no-skills)
 _pi_nono_arguments=( ${_pi_no_arguments[@]} --no-tools --no-context-files)
 
-for _pi_alias in ${(k)aliases[(I)pi*]}; do
-    [[ "${aliases[$_pi_alias]}" != "pi "* ]] && continue
-    if [[ "${aliases[$_pi_alias]}" == *openai-codex/gpt-* ]]; then
-        _pi_levels=(${_gpt_levels[@]})
-    elif [[ "${aliases[$_pi_alias]}" == *claude-fable-* || "${aliases[$_pi_alias]}" == *claude-opus-* || "${aliases[$_pi_alias]}" == *claude-sonnet-* ]]; then
-        _pi_levels=(${_claude_extended_levels[@]})
-    elif [[ "${aliases[$_pi_alias]}" == *claude* ]]; then
-        _pi_levels=(${_claude_standard_levels[@]})
-    else
-        _pi_levels=(off:o low:l medium:m high:h xhigh:x max:max)
-    fi
-    alias "${_pi_alias}-no"="${_pi_alias} ${(j: :)_pi_no_arguments}"
-    alias "${_pi_alias}-nono"="${_pi_alias} ${(j: :)_pi_nono_arguments}"
-    for _pi_level_entry in "${_pi_levels[@]}"; do
-        _pi_level="${_pi_level_entry%%:*}"
-        _pi_level_suffix="${_pi_level_entry##*:}"
-        alias "${_pi_alias}${_pi_level_suffix}"="${_pi_alias} --thinking ${_pi_level}"
-        alias "${_pi_alias}${_pi_level_suffix}-no"="${_pi_alias}${_pi_level_suffix} ${(j: :)_pi_no_arguments}"
-        alias "${_pi_alias}${_pi_level_suffix}-nono"="${_pi_alias}${_pi_level_suffix} ${(j: :)_pi_nono_arguments}"
+# # _define_pi_aliases <ALIAS> <MODEL> <LEVEL_ENTRIES...>
+# pics, pics-no, pics-nono, picsx, picsx-no, picsx-nono, etc.
+function _define_pi_aliases() {
+    local alias_name="$1"
+    local model="$2"
+    shift 2
+    local level_entry level level_suffix
+    alias "${alias_name}"="pi --model ${model}"
+    alias "${alias_name}-no"="${alias_name} ${(j: :)_pi_no_arguments}"
+    alias "${alias_name}-nono"="${alias_name} ${(j: :)_pi_nono_arguments}"
+    for level_entry in "$@"; do
+        level="${level_entry%%:*}"
+        level_suffix="${level_entry##*:}"
+        alias "${alias_name}${level_suffix}"="${alias_name} --thinking ${level}"
+        alias "${alias_name}${level_suffix}-no"="${alias_name}${level_suffix} ${(j: :)_pi_no_arguments}"
+        alias "${alias_name}${level_suffix}-nono"="${alias_name}${level_suffix} ${(j: :)_pi_nono_arguments}"
     done
+}
+
+# pica, pics, pict, picl
+for _pi_model_entry in "${_gpt_models[@]}"; do
+    _define_pi_aliases "pic${_pi_model_entry##*:}" "openai-codex/${_pi_model_entry%%:*}" "${_gpt_levels[@]}"
 done
-unset _pi_alias _pi_levels _pi_level_entry _pi_level _pi_level_suffix _pi_no_arguments _pi_nono_arguments _claude_standard_levels _claude_extended_levels _gpt_models _gpt_levels
+
+# pif, pio, pis
+for _pi_model_entry in "${_pi_claude_extended_models[@]}"; do
+    _define_pi_aliases "pi${_pi_model_entry##*:}" "anthropic/${_pi_model_entry%%:*}" "${_claude_extended_levels[@]}"
+done
+
+# pih
+for _pi_model_entry in "${_pi_claude_standard_models[@]}"; do
+    _define_pi_aliases "pi${_pi_model_entry##*:}" "anthropic/${_pi_model_entry%%:*}" "${_claude_standard_levels[@]}"
+done
+unfunction _define_pi_aliases
+unset _pi_model_entry _pi_claude_extended_models _pi_claude_standard_models _pi_no_arguments _pi_nono_arguments _claude_standard_levels _claude_extended_levels _gpt_models _gpt_levels
 #endregion pi aliases
 
 # # pi [opts...]
