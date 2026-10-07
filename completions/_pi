@@ -288,7 +288,7 @@ _pi:mcp() {
       case $line[1] in
         (add)
           # `pi mcp add <server> [options] -- <command> [args...]`: words after `--` are the server's own command line.
-          local -i separator_index=${words[(I)--]}
+          local -i separator_index=${words[(i)--]}
           if (( separator_index && separator_index < CURRENT )); then
             words=("${(@)words[separator_index+1,-1]}")
             (( CURRENT -= separator_index ))
