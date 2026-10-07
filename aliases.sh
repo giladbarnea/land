@@ -79,20 +79,20 @@ _claude_extended_models=(fable opus sonnet)
 _claude_standard_levels=(low:l medium:m high:h)
 _claude_extended_levels=(${_claude_standard_levels[@]} xhigh:x max:max)
 
-# claudeo (Opus), claudeon (Opus non-interactive), claudeox (Opus xhigh), claudeonx (Opus non-interactive xhigh), etc.
+# claudeo (Opus), claudeo-no (Opus non-interactive), claudeox (Opus xhigh), claudeox-no (Opus xhigh non-interactive), etc.
 for _claude_model_entry in "${_claude_models[@]}"; do
     _claude_model="${_claude_model_entry%%:*}"
     _claude_model_suffix="${_claude_model_entry##*:}"
     _claude_alias="claude${_claude_model_suffix}"
     alias "${_claude_alias}"=":claude --model=${_claude_model}"
-    alias "${_claude_alias}n"="${_claude_alias} --no-session-persistence -p"
+    alias "${_claude_alias}-no"="${_claude_alias} --no-session-persistence -p"
     _claude_levels=(${_claude_standard_levels[@]})
     (( ${_claude_extended_models[(Ie)$_claude_model]} )) && _claude_levels=(${_claude_extended_levels[@]})
     for _claude_level_entry in "${_claude_levels[@]}"; do
         _claude_level="${_claude_level_entry%%:*}"
         _claude_level_suffix="${_claude_level_entry##*:}"
         alias "${_claude_alias}${_claude_level_suffix}"="${_claude_alias} --effort ${_claude_level}"
-        alias "${_claude_alias}n${_claude_level_suffix}"="${_claude_alias}n --effort ${_claude_level}"
+        alias "${_claude_alias}${_claude_level_suffix}-no"="${_claude_alias}${_claude_level_suffix} --no-session-persistence -p"
     done
 done
 unset _claude_models _claude_extended_models _claude_model_entry _claude_model _claude_model_suffix _claude_alias _claude_levels _claude_level_entry _claude_level _claude_level_suffix
@@ -585,6 +585,8 @@ function define_editors_aliases(){
 
 	# Update HISTORY_IGNORE                                               
 	[[ -n "$hist_ignore_values" ]] && export HISTORY_IGNORE="${hist_ignore_base}${hist_ignore_values})"
+	
+	unfunction define_editors_aliases
 
 }; define_editors_aliases
 
@@ -643,50 +645,47 @@ function define_python_aliases(){
 	alias pyc="python3 -c"
 	alias ipy="ipython"
 
-
+	unfunction define_python_aliases
 }; define_python_aliases
 
 
 # ** 3rd-party tools **
 # ---------------------
-function define_docker_aliases(){
-	[[ -z "${aliases[d]}" ]] && alias d=docker
-	alias lzd="lazydocker"
-	declare -i _since
-	# shellcheck disable=SC2139,SC2140
-	for _since in 0 1 2 3 4 5; do
-		alias dl"${_since}"="docker logs --since=${_since}m"
-		alias dlt"${_since}"="docker logs --timestamps --since=${_since}m"
-		alias dlf"${_since}"="docker logs --follow --since=${_since}m"
-		alias dlft"${_since}"="docker logs --timestamps -f --since=${_since}m"
-	done
-	unset _since
-	alias dl='docker logs'
-	alias dlt='docker logs --timestamps'
-	alias dlf='docker logs --follow'
-	alias dlft='docker logs --follow --timestamps'
-	alias de='docker exec'
-	alias da='docker attach'
-	alias db='docker build'
-	alias dps='docker ps'
-	alias di='docker inspect'
-	alias dn='docker network'
-	alias ds='docker stop'
+# function define_docker_aliases(){
+# 	[[ -z "${aliases[d]}" ]] && alias d=docker
+# 	alias lzd="lazydocker"
+# 	declare -i _since
+# 	# shellcheck disable=SC2139,SC2140
+# 	for _since in 0 1 2 3 4 5; do
+# 		alias dl"${_since}"="docker logs --since=${_since}m"
+# 		alias dlt"${_since}"="docker logs --timestamps --since=${_since}m"
+# 		alias dlf"${_since}"="docker logs --follow --since=${_since}m"
+# 		alias dlft"${_since}"="docker logs --timestamps -f --since=${_since}m"
+# 	done
+# 	unset _since
+# 	alias dl='docker logs'
+# 	alias dlt='docker logs --timestamps'
+# 	alias dlf='docker logs --follow'
+# 	alias dlft='docker logs --follow --timestamps'
+# 	alias de='docker exec'
+# 	alias da='docker attach'
+# 	alias db='docker build'
+# 	alias dps='docker ps'
+# 	alias di='docker inspect'
+# 	alias dn='docker network'
+# 	alias ds='docker stop'
 
-	alias dc='docker compose'
-	alias dci='docker compose images'
-	alias dcd='docker compose down'
-	alias dcu='docker compose up'
-	alias dcr='docker compose restart'
+# 	alias dc='docker compose'
+# 	alias dci='docker compose images'
+# 	alias dcd='docker compose down'
+# 	alias dcu='docker compose up'
+# 	alias dcr='docker compose restart'
 
-	alias dcrlf0='(){ docker compose restart "$1"; docker logs --follow --since=0m "$1" ; }'
-	alias dcrlf1='(){ docker compose restart "$1"; docker logs --follow --since=1m "$1" ; }'
-	alias dcrlf2='(){ docker compose restart "$1"; docker logs --follow --since=2m "$1" ; }'
-	alias dcrlf3='(){ docker compose restart "$1"; docker logs --follow --since=3m "$1" ; }'
+# 	alias dcrlf0='(){ docker compose restart "$1"; docker logs --follow --since=0m "$1" ; }'
+# 	alias dcrlf1='(){ docker compose restart "$1"; docker logs --follow --since=1m "$1" ; }'
+# 	alias dcrlf2='(){ docker compose restart "$1"; docker logs --follow --since=2m "$1" ; }'
+# 	alias dcrlf3='(){ docker compose restart "$1"; docker logs --follow --since=3m "$1" ; }'
 
-	alias d\?='alias | grep -P "(?<=\=)[\W]*\bdocker\b" | if type bat &>/dev/null; then bat -l bash -p; else cat /dev/stdin; fi'
+# 	alias d\?='alias | grep -P "(?<=\=)[\W]*\bdocker\b" | if type bat &>/dev/null; then bat -l bash -p; else cat /dev/stdin; fi'
 
-}; # define_docker_aliases
-
-# * Node aliases
-# --------------
+# }; # define_docker_aliases
