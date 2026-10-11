@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # sourced after inspect, pyfns, arr, str, tools
 
-[[ "$CD_PATCH" = true ]] && {
+is_interactive && ! is_agent && {
 
   declare -a CD_IMPLICIT_PATH_PREFIXES=(
     "$HOME"/dev

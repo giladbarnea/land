@@ -825,7 +825,7 @@ function ghg-run(){
   # Happy path: gist has one file. Run it.
   if [[ ${#cloned_files[@]} -eq 1 ]]; then
     file="${cloned_files[1]}"
-    if is_interactive && ! is_piped; then
+    if is_human; then
       confirm "Run ${Cc}${file} \"${file_args[*]}\"${Cc0}?" || return 1
     fi
     chmod +x "$file"
@@ -834,8 +834,8 @@ function ghg-run(){
   fi
   
   # Multiple files: interactively ask which to run.
-  if ! is_interactive || is_piped; then
-    log.error "Not interactive or stdin is unavailable, aborting"
+  if ! is_human; then
+    log.error "Script mode: no one can choose a file, aborting"
     return 1
   fi
   

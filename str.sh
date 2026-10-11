@@ -5,7 +5,7 @@
 # # str.has_newline <STRING / stdin>
 function str.has_newline(){
   local string
-  if [[ ! "$1" ]] && is_piped; then
+  if (( $# == 0 )) && is_piped; then
     string="$(<&0)"
   else
     string="$1"
@@ -19,7 +19,7 @@ function str.has_newline(){
 # True for space and \t, not \n
 function str.has_space(){
   local string
-  if [[ ! "$1" ]] && is_piped; then
+  if (( $# == 0 )) && is_piped; then
     string="$(<&0)"
   else
     string="$1"
@@ -43,7 +43,7 @@ function str.has_space(){
 # 0 if starts or ends with '.*'
 function str.has_wildcard_at_ends(){
   local string
-  if [[ ! "$1" ]] && is_piped; then
+  if (( $# == 0 )) && is_piped; then
     string="$(<&0)"
   else
     string="$1"
@@ -55,7 +55,7 @@ function str.has_wildcard_at_ends(){
 
 function str.is_whitespace(){
 	local string
-	if [[ ! "$1" ]] && is_piped; then
+	if (( $# == 0 )) && is_piped; then
 		string="$(<&0)"
 	else
 		string="$1"
@@ -66,7 +66,7 @@ function str.is_whitespace(){
 
 # # upper <STRING / stdin>
 function upper(){
-  if [[ ! "$1" ]]; then
+  if (( $# == 0 )); then
     is_piped && {
       printf "%s" "${(U)$(<&0)}"
       return $?
@@ -80,7 +80,7 @@ function upper(){
 
 # # lower <STRING / stdin>
 function lower(){
-  if [[ ! "$1" ]]; then
+  if (( $# == 0 )); then
     is_piped && {
       printf "%s" "${(L)$(<&0)}"
       return $?
@@ -95,7 +95,7 @@ function lower(){
 # # islower <STRING / stdin>
 function islower(){
     local string
-    if [[ ! "$1" ]] && is_piped; then
+    if (( $# == 0 )) && is_piped; then
       string="$(<&0)"
     else
       string="$1"
@@ -107,7 +107,7 @@ function islower(){
 # # isupper <STRING / stdin>
 function isupper(){
     local string
-    if [[ ! "$1" ]] && is_piped; then
+    if (( $# == 0 )) && is_piped; then
       string="$(<&0)"
     else
       string="$1"
@@ -127,26 +127,27 @@ function isnum() {
 # If -f is given, disallow / in the string.
 function ispathlike(){
   local source_path
-  local pathlike="$(topathlike "$@")"
-  local should_confirm=true
+  local -a topathlike_opts=()
+  local -i positional_count=0
   while [[ $# -gt 0 ]]; do
     case "$1" in
-      (-*) : ;;
-      (*) [[ -n "$source_path" ]] && { 
+      (-*) topathlike_opts+=("$1") ;;
+      (*) (( positional_count )) && {
         log.error "Multiple source paths: $source_path, $1"
-        return 1 
-      } 
-      source_path="$1" ;;
+        return 1
+      }
+      source_path="$1"
+      (( ++positional_count )) ;;
     esac
     shift
   done
-  [[ -z "$source_path" ]] && is_piped && source_path="$(<&0)"
+  (( positional_count == 0 )) && is_piped && source_path="$(<&0)"
   [[ -z "$source_path" ]] && {
     log.error "No source path provided"
     docstring "$0" -p
     return 1
   }
-  [[ "$source_path" == "${pathlike}" ]]
+  [[ "$source_path" == "$(topathlike "$source_path" "${topathlike_opts[@]}")" ]]
 }
 
 # # topathlike <STRING / STDIN> [-f,--file] [-l,--lower]
@@ -160,19 +161,21 @@ function topathlike(){
   local is_file=false
   local tolower=false
   local -a args
+  local -i positional_count=0
   while [[ $# -gt 0 ]]; do
     case "$1" in
       -f|--file) is_file=true ;;
       -l|--lower) tolower=true ;;
-      *) [[ "$string" ]] && {
+      *) (( positional_count )) && {
         log.error "$0: Too many args (expected 0-1, got $#). Usage:\n$(docstring "$0")"
         return 1
       }
-      string="$1" ;;
+      string="$1"
+      (( ++positional_count )) ;;
     esac
     shift
   done
-  if [[ ! "$string" ]] && is_piped; then
+  if (( positional_count == 0 )) && is_piped; then
     string="$(<&0)"
   fi
   [[ ! "$string" ]] && {
@@ -277,7 +280,7 @@ function str.fill(){
   local string
   local -i width
   local pad_type
-  if is_piped && [[ ! "$2" ]]; then
+  if (( $# == 2 )) && is_piped; then
     string="$(<&0)"
     pad_type="$1"
     width="$2"
@@ -326,7 +329,7 @@ function str.fill(){
 # # str.unquote <STRING / stdin>
 function str.unquote(){
 	local string
-	if [[ ! "$1" ]] && is_piped; then
+	if (( $# == 0 )) && is_piped; then
 		string="$(<&0)"
 	else
 		string="$1"
@@ -337,7 +340,7 @@ function str.unquote(){
 
 function str.singlequote(){
 	local string
-	if [[ ! "$1" ]] && is_piped; then
+	if (( $# == 0 )) && is_piped; then
 		string="$(<&0)"
 	else
 		string="$1"
@@ -347,7 +350,7 @@ function str.singlequote(){
 
 function str.doublequote(){
 	local string
-	if [[ ! "$1" ]] && is_piped; then
+	if (( $# == 0 )) && is_piped; then
 		string="$(<&0)"
 	else
 		string="$1"
@@ -359,7 +362,7 @@ function str.doublequote(){
 # Returns whether surrounded by either single or double qoutes
 function str.isinglequoted(){
   local string
-  if [[ ! "$1" ]] && is_piped; then
+  if (( $# == 0 )) && is_piped; then
     string="$(<&0)"
   else
     string="$1"
@@ -374,7 +377,7 @@ function str.isinglequoted(){
 # # str.count <STRING / stdin> <SEARCH>
 function str.count(){
   local string
-  if is_piped && [[ ! "$2" ]]; then
+  if (( $# == 1 )) && is_piped; then
     string="$(<&0)"
   else
     string="$1"
@@ -397,7 +400,7 @@ function str.count(){
 # str.repeat_char X 4  # XXXX
 function str.repeat_char(){
   local char
-  if is_piped && [[ ! "$2" ]]; then
+  if (( $# == 1 )) && is_piped; then
     char="$(<&0)"
   else
     char="$1"
@@ -457,7 +460,7 @@ function also(){
 # Replaces newlines with spaces, and squeezes all repeated spaces to a single space.
 function stomp(){
   local text
-  if [[ ! "$1" ]] && is_piped; then
+  if (( $# == 0 )) && is_piped; then
     text="$(<&0)"
   else
     text="$1"
@@ -516,6 +519,7 @@ function truncate-sampled(){
   local -i max_length=$(( ${${LINES:#0}:-40} * ${${COLUMNS:#0}:-120} ))
   local -i k=5
   local shape positions sizes
+  local -i positional_count=0
   while [[ $# -gt 0 ]]; do
     case "$1" in
       --max-length=*) max_length="${1#*=}" ;;
@@ -528,11 +532,11 @@ function truncate-sampled(){
       --positions) positions="$2" ; shift ;;
       --sizes=*) sizes="${1#*=}" ;;
       --sizes) sizes="$2" ; shift ;;
-      *) string="$1" ;;
+      *) string="$1" ; (( ++positional_count )) ;;
     esac
     shift
   done
-  [[ -z "$string" ]] && is_piped && string="$(<&0)"
+  (( positional_count == 0 )) && is_piped && string="$(<&0)"
   (( k < 2 )) && {
     log.error "$0: -n,--count must be at least 2.\nUsage:\n$(docstring "$0")"
     return 1
@@ -595,13 +599,15 @@ function shorten(){
   local -i default_max_length=${${COLUMNS:#0}:-120}
   
   local -a args
+  local -i positional_count=0
   while [[ $# -gt 0 ]]; do
     case "$1" in
       --max-length=*) max_length="${1#*=}"; shift; continue;;
       -m|--max-length) max_length="$2" ; shift 2 ; continue ;;
     esac
-    if [[ -z "$string" ]]; then
+    if (( positional_count == 0 )); then
       string="$1"
+      (( ++positional_count ))
       shift
       continue
     fi
@@ -614,7 +620,7 @@ function shorten(){
     return 1
   done
   [[ "$max_length" == "$UNSPECIFIED" ]] && max_length="$default_max_length"
-  [[ -z "$string" ]] && is_piped && string="$(<&0)"
+  (( positional_count == 0 )) && is_piped && string="$(<&0)"
   [[ -z "$string" ]] && {
     log.error "$0: Not enough args.\n$(typeset string max_length)\nUsage:\n$(docstring "$0")"
     return 2
@@ -703,7 +709,7 @@ function shortarr(){
 # # dedent <stdin / string>
 function dedent(){
   local string
-  if [[ ! "$1" ]] && is_piped; then
+  if (( $# == 0 )) && is_piped; then
     string="$(<&0)"
   else
     string="$1"
@@ -759,7 +765,7 @@ function indent(){
 # Removes all non-ASCII characters from the string.
 function deunicode() {
   local string
-  if [[ ! "$1" ]] && is_piped; then
+  if (( $# == 0 )) && is_piped; then
     string="$(<&0)"
   else
     string="$1"
@@ -884,13 +890,13 @@ function xt(){
 	done
 	(( ${#positionals[@]} > 2 )) && { log.error "Too many positional arguments. Usage:\n$(docstring "$0")"; return 1; }
 	# With -t, the positional is the content. Without it, the first positional is the tag and the content comes second or from stdin.
-	if [[ -n "$tag" ]]; then
-		content="${positionals[1]}"
-	else
+	local -i content_position=1
+	if [[ -z "$tag" ]]; then
 		tag="${positionals[1]}"
-		content="${positionals[2]}"
+		content_position=2
 	fi
-	[[ ! "$content" ]] && is_piped && content="$(<&0)"
+	content="${positionals[content_position]}"
+	(( ${#positionals[@]} < content_position )) && is_piped && content="$(<&0)"
 	[[ ! "$tag" ]] && { log.error "No tag provided." ; return 1 ; }
 	[[ ! "$content" ]] && { log.error "No content provided." ; return 1 ; }
 	[[ -f "$content" ]] && content="$(<"$content")"
@@ -905,7 +911,7 @@ function xt(){
 # Extracts the first code block from the string.
 function codeblock(){
   local string
-  if [[ ! "$1" ]] && is_piped; then
+  if (( $# == 0 )) && is_piped; then
     string="$(<&0)"
   else
     string="$1"
@@ -914,16 +920,24 @@ function codeblock(){
   awk '/^```/{p=!p;next} p' <<< "$string"
 }
 
-# # replace SEARCH REPLACE
-# Replaces all occurrences of SEARCH with REPLACE in the string.
+# # replace <STRING / stdin> SEARCH REPLACE
+# Replaces all literal occurrences of SEARCH with REPLACE in STRING.
+# ## Examples
+# ```bash
+# replace 'a.b.c' . /       # a/b/c
+# echo 'a.b.c' | replace . /  # a/b/c
+# ```
 function replace(){
   local string
-  local search replace
-  if [[ ! "$1" ]] && is_piped; then
+  if (( $# == 2 )) && is_piped; then
     string="$(<&0)"
-  else
+  elif (( $# == 3 )); then
     string="$1"
+    shift
+  else
+    log.error "$0: Expected STRING SEARCH REPLACE, or SEARCH REPLACE with stdin. Usage:\n$(docstring "$0")"
+    return 2
   fi
-  [[ "$string" ]] || { log.error "$0: Not enough args. Usage:\n$(docstring "$0")"; return 2; }
-  printf "%s" "${string//${search}/${replace}}"
+  local search="$1" replacement="$2"
+  printf "%s" "${string//"$search"/$replacement}"
 }

@@ -3,7 +3,7 @@
 # # yt-dlp.info <URL / STDIN>
 function yt-dlp.info(){
 	local url
-	if [[ ! "$1" ]] && is_piped; then
+	if (( $# == 0 )) && is_piped; then
 		url="$(<&0)"
 	else
 		url="$1"
@@ -68,7 +68,7 @@ function yt-dlp.info(){
 # # yt-dlp.subs <URL / STDIN>
 function yt-dlp.subs(){
 	local url
-	if [[ ! "$1" ]] && is_piped; then
+	if (( $# == 0 )) && is_piped; then
 		url="$(<&0)"
 	else
 		url="$1"

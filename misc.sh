@@ -103,6 +103,7 @@ function editfile() {
 # -r,--raw               If input is a file path, copy the literal path instead of its content. Default: ${COPY_RAW:-false}
 function copy() {
   local verbosity=${COPY_VERBOSITY:-0} raw=${COPY_RAW:-false} value
+  local -i positional_count=0
 
   while (($#)); do
     case "$1" in
@@ -113,17 +114,18 @@ function copy() {
       log.error "Unknown option: $1"
       return 1 ;;
     *)
-      [[ "$value" ]] && {
+      (( positional_count )) && {
         log.error "Too many arguments: $1"
         return 1
       }
-      value="$1" ;;
+      value="$1"
+      (( ++positional_count )) ;;
     esac
     shift
   done
 
   local content
-  if [[ ! $value ]]; then
+  if (( positional_count == 0 )); then
     if ! is_piped; then
       log.error "$0: Not enough arguments"
       docstring -p "$0"

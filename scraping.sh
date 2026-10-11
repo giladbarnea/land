@@ -42,17 +42,19 @@ function firecrawl() {
 	)
 	local default_formats='formats:=["markdown"]'
 	local output_file
-	
+	local url_given=false
+
 	# Parse arguments
 	while [[ "$#" -gt 0 ]]; do
 		case "$1" in
 			-o|--output) output_file="$2"; shift ;;
 			-o=*|--output=*) output_file="${1#*=}" ;;
-			-) url="$(<&0)" ;;
+			-) url="$(<&0)"; url_given=true ;;
 			-*) firecrawl_options+=("$1") ;;
 			*)
-				if [[ ! "$url" ]]; then
+				if [[ "$url_given" = false ]]; then
 					url="${1%/}"
+					url_given=true
 				else
 					firecrawl_options+=("$1")
 				fi
@@ -63,9 +65,9 @@ function firecrawl() {
 	if [[ ! "${firecrawl_options[(r)formats:=*]}" ]]; then
 		firecrawl_options+=("$default_formats")
 	fi
-	
-	
-	if [[ ! "$url" ]] && is_piped; then
+
+
+	if [[ "$url_given" = false ]] && is_piped; then
 		url="$(<&0)"
 	fi
 	

@@ -215,7 +215,7 @@ function llm() {
 		piped_content="$(<&0)"
 	fi
 	
-	if is_piping || ! is_interactive; then
+	if is_piping || ! is_human; then
 		[[ "$enable_markdown_viewer" = true ]] && {
 			log.warn "Disabling markdown viewer because stdout is unavailable or shell is not interactive"
 			enable_markdown_viewer=false
@@ -657,11 +657,13 @@ function llm-conv-to-md() {
     local json_input
     local source_description
 	local separator=md+xml
+	local -i positional_count=0
 	while [[ $# -gt 0 ]]; do
 	  case "$1" in
 		--separator=*) separator="${1#*=}" ;;
 		--separator) separator="$2" ; shift ;;
-		*) 
+		*)
+			(( ++positional_count ))
 			# Determine input source
 			if [[ -f "$1" ]]; then # First argument is a file
 				json_input=$(<"$1")
@@ -676,7 +678,7 @@ function llm-conv-to-md() {
 	done
 
     
-    if [[ -z "$json_input" ]] && is_piped; then
+    if (( positional_count == 0 )) && is_piped; then
 		json_input=$(<&0)
 	fi
     if [[ -z "$json_input" ]]; then
@@ -836,14 +838,15 @@ function llm-embed-dir(){
 function simplify(){
   local text
   local -a pi_opts=()
+  local -i positional_count=0
   while [[ $# -gt 0 ]]; do
     case "$1" in
       -*) pi_opts+=("$1") ;;
-      *) if [[ "$text" ]]; then pi_opts+=("$1") ; else text="$1" ; fi ;;
+      *) if (( positional_count )); then pi_opts+=("$1") ; else text="$1" ; fi ; (( ++positional_count )) ;;
     esac
     shift
   done
-  if [[ ! "$text" ]]; then
+  if (( positional_count == 0 )); then
     if is_piped; then
       text="$(<&0)"
     else

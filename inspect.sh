@@ -224,7 +224,7 @@ function docstring(){
 function docstring.getopts(){
   # r'(?<=\[)(-[a-z]+)?[, ]*(--[a-z\-_]+)?( [A-Z_]+)?(?=])'
   local string
-  if [[ ! "$1" ]] && is_piped; then
+  if (( $# == 0 )) && is_piped; then
     string="$(<&0)"
   else
     string="$1"

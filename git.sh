@@ -1258,7 +1258,7 @@ function git-structured-diff(){
     return $?
   fi
   if (( no_arguments )); then
-    if $assume_yes || is_piping || ! is_interactive; then
+    if $assume_yes || is_piping || ! is_human; then
       log.info "No data provided and can’t ask user interactively. Defaulting to ‘git --no-pager diff $(gdargs+) | $0’."
     else
       confirm "No data in stdin. Run ‘git --no-pager diff $(gdargs+) | $0’?" || return 0

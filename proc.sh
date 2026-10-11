@@ -148,7 +148,7 @@ _killverify_pattern_matches() { [[ -n "$(pgrep -fao "$1")" ]]; }
 # # proc.pprint <FULL_PROCESS / STDIN>
 function proc.pprint() {
   local full_process
-  if [[ "$1" ]]; then
+  if (( $# )); then
     full_process="$1"
   else
     is_piped || {

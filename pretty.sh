@@ -243,6 +243,7 @@ function richmd(){
 		(( width = width > 100 ? width : 100 ))
 	fi
 	local -a rich_markdown_args
+	local -i positional_count=0
 	while [[ $# -gt 0 ]]; do
 		case "$1" in
 			# Options with values
@@ -272,16 +273,17 @@ function richmd(){
 			-*) log.error "Unknown option: $1" ; return 1 ;;
 			
 			*)
-				if [[ "$markdown" ]]; then
+				if (( positional_count )); then
 					log.error "Only one markdown argument is allowed"
 					return 1
 				fi
 				markdown="$1"
+				(( ++positional_count ))
 				;;
 		esac
 		shift
 	done
-	if [[ ! "$markdown" ]]; then
+	if (( positional_count == 0 )); then
 		if is_piped && is_interactive; then
 			markdown="$(<&0)"
 		else
@@ -306,7 +308,7 @@ function richmd(){
 # Strips MDX comments from input and outputs clean markdown
 function mdx2md() {
 	local mdx_content
-	if [[ ! "$1" ]] && is_piped; then
+	if (( $# == 0 )) && is_piped; then
 		mdx_content="$(<&0)"
 	else
 		if [[ -f "$1" ]]; then

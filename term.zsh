@@ -154,7 +154,7 @@ function ruler(){
 	local value
 	local rule="$(printf "─%.0s" {1..80})"
 
-	if [[ "$1" ]]; then
+	if (( $# )); then
 		value="$1"
 		shift || return 1
 	elif is_piped; then

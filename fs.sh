@@ -17,24 +17,27 @@ function renametopathlike(){
   local -a topathlike_opts
   local should_confirm=true
   local with_date=false
+  local -i positional_count=0
   while [[ $# -gt 0 ]]; do
     case "$1" in
       -y|--yes) should_confirm=false ;;
       -d|--with-date) with_date=true ;;
       -*) topathlike_opts+=("$1") ;;
       *)
-        [[ -n "$source_path" && -n "$destination_dir" ]] && { 
-          log.error "Too many positional arguments: $(typeset source_path destination_dir), $1"
-          docstring -p "$0"
-          return 1 
-        } 
-        [[ -n "$source_path" ]] && destination_dir="${1:a}" ;
-        [[ -z "$source_path" ]] && source_path="$1" ;
+        (( ++positional_count ))
+        case $positional_count in
+          1) source_path="$1" ;;
+          2) destination_dir="${1:a}" ;;
+          *)
+            log.error "Too many positional arguments: $(typeset source_path destination_dir), $1"
+            docstring -p "$0"
+            return 1 ;;
+        esac
         ;;
     esac
     shift
   done
-  [[ -z "$source_path" ]] && is_piped && source_path="$(<&0)"
+  (( positional_count == 0 )) && is_piped && source_path="$(<&0)"
   [[ -z "$source_path" ]] && {
     log.error "No source path provided"
     docstring "$0" -p

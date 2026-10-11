@@ -185,7 +185,7 @@ function py.print() {
 		esac
 		shift
 	done
-	if [[ ! "${print_values}" ]]; then
+	if (( ${#print_values[@]} == 0 )); then
 		if is_piped; then
 			# echo hi | py.print -> Prepend stdin
 			print_values=(stdin)

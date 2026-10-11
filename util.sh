@@ -19,19 +19,12 @@ function isdefined(){
 # isdefined compadd || function compadd(){ : ; } ;
 # isdefined sudo || function sudo(){ "$@" ; } ;
 
-function is_sudo() {
-  [[ ! $EUID -gt 0 ]]
-}
-
 # # is_piped
-# Returns 0 when stdin is not connected to a terminal (TTY).
-# Input comes from a pipe, file, or another non-terminal source, not directly from your keyboard.
+# Returns 0 when stdin is a pipe or a file: `echo foo | fn`, `fn < file`, `fn <<< foo`.
+# Returns 1 for a terminal and for /dev/null, which agent shells give as stdin.
 # This does not check whether input data is ready.
-# This situation is piped:
-# echo foo | is_piped && echo piped
 function is_piped() {
-  # Reading from stdin with timeout for no stdin: if read -t 0 -u 0 stdin
-  [[ ! -t 0 ]]
+  [[ -p /dev/stdin || -f /dev/stdin ]]
 }
 
 # # is_piping
@@ -44,17 +37,8 @@ function is_piping(){
   [[ ! -t 1 ]]
 }
 
-function is_sourced(){
-  # https://stackoverflow.com/a/28776166/11842164
-  [[ $ZSH_EVAL_CONTEXT =~ :file$ ]]
-}
-
 function is_interactive(){
   [[ $- == *i* ]]
-}
-
-function is_heb_layout() {
-  [[ $(xset -q | grep -o "LED.*") == *1* ]]
 }
 
 function is_pycharm() {
@@ -65,14 +49,22 @@ function is_zunit(){
   [[ "$ZSH_ARGZERO" = */zunit ]]
 }
 
+# # is_agent
+# Returns 0 when an AI agent harness runs this shell, attended or not.
+# ~/.zshrc has an equivalent check because it runs before land loads. Keep both in sync.
+function is_agent(){
+  [[ "$CLAUDECODE" = (1|true) ]] ||
+  [[ "$PI_CODING_AGENT" = (1|true) ]] ||
+  [[ -n "$CODEX_THREAD_ID" ]] ||
+  [[ -n "$AI_AGENT" ]] ||
+  [[ -n "$CURSOR_AGENT" ]]
+}
+
+# # is_human
+# Returns 0 only when Gilad types directly in a terminal. Gates interactive prompts.
+# Everything else is script mode: unattended scripts, background programs, and agents.
 function is_human(){
-  is_interactive && \
-  ! is_piping && \
-  [[ "$CLAUDECODE" != 1 ]] && \
-  ! is_zunit && \
-  ! is_pycharm && \
-  [[ ! "$VSCODE_INJECTION" = 1 ]] && \
-  [[ ! "$CURSOR_TRACE_ID" ]]
+  is_interactive && [[ -t 0 && -t 2 ]] && ! is_agent
 }
 
 # # randstr [LENGTH] (default 16)
@@ -329,7 +321,7 @@ if [[ "$OS" = macos ]]; then
   # Prints UTC time e.g "Tue Feb 20 11:32:56 UTC 2024".
   function humantime() {
     local unix_timestamp
-    if [[ "$1" ]]; then
+    if (( $# )); then
       unix_timestamp="$1"
     elif is_piped; then
       unix_timestamp="$(<&0)"
@@ -512,7 +504,7 @@ function filter(){
   local line
   local -a lines=()
 
-  if [[ "$1" ]]; then
+  if (( $# )); then
     lines=("$@")
   elif is_piped; then
     lines=("$(<&0)")

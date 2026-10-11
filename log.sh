@@ -95,7 +95,7 @@ function log(){
 	level="${1}"
 	
 	local level_color="${LEVELS_COLORS[${level}]}"
-	if [[ -n "$level_color" ]] && is_interactive; then
+	if [[ -n "$level_color" ]]; then
 		if [[ $show_level = true ]]; then
 			string+="[${(U)level}]"
 		fi
@@ -118,11 +118,15 @@ function log(){
 		string="${message}"
 	fi
 
-	local template="%b${C0}"
-	if [[ $append_newline = true ]]; then template+="\n"; else template+=" "; fi
-	# shellcheck disable=SC2059
-	printf "$template" "${string}" 1>&2
-	return $?
+	local terminator=" "
+	[[ $append_newline = true ]] && terminator="\n"
+	printf -v string "%b${C0}${terminator}" "${string}"
+	# Colors only for a person who sees stderr in a terminal. Agents and unattended scripts get plain text.
+	if [[ ! -t 2 ]] || is_agent; then
+		setopt localoptions extendedglob
+		string="${string//$'\e'\[[0-9;]#m/}"
+	fi
+	printf "%s" "${string}" 1>&2
 }
 
 function log.debug() { log debug "$@" ; }
@@ -199,8 +203,8 @@ function log.prompt() {
 # input "Choose:" --choices=${(j.,.)${(s..):-smurf}}
 # ```
 function input() {
-	if ! is_interactive || is_piped; then
-		log.warn "Not interactive and/or stdin is unavailable. Returning 1"
+	if ! is_human; then
+		log.warn "Script mode: no one can answer a prompt. Returning 1"
 		return 1
 	fi
 	local message string choices_formatted specified_choices
@@ -350,13 +354,6 @@ function input() {
 # confirm 'are you sure?' || return 1
 # ```
 function confirm() {
-	# if [[ ! tty -s ]]; then
-	#   return 1
-	# fi
-  if ! is_interactive || [[ ! -r /dev/tty ]]; then
-		log.warn "Not interactive or stdin is unavailable. Returning 1"
-		return 1
-	fi
 	input "$@" --choices y,n -s ''
 }
 
