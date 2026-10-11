@@ -210,7 +210,7 @@ function topathlike(){
   local extension="${string##*.}"
   
   local looks_like_extension=false
-  [[ "$extension" =~ ^[a-zA-Z0-9]+$ ]] && looks_like_extension=true
+  [[ "$string" == *.* && "$extension" =~ ^[a-zA-Z0-9]+$ ]] && looks_like_extension=true
   
   
   if [[ "$looks_like_extension" == true ]]; then
