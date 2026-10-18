@@ -2162,7 +2162,7 @@ function llm-commit-msg(){
 	setopt localoptions pipefail
 	local -a diff_targets
 	local template_path
-	template_path="/Users/giladbarnea/Library/Application Support/io.datasette.llm/templates/code/commit-message.md"
+	template_path="$HOME/.pi/agent/prompts/commit-message.md"
 	local llm_prompt
 	llm_prompt="$(cat "$template_path")" || { log.error "Cannot read the commit-message template: $template_path"; return 1; }
 	local one_by_one
