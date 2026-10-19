@@ -6,3 +6,5 @@ __pycache__
 ubuntu-setup.sh
 Untitled*.ipynb
 .antigravitycli
+
+.worktrees/

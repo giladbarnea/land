@@ -2198,6 +2198,7 @@ function llm-commit-msg(){
 		[[ "$YES" == 1 ]] && assume_yes=true
 	fi
 	[[ -n "$append_prompt" ]] && llm_prompt="$(printf "%s\n%s" "$llm_prompt" "$append_prompt")"
+	local untracked_listing
 	if [[ "${#diff_targets[@]}" = 0 ]]; then
 		local -a staged_files
 		local -a modified_files
@@ -2218,7 +2219,9 @@ function llm-commit-msg(){
 		if modified_files=($(git.modified)); then
 			has_modified_files=true
 		fi
-		if untracked_files=($(git.untracked)); then
+		untracked_listing="$(command git ls-files --others --exclude-standard -z)" || return $?
+		untracked_files=(${(0)untracked_listing})
+		if (( ${#untracked_files[@]} )); then
 			has_untracked_files=true
 		fi
 		if added_files=($(git.stagedadded)); then
@@ -2280,40 +2283,57 @@ function llm-commit-msg(){
 		}
 		
 	fi
-	# Remove duplicates from diff_targets
+	untracked_listing="$(command git ls-files --others --exclude-standard -z -- "${diff_targets[@]}")" || return $?
+	local -a selected_untracked_paths=(${(0)untracked_listing})
+	diff_targets+=("${selected_untracked_paths[@]}")
 	diff_targets=( "${(@u)diff_targets[@]}" )
 	log.debug "$(typeset diff_targets)"
 	
 	log.info "Generating commit message for ${#diff_targets[@]} files..." -L -x
 	local -a llm_what_changed_options
 	$assume_yes && llm_what_changed_options+=(-y)
-	if $one_by_one; then
-		local tmp_file
-		tmp_file="$(mktemp)" || return 1
-		local -i failed_files_count
-		llm-what-changed "${llm_what_changed_options[@]}" --one-by-one HEAD -- "${diff_targets[@]}" | tee "$tmp_file"
-		failed_files_count=$pipestatus[1]
-		(( failed_files_count == 0 )) || log.warn "${failed_files_count} files failed. Aggregating the rest."
-		if [[ "$assume_yes" = false ]] && ! confirm "Done collecting changes for each file. Shall I aggregate them into a single commit message?"; then
-			cat "$tmp_file"
-			return 0
-		fi
-		notif.info "Aggregating into a single commit message..."
-		pi --model openai-codex/gpt-6-luna --thinking low --no-session --no-skills --no-prompt-templates --no-extensions --no-tools --no-themes --no-context-files --print < "$tmp_file" || { log.error "pi failed."; return 1; }
-		return 0
-	fi
-
 	local -a structured_diff_options
-	structured_diff_options=(--src-prefix='[SOURCE] ' --dst-prefix='[DESTINATION] ' HEAD)
+	structured_diff_options=(--src-prefix='[SOURCE] ' --dst-prefix='[DESTINATION] ')
 	$assume_yes && structured_diff_options+=(-y)
 	local -A diff_per_file
 	local file_path
-	local -i total_length
-	total_length=0
+	local -a comparison_arguments
+	local -i comparison_status difference_status total_length=0
 	for file_path in "${diff_targets[@]}"; do
-		diff_per_file[$file_path]="$(git-structured-diff "${structured_diff_options[@]}" -- "$file_path")" || { log.error "git-structured-diff failed for ${file_path}."; return 1; }
+		comparison_arguments=(HEAD -- "$file_path")
+		difference_status=0
+		if (( ${selected_untracked_paths[(Ie)$file_path]} )); then
+			comparison_arguments=(--no-index -- /dev/null "$file_path")
+			difference_status=1
+		fi
+		comparison_status=0
+		diff_per_file[$file_path]="$(git-structured-diff "${structured_diff_options[@]}" "${comparison_arguments[@]}")" || comparison_status=$?
+		if (( comparison_status == 1 && difference_status == 1 )) && [[ -n "${diff_per_file[$file_path]}" ]]; then
+			comparison_status=0
+		fi
+		(( comparison_status == 0 )) || { log.error "git-structured-diff failed for ${file_path}."; return "$comparison_status"; }
 		total_length+=${#diff_per_file[$file_path]}
 	done
+	if $one_by_one; then
+		local temporary_file
+		temporary_file="$(mktemp)" || return 1
+		local -i failed_files_count=0
+		{
+			for file_path in "${diff_targets[@]}"; do
+				print -r -- "${diff_per_file[$file_path]}" | llm-what-changed "${llm_what_changed_options[@]}" | tee -a "$temporary_file" || failed_files_count+=1
+			done
+			(( failed_files_count == 0 )) || log.warn "${failed_files_count} files failed. Aggregating the rest."
+			if [[ "$assume_yes" = false ]] && ! confirm "Done collecting changes for each file. Shall I aggregate them into a single commit message?"; then
+				cat "$temporary_file"
+				return 0
+			fi
+			notif.info "Aggregating into a single commit message..."
+			pi --model openai-codex/gpt-6-luna --thinking low --no-session --no-skills --no-prompt-templates --no-extensions --no-tools --no-themes --no-context-files --print < "$temporary_file" || { log.error "pi failed."; return 1; }
+			return 0
+		} always {
+			command rm -f -- "$temporary_file"
+		}
+	fi
 	if (( total_length > max_diff_length )); then
 		log.warn "Diff is ${total_length} chars, above the ${max_diff_length} limit."
 		if ! $assume_yes && ! confirm "Shorten each file's diff to fit under ${max_diff_length} chars?"; then
@@ -2368,6 +2388,7 @@ function llm-commit-msg(){
 # # llm-what-changed [-y,--yes] [git diff OPT...] [--force-prompt PROMPT='What has changed? Clearly, ...'] [--append-prompt APPEND_STRING] [--dry-run] [--one-by-one[=true|false] (default false)] [-- TREEISH...]
 # Asks an LLM what has changed based on a git diff context, tagging changes in a unified diff.
 # If --one-by-one is provided, applies itself recursively to each file in the git diff context.
+# With no Git arguments, accepts a diff from stdin.
 # The processed git diff context is passed to the LLM.
 # If --dry-run is provided, prints the git diff context instead of passing it to the LLM.
 function llm-what-changed(){
@@ -2461,7 +2482,12 @@ function llm-what-changed(){
 		"${additional_git_diff_args[@]}"
 	)
 	$assume_yes && structured_diff_options+=(-y)
-	local tagged_git_diff="$(git-structured-diff "${structured_diff_options[@]}" -- "${file_paths[@]}")"
+	local tagged_git_diff
+	if (( ${#additional_git_diff_args[@]} == 0 && ${#file_paths[@]} == 0 )) && is_piped; then
+		tagged_git_diff="$(git-structured-diff)" || return $?
+	else
+		tagged_git_diff="$(git-structured-diff "${structured_diff_options[@]}" -- "${file_paths[@]}")"
+	fi
 	local full_prompt="$(printf "%s\n\n%s" "$tagged_git_diff" "$(print -r -- "$prompt" | xt -q --tag 'user-instructions')")"
 	if $dry_run; then
 		print -- "$full_prompt"

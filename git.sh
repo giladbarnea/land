@@ -878,10 +878,10 @@ function git.beforeafter(){
 }
 
 # # git-structured-diff [-y,--yes] [STDIN DIFF] [GIT_DIFF_OPTS...] [--no-function-context] [--only-line-ranges]
-# Wraps blocks of changes in appropriate XML-like tags.
-# Pretty diff wrapper with per-patch tags and file-level XML tags.
-# - Suppresses git metadata lines; prints '---' + <filepath> per file and closes with </filepath>.
-# - Context lines are printed raw (no leading space). Change blocks are wrapped as:
+# Runs one git diff, or formats stdin when no Git arguments are given.
+# Formats unified text patches; preserves other output and Git exit statuses.
+# - Keeps change metadata and wraps each file in <filepath> ... </filepath>.
+# - Context lines carry line numbers. Change blocks are wrapped as:
 #   <added|deleted|modified patch start: line N|lines N-M>
 #   ...changed lines without +/- prefixes...
 #   </added|deleted|modified patch end: line N|lines N-M>
@@ -890,27 +890,18 @@ function git.beforeafter(){
 # `git-structured-diff`
 # `git-structured-diff --unified=20 --inter-hunk-context=10 --no-function-context -- path/to/treeish`
 function git-structured-diff(){
+  setopt localoptions noerrexit noerrreturn
   local only_line_ranges=0
-  local assume_yes=false
-  local parse_file_paths=false
   local -a git_diff_args
-  local -a file_paths
-  local arg
-  for arg in "$@"; do
-    if $parse_file_paths; then
-      file_paths+=("$arg")
-      continue
-    fi
-    case "$arg" in
+  while (( $# )); do
+    case "$1" in
       --only-line-ranges) only_line_ranges=1 ;;
-      -y|--yes) assume_yes=true ;;
-      --) parse_file_paths=true ;;
-      *) git_diff_args+=("$arg") ;;
+      -y|--yes) ;;
+      --) git_diff_args+=("$@"); break ;;
+      *) git_diff_args+=("$1") ;;
     esac
+    shift
   done
-  if [[ "$assume_yes" = false ]]; then
-    [[ "$YES" == 1 ]] && assume_yes=true
-  fi
 
   local parse_diff_program
   parse_diff_program='
@@ -922,7 +913,7 @@ function git-structured-diff(){
 
       # File state
       file_open = 0; file_path = "";
-      file_binary = 0; file_dissim = "";
+      file_dissim = "";
       file_lines = 0;
 
       # Hunk line counters
@@ -960,35 +951,6 @@ function git-structured-diff(){
       if (metadata_span < 1) metadata_span = 1;
       metadata_end = metadata_start + metadata_span - 1;
       metadata_label = range_label(metadata_start, metadata_end, 0);
-
-      # Detect whitespace-only patches (all changed lines empty/whitespace after stripping +/-)
-      has_nonws = 0;
-      for (i = 1; i <= line_count; i++) {
-        s = substr(change_lines[i], 2);
-        gsub(/[ \t\r\n]/, "", s);
-        if (length(s) > 0) { has_nonws = 1; break; }
-      }
-
-      if (has_nonws == 0) {
-        if (only_line_ranges) {
-          out(sprintf("%s: whitespace-only change", metadata_label));
-          delete change_lines; line_count = 0; add_count = 0; del_count = 0; in_block = 0;
-          return;
-        }
-        # Emit raw lines, no patch tags, do not count towards per-file patch stats
-        for (i = 1; i <= line_count; i++) {
-          c = substr(change_lines[i], 1, 1);
-          if (c == "+" || c == "-") {
-            out(substr(change_lines[i], 2));
-          } else if (c == " ") {
-            out(substr(change_lines[i], 2));
-          } else {
-            out(change_lines[i]);
-          }
-        }
-        delete change_lines; line_count = 0; add_count = 0; del_count = 0; in_block = 0;
-        return;
-      }
 
       # Track per-file counts
       if (tag == "added") { added_blocks++; seq_added++; seq_idx = seq_added; }
@@ -1073,7 +1035,7 @@ function git-structured-diff(){
     function open_file(path) {
       if (file_open) close_file();
       # Reset per-file state
-      file_path = path; file_open = 1; file_binary = 0; file_dissim = "";
+      file_path = path; file_open = 1; file_dissim = "";
       file_lines = 0;
       fl_n = 0; delete fl; delete fl_ln; delete fl_is_content;
       patches_total = 0; added_blocks = 0; deleted_blocks = 0; modified_blocks = 0;
@@ -1084,13 +1046,6 @@ function git-structured-diff(){
     function close_file() {
       if (!file_open) return;
       flush_block();
-      # If binary, ignore buffered content and emit a single self-closing line
-      if (file_binary) {
-        fl_n = 0; delete fl;
-        out("<binary difference/>");
-        patches_total = 0; added_blocks = 0; deleted_blocks = 0; modified_blocks = 0;
-      }
-
       # Inject patch numbering (and optional file path for large diffs) now that total is known
       file_is_large = (file_lines >= 100) ? 1 : 0;
       for (pi = 1; pi <= patches_total; pi++) {
@@ -1159,130 +1114,111 @@ function git-structured-diff(){
       }
     }
 
+    function unrecognized_format() { unrecognized = 1; exit 42; }
+
     {
-      # diff start for a file
-      if ($0 ~ /^diff --git /) {
+      if (index($0, "\033")) unrecognized_format();
+      if (file_open) file_lines++;
+      if (file_open && $0 ~ /^\\ No newline at end of file$/) {
+        flush_block(); out($0); next;
+      }
+
+      # Consume exactly the declared hunk lengths before interpreting any metadata.
+      in_hunk = (old_remaining > 0 || new_remaining > 0);
+      first = substr($0, 1, 1);
+      if (in_hunk && first !~ /^[ +\-]$/) unrecognized_format();
+      if (in_hunk && first != "+" && old_remaining <= 0) unrecognized_format();
+      if (in_hunk && first != "-" && new_remaining <= 0) unrecognized_format();
+      if (in_hunk && first == " ") {
         flush_block();
-        close_file();
-        # Extract a/ and b/ paths via fields to avoid regex portability issues
-        n = split($0, f, " ");
-        a_path = f[3]; b_path = f[4];
-        sub(/^a\//, "", a_path);
-        sub(/^b\//, "", b_path);
-        path = (b_path != "" && b_path != "/dev/null") ? b_path : a_path;
-        if (path != "") open_file(path);
+        if (!only_line_ranges) out_line(substr($0, 2), new_line, 1);
+        old_line++; new_line++; old_remaining--; new_remaining--;
+        next;
+      }
+      if (in_hunk && first == "+") {
+        start_block_if_needed();
+        line_count++; change_lines[line_count] = $0; add_count++; new_line++; new_remaining--;
+        next;
+      }
+      if (in_hunk && first == "-") {
+        start_block_if_needed();
+        line_count++; change_lines[line_count] = $0; del_count++; old_line++; old_remaining--;
         next;
       }
 
-      # Count per-file input lines for large-file breadcrumb threshold
-      if (file_open) file_lines++;
-
-      # Git metadata lines are not printed
-      if ($0 ~ /^(new|deleted) file mode/) { next; }
-      if ($0 ~ /^rename (from|to)/ || $0 ~ /^copy (from|to)/ || $0 ~ /^index /) { next; }
-
-      # Similarity/dissimilarity: capture and keep in content
+      if ($0 ~ /^diff --git /) {
+        close_file();
+        file_header = substr($0, 12);
+        open_file(file_header);
+        next;
+      }
+      if (!file_open) { print; next; }
+      if ($0 ~ /^@@ -[0-9]+(,[0-9]+)? \+[0-9]+(,[0-9]+)? @@/) {
+        flush_block();
+        n = split(substr($2, 2), parts, ",");
+        old_line = parts[1] + 0; old_remaining = (n == 2 ? parts[2] + 0 : 1);
+        n = split(substr($3, 2), parts, ",");
+        new_line = parts[1] + 0; new_remaining = (n == 2 ? parts[2] + 0 : 1);
+        hunks++;
+        next;
+      }
+      if ($0 ~ /^index /) next;
+      if ($0 ~ /^--- /) {
+        old_path = substr($0, 5); sub(/\t$/, "", old_path);
+        next;
+      }
+      new_file_header = ($0 ~ /^\+\+\+ /);
+      if (new_file_header) {
+        path = substr($0, 5); sub(/\t$/, "", path);
+        file_path = (path == "/dev/null" ? old_path : path);
+      }
+      if (new_file_header && (file_header == old_path " " old_path || file_header == path " " path)) next;
+      if (new_file_header) {
+        sub(/^[ab]\//, "", file_path);
+        sub(/^"[ab]\//, "\"", file_path);
+        next;
+      }
       if ($0 ~ /^dissimilarity index /) {
         n = split($0, parts, " "); file_dissim = parts[n];
+      }
+      if ($0 ~ /^(new|deleted) file mode / || $0 ~ /^(old|new) mode / ||
+          $0 ~ /^(rename|copy) (from|to) / || $0 ~ /^(dis)?similarity index /) {
         out($0); next;
       }
-      if ($0 ~ /^similarity index /) { out($0); next; }
-
-      # File headers (--- a/..., +++ b/...) suppressed
-      if ($0 ~ /^--- / || $0 ~ /^\+\+\+ /) { next; }
-      # Suppress git’s marker about missing newline at EOF (allow trailing spaces)
-      if ($0 ~ /^\\ No newline at end of file( *$|$)/) { next; }
-      # Mode changes and submodule summaries suppressed
-      if ($0 ~ /^(old mode|new mode) [0-9]+/) { next; }
-      if ($0 ~ /^Submodule /) { next; }
-      # Binary markers: flag and suppress
-      if ($0 ~ /^GIT binary patch$/) { file_binary = 1; next; }
-      if ($0 ~ /^Binary files /) { file_binary = 1; next; }
-
-      # Hunk header: set counters (portable, no submatch arrays)
-      if ($0 ~ /^@@ /) {
-        flush_block();
-        # Parse old start after '-'
-        old_line = 0; new_line = 0;
-        s = $0;
-        if (match(s, /-([0-9]+)/)) {
-          old_line = substr(s, RSTART+1, RLENGTH-1) + 0;
-        }
-        # Parse new start after '+'
-        if (match(s, /\+([0-9]+)/)) {
-          new_line = substr(s, RSTART+1, RLENGTH-1) + 0;
-        }
-        next;
-      }
-
-      # Within hunk: context/add/del lines
-      first = substr($0, 1, 1);
-      if (first == " ") {
-        # Context line ends any pending change block
-        flush_block();
-        if (only_line_ranges) {
-          old_line++; new_line++;
-          next;
-        }
-        out_line(substr($0, 2), new_line, 1);
-        old_line++; new_line++;
-        next;
-      }
-
-      if (first == "+") {
-        start_block_if_needed();
-        line_count++; change_lines[line_count] = $0; add_count++; new_line++;
-        next;
-      }
-
-      if (first == "-") {
-        start_block_if_needed();
-        line_count++; change_lines[line_count] = $0; del_count++; old_line++;
-        next;
-      }
-
-      # Any other line: not part of diff body. Flush and buffer as-is.
-      flush_block();
-      out($0);
+      unrecognized_format();
     }
 
     END {
+      if (unrecognized || old_remaining > 0 || new_remaining > 0 || hunks == 0) exit 42;
       close_file();
     }
   '
 
-  local no_arguments
-  no_arguments=$(( ${#git_diff_args[@]} == 0 && ${#file_paths[@]} == 0 ))
-  if (( no_arguments )) && is_piped; then
-    awk -v only_line_ranges="$only_line_ranges" "$parse_diff_program"
-    return $?
-  fi
-  if (( no_arguments )); then
-    if $assume_yes || is_piping || ! is_human; then
-      log.info "No data provided and can’t ask user interactively. Defaulting to ‘git --no-pager diff $(gdargs+) | $0’."
-    else
-      confirm "No data in stdin. Run ‘git --no-pager diff $(gdargs+) | $0’?" || return 0
-    fi
-  fi
-
-  # Untracked files are diffed against /dev/null by git itself, from the repo root, so their paths and binary handling match tracked files.
-  local repo_root
-  repo_root="$(command git rev-parse --show-toplevel)" || return 1
-  local -a untracked_files
-  untracked_files=( ${(f)"$(command git ls-files --others --exclude-standard --full-name -- "${file_paths[@]}")"} )
-  local untracked_file
+  local temporary_directory
+  temporary_directory="$(mktemp -d "${TMPDIR:-/tmp}/gsd.XXXXXXXXXX")" || return $?
+  local git_status formatter_status
   {
-    if (( no_arguments )); then
-      command git --no-pager diff
-      command git --no-pager diff --cached --diff-filter=A
+    if (( ${#git_diff_args[@]} == 0 )) && is_piped; then
+      command cat > "$temporary_directory/input"
     else
-      command git --no-pager diff "${git_diff_args[@]}" -- "${file_paths[@]}"
+      command git --no-pager diff "${git_diff_args[@]}" > "$temporary_directory/input"
     fi
-    for untracked_file in "${untracked_files[@]}"; do
-      # --no-index exits 1 when the files differ, which is always the case here. Only higher codes are errors.
-      command git -C "$repo_root" --no-pager diff --no-index /dev/null "$untracked_file" || (( $? == 1 ))
-    done
-  } | awk -v only_line_ranges="$only_line_ranges" "$parse_diff_program"
+    git_status=$?
+    # macOS awk cannot represent NULs. Keep binary and non-patch output byte-for-byte.
+    formatter_status=42
+    if LC_ALL=C command tr -d '\000' < "$temporary_directory/input" | command cmp -s "$temporary_directory/input" -; then
+      awk -v only_line_ranges="$only_line_ranges" "$parse_diff_program" "$temporary_directory/input" > "$temporary_directory/formatted"
+      formatter_status=$?
+    fi
+    case "$formatter_status" in
+      0) command cat "$temporary_directory/formatted" || return $? ;;
+      42) command cat "$temporary_directory/input" || return $? ;;
+      *) return "$formatter_status" ;;
+    esac
+    return "$git_status"
+  } always {
+    command rm -rf -- "$temporary_directory"
+  }
 }
 
 
