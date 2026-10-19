@@ -35,11 +35,89 @@ function commit_message() {
       command cat
     }
     builtin cd "${COMMIT_TEST_DIRECTORY:-$COMMIT_TEST_REPOSITORY}"
-    llm-commit-msg -y "$@"
+    if [[ -n "$COMMIT_TEST_CHOICE" ]]; then
+      is_human() { return 0; }
+      input() { print -r -- "$COMMIT_TEST_CHOICE"; }
+      llm-commit-msg "$@"
+    else
+      input() { print -ru2 UNEXPECTED_PROMPT; return 98; }
+      llm-commit-msg -y "$@"
+    fi
     commit_status=$?
     print -ru2 -- "CALLER_DIRECTORY=$PWD"
     exit $commit_status
   ' -- "$@"
+}
+
+@test 'preview preserves the index timestamp so same-size edits are not missed' {
+  git -C "$COMMIT_TEST_REPOSITORY" config core.trustctime false
+  git -C "$COMMIT_TEST_REPOSITORY" config core.checkStat minimal
+  touch -t 202601010000 "$COMMIT_TEST_REPOSITORY/tracked.txt"
+  git -C "$COMMIT_TEST_REPOSITORY" add tracked.txt
+  touch -t 202601010000 "$COMMIT_TEST_REPOSITORY/.git/index"
+  printf 'TRACKED_CHANGE\n' > "$COMMIT_TEST_REPOSITORY/tracked.txt"
+  touch -t 202601010000 "$COMMIT_TEST_REPOSITORY/tracked.txt"
+
+  run commit_message
+
+  [ "$status" -eq 0 ] && [[ "$output" == *TRACKED_CHANGE* ]] || { echo "The index copy hid a same-size edit: $output"; return 1; }
+}
+
+@test 'explicit paths preview staging while retaining unrelated staged content only' {
+  printf 'STAGED_README\n' > "$COMMIT_TEST_REPOSITORY/README.md"
+  git -C "$COMMIT_TEST_REPOSITORY" add README.md
+  printf 'UNSTAGED_README\n' > "$COMMIT_TEST_REPOSITORY/README.md"
+  printf 'SELECTED_APP\n' > "$COMMIT_TEST_REPOSITORY/tracked.txt"
+  cp "$COMMIT_TEST_REPOSITORY/.git/index" "$BATS_TEST_TMPDIR/index-before"
+
+  run commit_message -- tracked.txt
+
+  [ "$status" -eq 0 ] || { echo "Preview failed: $output"; return 1; }
+  [[ "$output" == *STAGED_README* && "$output" == *SELECTED_APP* && "$output" != *UNSTAGED_README* ]] || { echo "Preview does not match git add -- tracked.txt: $output"; return 1; }
+  cmp "$COMMIT_TEST_REPOSITORY/.git/index" "$BATS_TEST_TMPDIR/index-before" || { echo 'Preview changed the real index'; return 1; }
+  local preview="$output"
+  git -C "$COMMIT_TEST_REPOSITORY" add -A -- tracked.txt
+
+  run commit_message --cached
+
+  [ "$status" -eq 0 ] && [ "$output" = "$preview" ] || { echo "Preview differs from the actual staged changes: $output"; return 1; }
+}
+
+@test 'menu selections combine classes without adding unrelated modifications' {
+  printf 'STAGED_README\n' > "$COMMIT_TEST_REPOSITORY/README.md"
+  git -C "$COMMIT_TEST_REPOSITORY" add README.md
+  printf 'UNSTAGED_TRACKED\n' > "$COMMIT_TEST_REPOSITORY/tracked.txt"
+  printf 'UNTRACKED_LITERAL\n' > "$COMMIT_TEST_REPOSITORY/[a].txt"
+  cp "$COMMIT_TEST_REPOSITORY/.git/index" "$BATS_TEST_TMPDIR/index-before"
+
+  COMMIT_TEST_CHOICE=su run commit_message
+
+  [ "$status" -eq 0 ] || { echo "Combined menu choices failed: $output"; return 1; }
+  [[ "$output" == *STAGED_README* && "$output" == *UNTRACKED_LITERAL* && "$output" != *UNSTAGED_TRACKED* ]] || { echo "Wrong menu selection: $output"; return 1; }
+  cmp "$COMMIT_TEST_REPOSITORY/.git/index" "$BATS_TEST_TMPDIR/index-before" || { echo 'Menu preview changed the real index'; return 1; }
+}
+
+@test 'the staged menu handles renames and already-staged deletions' {
+  git -C "$COMMIT_TEST_REPOSITORY" mv tracked.txt moved.txt
+
+  COMMIT_TEST_CHOICE=s run commit_message
+
+  [ "$status" -eq 0 ] && [[ "$output" == *'rename from tracked.txt'* && "$output" == *'rename to moved.txt'* ]] || { echo "Tried to restage a removed rename source: $output"; return 1; }
+
+  git -C "$COMMIT_TEST_REPOSITORY" rm -qf moved.txt
+  printf 'UNSELECTED_NEW_FILE\n' > "$COMMIT_TEST_REPOSITORY/unselected.txt"
+  COMMIT_TEST_CHOICE=s run commit_message
+
+  [ "$status" -eq 0 ] && [[ "$output" == *'deleted patch'* && "$output" != *UNSELECTED_NEW_FILE* ]] || { echo "Empty staging selection accidentally staged everything: $output"; return 1; }
+}
+
+@test 'paths after the separator are never parsed as options' {
+  printf 'FLAG_FILE\n' > "$COMMIT_TEST_REPOSITORY/--one-by-one"
+
+  run commit_message -- --one-by-one
+
+  [ "$status" -eq 0 ] && [[ "$output" == *FLAG_FILE* ]] || { echo "Parsed a filename as an option: $output"; return 1; }
+  [ "$(wc -l < "$COMMIT_TEST_REQUESTS" | tr -d ' ')" -eq 1 ] || { echo 'Filename enabled one-by-one mode'; return 1; }
 }
 
 @test 'automatic selection keeps untracked filenames with spaces and newlines' {
@@ -126,7 +204,8 @@ function commit_message() {
   run commit_message
 
   [ "$status" -eq 0 ] || { echo "Expected success: $status $output"; return 1; }
-  [[ "$output" == *'moved.txt added=1'* && "$output" == *'tracked.txt added=0 modified=0 deleted=1'* ]] || { echo "Lost one side of the rename: $output"; return 1; }
+  [[ "$output" == *'rename from tracked.txt'* && "$output" == *'rename to moved.txt'* ]] || { echo "Lost Git's rename metadata: $output"; return 1; }
+  [[ "$output" != *'tracked before'* ]] || { echo "Repeated the entire renamed file instead of describing the rename: $output"; return 1; }
 }
 
 @test 'the first commit in a new repository compares staged files with an empty tree' {
@@ -146,13 +225,15 @@ function commit_message() {
 @test 'untracked nested repositories are described without reading their files' {
   git init -q "$COMMIT_TEST_REPOSITORY/vendor-clone"
   printf 'NESTED_CONTENT_MUST_NOT_BE_READ\n' > "$COMMIT_TEST_REPOSITORY/vendor-clone/inner.txt"
+  git -C "$COMMIT_TEST_REPOSITORY/vendor-clone" add inner.txt
+  git -C "$COMMIT_TEST_REPOSITORY/vendor-clone" -c user.name=Test -c user.email=test@example.com commit -qm initial
   printf 'TRACKED_CHANGE\n' > "$COMMIT_TEST_REPOSITORY/tracked.txt"
   local mode
   for mode in false true; do
     run commit_message "--one-by-one=$mode"
 
     [ "$status" -eq 0 ] || { echo "A nested repository failed in mode $mode: $status $output"; return 1; }
-    [[ "$output" == *'New nested Git repository: vendor-clone/'* && "$output" == *'TRACKED_CHANGE'* ]] || { echo "Lost the nested repository or the tracked change: $output"; return 1; }
+    [[ "$output" == *'vendor-clone'* && "$output" == *'Subproject commit'* && "$output" == *'TRACKED_CHANGE'* ]] || { echo "Lost the nested repository or the tracked change: $output"; return 1; }
     [[ "$output" != *'NESTED_CONTENT_MUST_NOT_BE_READ'* ]] || { echo "Read files inside the nested repository: $output"; return 1; }
   done
 }
@@ -184,17 +265,15 @@ function commit_message() {
   done
 }
 
-@test 'an empty failed no-index comparison is not mistaken for a successful difference' {
-  printf 'new content\n' > "$COMMIT_TEST_REPOSITORY/new.txt"
-  local git_binary
-  git_binary=$(command -v git)
-  printf '#!/bin/sh\ncase "$*" in *--no-index*) printf "injected read failure\\n" >&2; exit 1;; esac\nexec "%s" "$@"\n' "$git_binary" > "$COMMIT_TEST_HOME/bin/git"
-  chmod +x "$COMMIT_TEST_HOME/bin/git"
+@test 'Git staging errors stop before any model request and preserve the real index' {
+  cp "$COMMIT_TEST_REPOSITORY/.git/index" "$BATS_TEST_TMPDIR/index-before"
+  git init -q "$COMMIT_TEST_REPOSITORY/empty-clone"
 
-  run commit_message -- new.txt
+  run commit_message
 
-  [ "$status" -eq 1 ] || { echo "Expected the read failure: $status $output"; return 1; }
-  [ ! -e "$COMMIT_TEST_REQUESTS" ] || { echo 'Sent a failed comparison to the model'; return 1; }
+  [ "$status" -ne 0 ] || { echo "Accepted a repository that Git cannot stage: $output"; return 1; }
+  [ ! -e "$COMMIT_TEST_REQUESTS" ] || { echo 'Sent an unstaged preview to the model'; return 1; }
+  cmp "$COMMIT_TEST_REPOSITORY/.git/index" "$BATS_TEST_TMPDIR/index-before" || { echo 'Changed the real index on failure'; return 1; }
 }
 
 @test 'new-file difference status remains successful under errexit and errreturn' {
@@ -218,7 +297,7 @@ function commit_message() {
 
     [ "$status" -eq 0 ] || { echo "Directory symlinks failed in mode $mode: $status $output"; return 1; }
     [[ "$output" == *'relative-link'* && "$output" == *'absolute-link'* && "$output" == *'target-directory'* ]] || { echo "Missing link names or targets: $output"; return 1; }
-    [[ "$output" == *'symlink'* && "$output" != *'DIRECTORY_CONTENT_MUST_NOT_BE_READ'* ]] || { echo "Compared the directory instead of the link: $output"; return 1; }
+    [[ "$output" == *'120000'* && "$output" != *'DIRECTORY_CONTENT_MUST_NOT_BE_READ'* ]] || { echo "Compared the directory instead of the link: $output"; return 1; }
   done
   git -C "$COMMIT_TEST_REPOSITORY" ls-files --stage > "$BATS_TEST_TMPDIR/index-after"
   cmp "$BATS_TEST_TMPDIR/index-before" "$BATS_TEST_TMPDIR/index-after" || { echo 'Changed the real Git index'; return 1; }

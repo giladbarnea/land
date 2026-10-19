@@ -1,15 +1,48 @@
 compdef _git gd=git-diff
 
+_gac() {
+  local -i separator_index=${words[(i)--]}
+  if (( separator_index < CURRENT )); then
+    _files
+    return
+  fi
+
+  local -a words=("${words[@]}") commit_words
+  local -i CURRENT=$CURRENT original_current=$CURRENT word_index
+  for (( word_index = 1; word_index <= ${#words}; word_index++ )); do
+    if (( word_index < original_current )) && [[ "${words[$word_index]}" == -y || "${words[$word_index]}" == --yes ]]; then
+      (( CURRENT-- ))
+      continue
+    fi
+    commit_words+=("${words[$word_index]}")
+  done
+  words=("${commit_words[@]}")
+  local -a options=('-y:skip commit and push confirmations' '--yes:skip commit and push confirmations')
+  _describe -t options 'confirmation options' options
+  if (( CURRENT == 2 )) && [[ "${words[2]}" != -* ]]; then
+    _message 'commit message (omit to generate), or -- followed by paths to stage'
+    return
+  fi
+  if [[ -n "${words[2]}" && "${words[2]}" != -* ]]; then
+    words=("${words[1]}" -m "${words[@]:1}")
+    (( CURRENT++ ))
+  fi
+  local service=git-commit
+  _git
+}
+compdef _gac gac gacp
+compdef _files git.stage
+
 _git_structured_diff:delegate_git_diff() {
   local -a original_words stripped_words
-  local -i original_current stripped_current i
+  local -i original_current stripped_current i separator_index=${words[(i)--]}
 
   original_words=("${words[@]}")
   original_current=$CURRENT
   stripped_current=$CURRENT
 
   for (( i = 1; i <= ${#words[@]}; i++ )); do
-    if [[ "${words[i]}" == --only-line-ranges || "${words[i]}" == --stdin || "${words[i]}" == -y || "${words[i]}" == --yes ]]; then
+    if (( i < separator_index )) && [[ "${words[i]}" == --only-line-ranges || "${words[i]}" == --stdin || "${words[i]}" == -y || "${words[i]}" == --yes ]]; then
       (( i < CURRENT )) && (( stripped_current-- ))
       continue
     fi
@@ -18,7 +51,8 @@ _git_structured_diff:delegate_git_diff() {
 
   words=("${stripped_words[@]}")
   CURRENT=$stripped_current
-  _git git-diff
+  local service=git-diff
+  _git
   local ret=$?
   words=("${original_words[@]}")
   CURRENT=$original_current
@@ -30,15 +64,14 @@ _git_structured_diff() {
   local -i ret=1
 
   local -a options=(
-    '(- *)-y[skip confirmation]'
-    '(- *)--yes[skip confirmation]'
-    '(- *)--only-line-ranges[emit only per-file metadata plus changed line ranges]'
-    '(- *)--stdin[format a diff read from stdin instead of running git diff]'
+    '(-y --yes)'{-y,--yes}'[accepted for compatibility; no confirmation is needed]'
+    '--only-line-ranges[emit only per-file metadata plus changed line ranges]'
+    '(*)--stdin[format a diff read from stdin instead of running git diff]'
   )
 
   _arguments -A '-*' -C \
     "${options[@]}" \
-    '*::git diff args:->git_diff' && ret=0
+    '*:git diff args:->git_diff' && ret=0
 
   case $state in
     (git_diff)

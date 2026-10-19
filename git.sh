@@ -187,20 +187,24 @@ function git.lastcommit(){
   git.showcommit "$@" -1
 }
 
+# # git.stage [PATHSPEC...]
+# Stages all changes in the supplied paths, or the whole repository when none are supplied.
+function git.stage() {
+  command git add -A -- "$@"
+}
+
 # # gac [-y,--yes] [COMMIT_MSG | git-commit-args...] [-- paths...]
-# Runs git add first, then git commit.
+# Stages first, generates a message if no commit arguments were supplied, then commits.
 # Args before -- pass to git commit. A bare first arg is shorthand for -m COMMIT_MSG.
-# Paths after -- pass to git add. Without --, git add defaults to .
+# Paths after -- pass to git.stage. Without paths, stages the whole repository.
 # If -y is provided, skips the commit confirmation.
 function gac() {
   local assume_yes=false
   local -a git_commit_args
   local -a git_add_paths
-  local saw_add_paths=false
 
   while (( $# )); do
     if [[ "$1" == -- ]]; then
-      saw_add_paths=true
       shift
       git_add_paths=("$@")
       break
@@ -216,16 +220,7 @@ function gac() {
     [[ "$YES" == 1 ]] && assume_yes=true
   fi
 
-  if [[ "$saw_add_paths" = false ]]; then
-    git_add_paths=(.)
-  fi
-
-  if (( ${#git_commit_args[@]} == 0 )); then
-    local commitmsg
-    commitmsg="$(input "Commit message? (e.g. changed this to that)")"
-    [[ -z "$commitmsg" ]] && commitmsg="$(date)"
-    git_commit_args=(-m "$(strip "$commitmsg")")
-  elif [[ "${git_commit_args[1]}" != -* ]]; then
+  if (( ${#git_commit_args[@]} )) && [[ "${git_commit_args[1]}" != -* ]]; then
     local commitmsg="${git_commit_args[1]}"
     [[ -n "${commitmsg//[[:space:]]/}" ]] || { log.error "Commit message is empty. Aborting before staging."; return 2; }
     local -a normalized_git_commit_args=(-m "$(strip "$commitmsg")")
@@ -239,9 +234,16 @@ function gac() {
 
   log.debug "$(typeset git_commit_args git_add_paths)"
 
-  if ! vex git add -- "${git_add_paths[@]}"; then
+  if ! git.stage "${git_add_paths[@]}"; then
     log.fatal "${Cc}git add${Cc0} failed, aborting."
     return 1
+  fi
+
+  if (( ${#git_commit_args[@]} == 0 )); then
+    local commitmsg
+    commitmsg="$(llm-commit-msg --cached -y)" || return $?
+    [[ -n "${commitmsg//[[:space:]]/}" ]] || { log.error "Generated commit message is empty. Changes remain staged."; return 2; }
+    git_commit_args=(-m "$(strip "$commitmsg")")
   fi
 
   if [[ "$assume_yes" = false ]] && ! confirm "git commit ${git_commit_args[*]}?"; then

@@ -9,6 +9,14 @@ _insert_double_quote(){ compadd -Q -S '"' '' ; }
 
 # region [-------- Completion Data Declarations --------]
 
+typeset -ga LLM_COMMIT_MESSAGE_OPTIONS=(
+  '(-y --yes)'{-y,--yes}'[preview all repository changes without prompting]'
+  '--cached[describe the current index without staging a preview]'
+  '--append-prompt=[append text to the commit-message prompt]:text:'
+  '--max-diff-length=[limit diff characters (default 1000000)]:characters:'
+  '--one-by-one=-[analyze each staged change before aggregation]::boolean:(true false)'
+)
+
 typeset -ga LLM_LOGS_CHILD_COMMANDS=(
   'list:Show logged prompts and their responses'
   'backup:Backup your logs database to this file'
@@ -628,22 +636,15 @@ compdef _llm llm simplify compress zshai zshcmd pyai claudeai 'claudeai+' flashl
 compdef _llm:logs:list llm-logs llm-response llm-cids
 
 _llm-commit-msg() {
-  local -a options=(
-    '(- *)-y[assume all files and skip confirmations]'
-    '(- *)--yes[assume all files and skip confirmations]'
-    '--append-prompt=[Append text to the commit-message prompt]:text:'
-    '--one-by-one=-[Process each file individually (default false)]::boolean:(true false)'
-  )
-
-  local -i separator_index=${words[(I)--]}
-  if (( separator_index && separator_index < CURRENT )); then
+  local -i separator_index=${words[(i)--]}
+  if (( separator_index < CURRENT )); then
     _files
     return
   fi
 
   _arguments -A '-*' \
-    "${options[@]}" \
-    '1:separator:(--)'
+    "${LLM_COMMIT_MESSAGE_OPTIONS[@]}" \
+    '(--cached)1:separator:(--)'
 }
 
 compdef _llm-commit-msg llm-commit-msg

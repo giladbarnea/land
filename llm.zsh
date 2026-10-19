@@ -2153,10 +2153,12 @@ function llm-search(){
 }
 
 
-# # llm-commit-msg [-y,--yes] [--append-prompt APPEND_STRING] [--one-by-one[=true|false] (default false)] [--max-diff-length N (default 1,000,000 ≈ 1 MB)] [-- PATH...]
-# Generates a commit message for the given files against HEAD.
+# # llm-commit-msg [-y,--yes] [--cached] [--append-prompt APPEND_STRING] [--one-by-one[=true|false] (default false)] [--max-diff-length N (default 1,000,000 ≈ 1 MB)] [-- PATH...]
+# Previews git.stage in a temporary index and describes the result. The real index stays unchanged.
+# --cached describes the current index without preview staging (used by gac).
 # Paths must come after a '--' separator, consistent with git and llm-what-changed.
-# If no paths are provided, uses all changed files in the repository with -y or prompts which files to use otherwise.
+# With no paths, -y previews the whole repository; an interactive bare call offers change classes.
+# Explicit paths never prompt. Existing staged changes stay included, as with git commit.
 # If the combined diff exceeds --max-diff-length chars, confirms (-y assumes yes) and shortens each file's diff to fit.
 # Runs in a subshell, so working from the repository root does not move the caller.
 function llm-commit-msg()(
@@ -2172,8 +2174,7 @@ function llm-commit-msg()(
 	append_prompt=''
 	local assume_yes
 	assume_yes=false
-	local parse_paths
-	parse_paths=false
+	local cached=false stage_all=true
 	local -i max_diff_length
 	max_diff_length=1000000
 	while [[ $# -gt 0 ]]; do
@@ -2184,140 +2185,105 @@ function llm-commit-msg()(
 			--max-diff-length) max_diff_length="$2" ; shift ;;
 			--one-by-one) one_by_one=true ;;
 			--one-by-one=*) one_by_one="${1#*=}" ;;
-			-y|--yes) $parse_paths && diff_targets+=("$1") || assume_yes=true ;;
-			--) parse_paths=true ;;
-			*)
-				$parse_paths || {
-					log.error "Unexpected positional argument '$1'. Paths must come after a '--' separator: llm-commit-msg [opts...] -- PATH..."
-					return 1
-				}
-				diff_targets+=("$1") ;;
+			-y|--yes) assume_yes=true ;;
+			--cached) cached=true ;;
+			--) shift; diff_targets=("$@"); assume_yes=true; break ;;
+			*) log.error "Unexpected argument '$1'. Paths must follow --: llm-commit-msg [opts...] -- PATH..."; return 1 ;;
 		esac
 		shift
 	done
 	if [[ "$assume_yes" = false ]]; then
 		[[ "$YES" == 1 ]] && assume_yes=true
 	fi
+	is_human || assume_yes=true
+	$cached && (( ${#diff_targets} )) && { log.error "--cached takes no paths. It describes the entire index."; return 2; }
 	[[ -n "$append_prompt" ]] && llm_prompt="$(printf "%s\n%s" "$llm_prompt" "$append_prompt")"
-	local untracked_listing
-	if [[ "${#diff_targets[@]}" = 0 ]]; then
-		# Git lists staged paths from the repository root, so every automatic path is root-relative.
-		local repository_root
-		repository_root="$(command git rev-parse --show-toplevel)" || return $?
-		builtin cd -q -- "$repository_root" || return $?
-		local -a staged_files
-		local -a modified_files
-		local -a untracked_files
-		local -a added_files
-		local -a committed_files
-		local -a deleted_files
-		local listing
-		listing="$(command git diff --cached --name-only --no-renames -z)" || return $?
-		staged_files=(${(0)listing})
-		listing="$(command git ls-files --modified -z)" || return $?
-		modified_files=(${(0)listing})
-		listing="$(command git ls-files --others --exclude-standard -z)" || return $?
-		untracked_files=(${(0)listing})
-		listing="$(command git diff --cached --name-only --diff-filter=A -z)" || return $?
-		added_files=(${(0)listing})
-		# git.committed returns 1 when nothing is committed ahead of the upstream.
-		committed_files=($(git.committed)) || true
-		listing="$(command git ls-files --deleted -z)" || return $?
-		deleted_files=(${(0)listing})
-		if $assume_yes; then
-			diff_targets+=(
-				"${staged_files[@]}"
-				"${modified_files[@]}"
-				"${untracked_files[@]}"
-				"${added_files[@]}"
-				"${committed_files[@]}"
-				"${deleted_files[@]}"
-			)
-		elif (( ${#staged_files} + ${#modified_files} + ${#untracked_files} + ${#added_files} + ${#committed_files} + ${#deleted_files} )); then
-			local -a message
-			message=("No files provided and at least one of the following files exists:")
-			# Remove duplicates from all files arrays
-			staged_files=( "${(@u)staged_files[@]}" )
-			modified_files=( "${(@u)modified_files[@]}" )
-			untracked_files=( "${(@u)untracked_files[@]}" )
-			added_files=( "${(@u)added_files[@]}" )
-			committed_files=( "${(@u)committed_files[@]}" )
-			deleted_files=( "${(@u)deleted_files[@]}" )
-			
-			# Build message
-			(( ${#staged_files} )) && message+=("Staged:\n • ${(j.\n • .)staged_files}")
-			(( ${#modified_files} )) && message+=("Modified:\n • ${(j.\n • .)modified_files}")
-			(( ${#untracked_files} )) && message+=("Untracked:\n • ${(j.\n • .)untracked_files}")
-			(( ${#added_files} )) && message+=("Added:\n • ${(j.\n • .)added_files}")
-			(( ${#committed_files} )) && message+=("Committed:\n • ${(j.\n • .)committed_files}")
-			(( ${#deleted_files} )) && message+=("Deleted:\n • ${(j.\n • .)deleted_files}")
-			message+=("Specify which files to use in [smuacd] format or 'A' to use all.")
-			local user_choice
-			user_choice="$(input "${(F)message[@]}")" || { log.error "No file selection made."; return 1; }
-			local user_choice_individual_letter
-			for user_choice_individual_letter in $user_choice; do
-				case "$user_choice_individual_letter" in
-					*s*) diff_targets+=(${staged_files[@]}) ;;
-					*m*) diff_targets+=(${modified_files[@]}) ;;
-					*u*) diff_targets+=(${untracked_files[@]}) ;;
-					*a*) diff_targets+=(${added_files[@]}) ;;
-					*c*) diff_targets+=(${committed_files[@]}) ;;
-					*d*) diff_targets+=(${deleted_files[@]}) ;;
-					*A*) diff_targets+=(${staged_files[@]} ${modified_files[@]} ${untracked_files[@]} ${added_files[@]} ${committed_files[@]} ${deleted_files[@]}) ;;
-				esac
-			done
-		fi
-		# Check if diff_targets is empty and return 1 if so
-		[[ -z ${diff_targets} ]] && {
-			log.error "No files provided, and there are staged, modified, untracked, added, committed, or deleted files."
-			return 1
-		}
-		
+	local temporary_directory repository_root
+	repository_root="$(command git rev-parse --show-toplevel)" || return $?
+	if ! $cached; then
+		temporary_directory="$(mktemp -d)" || return $?
+		trap 'command rm -rf -- "$temporary_directory"' EXIT
+		local real_index
+		real_index="$(command git rev-parse --path-format=absolute --git-path index)" || return $?
+		# Git uses the index timestamp to detect edits with otherwise unchanged stat data.
+		[[ ! -e "$real_index" ]] || command cp -p -- "$real_index" "$temporary_directory/index" || return $?
+		export GIT_INDEX_FILE="$temporary_directory/index"
 	fi
-	untracked_listing="$(command git ls-files --others --exclude-standard -z -- "${diff_targets[@]}")" || return $?
-	local -a selected_untracked_paths=(${(0)untracked_listing})
-	diff_targets+=("${selected_untracked_paths[@]}")
-	diff_targets=( "${(@u)diff_targets[@]}" )
-	log.debug "$(typeset diff_targets)"
-	
-	log.info "Generating commit message for ${#diff_targets[@]} files..." -L -x
-	local -a llm_what_changed_options
-	$assume_yes && llm_what_changed_options+=(-y)
-	local -a structured_diff_options
-	structured_diff_options=(--src-prefix='[SOURCE] ' --dst-prefix='[DESTINATION] ')
-	$assume_yes && structured_diff_options+=(-y)
-	local -A diff_per_file symlink_metadata
-	local file_path
-	local -a comparison_arguments
-	local -i comparison_status difference_status total_length=0
-	# Before the first commit, HEAD does not exist yet. Compare with the empty tree instead.
-	local base_revision=HEAD
-	command git rev-parse -q --verify HEAD > /dev/null || base_revision="$(command git hash-object -t tree /dev/null)" || return $?
-	for file_path in "${diff_targets[@]}"; do
-		comparison_arguments=("$base_revision" -- "$file_path")
-		difference_status=0
-		if (( ${selected_untracked_paths[(Ie)$file_path]} )); then
-			comparison_arguments=(--no-index -- /dev/null "$file_path")
-			difference_status=1
+
+	if ! $cached && ! $assume_yes && (( ${#diff_targets} == 0 )) && is_human; then
+		builtin cd -q -- "$repository_root" || return $?
+		local -A class_paths
+		local listing upstream
+		listing="$(command git diff --cached --name-only --no-renames -z)" || return $?
+		class_paths[s]="$listing"
+		listing="$(command git ls-files --modified -z)" || return $?
+		class_paths[m]="$listing"
+		listing="$(command git ls-files --others --exclude-standard -z)" || return $?
+		class_paths[u]="$listing"
+		listing="$(command git diff --cached --name-only --diff-filter=A -z)" || return $?
+		class_paths[a]="$listing"
+		if upstream="$(command git rev-parse --verify --quiet '@{upstream}')"; then
+			listing="$(command git diff --name-only --no-renames -z "$upstream"..HEAD)" || return $?
+			class_paths[c]="$listing"
 		fi
-		comparison_status=0
-		if (( difference_status == 1 )) && [[ -L "$file_path" ]]; then
-			# Git --no-index treats a link to an existing directory as that directory.
-			zmodload -F zsh/stat b:zstat || return $?
-			zstat -L -H symlink_metadata -- "$file_path" || return $?
-			diff_per_file[$file_path]="New symlink: ${(q)file_path} -> ${(q)symlink_metadata[link]}"
-		elif (( difference_status == 1 )) && [[ -d "$file_path" ]]; then
-			# Git lists an untracked directory only when it is a nested repository, and --no-index cannot compare it.
-			diff_per_file[$file_path]="New nested Git repository: ${(q)file_path}"
-		else
-			diff_per_file[$file_path]="$(git-structured-diff "${structured_diff_options[@]}" "${comparison_arguments[@]}")" || comparison_status=$?
+		listing="$(command git ls-files --deleted -z)" || return $?
+		class_paths[d]="$listing"
+		local -A class_labels=(s Staged m Modified u Untracked a Added c Committed d Deleted)
+		local -a message files
+		local change_class choice
+		message=("Choose paths to stage in the preview. Already-staged changes remain included.")
+		for change_class in s m u a c d; do
+			files=(${(0)class_paths[$change_class]})
+			(( ${#files} )) && message+=("$change_class: ${class_labels[$change_class]}\n • ${(F)files}")
+		done
+		choice="$(input "${(F)message}\nChoose letters [smuacd], or A for all:")" || return $?
+		[[ -n "$choice" && "$choice" != *[^smuacdA]* ]] || { log.error "Choose change-class letters or A."; return 2; }
+		for change_class in ${(s::)choice}; do
+			files=(${(0)class_paths[$change_class]})
+			diff_targets+=("${files[@]}")
+		done
+		[[ "$choice" != *A* ]] || diff_targets=()
+		[[ "$choice" == *A* || ${#diff_targets} != 0 ]] || { log.error "No paths in the selected classes."; return 1; }
+		# Menu paths are literal Git output, unlike caller-supplied pathspecs.
+		export GIT_LITERAL_PATHSPECS=1
+		if [[ "$choice" != *A* ]]; then
+			# Already-staged deletions have no remaining path to add again.
+			listing="$(command git ls-files --cached --others --exclude-standard -z -- "${diff_targets[@]}")" || return $?
+			diff_targets=(${(0)listing})
+			stage_all=false
 		fi
-		if (( comparison_status == 1 && difference_status == 1 )) && [[ -n "${diff_per_file[$file_path]}" ]]; then
-			comparison_status=0
+	fi
+	if ! $cached && { $stage_all || (( ${#diff_targets} )); }; then
+		git.stage "${diff_targets[@]}" || return $?
+	fi
+	builtin cd -q -- "$repository_root" || return $?
+	export GIT_LITERAL_PATHSPECS=1
+	local listing
+	listing="$(command git diff --cached --no-relative --find-renames --name-status -z)" || return $?
+	local -a entries=(${(0)listing})
+	(( ${#entries} )) || { log.error "No staged changes to describe."; return 1; }
+	local -a comparison_paths
+	local -A diff_per_file
+	local file_path change_type
+	local -i entry_index=1 total_length=0
+	diff_targets=()
+	while (( entry_index <= ${#entries} )); do
+		change_type="${entries[$entry_index]}"
+		file_path="${entries[$((entry_index + 1))]}"
+		comparison_paths=("$file_path")
+		(( entry_index += 2 ))
+		if [[ "$change_type" == [RC]* ]]; then
+			file_path="${entries[$entry_index]}"
+			comparison_paths+=("$file_path")
+			(( entry_index += 1 ))
 		fi
-		(( comparison_status == 0 )) || { log.error "git-structured-diff failed for ${file_path}."; return "$comparison_status"; }
+		diff_targets+=("$file_path")
+		diff_per_file[$file_path]="$(git-structured-diff --cached --no-relative --find-renames --src-prefix='[SOURCE] ' --dst-prefix='[DESTINATION] ' -- "${comparison_paths[@]}")" || return $?
 		total_length+=${#diff_per_file[$file_path]}
 	done
+	log.info "Generating commit message for ${#diff_targets} staged changes..." -L -x
+	local -a llm_what_changed_options
+	$assume_yes && llm_what_changed_options+=(-y)
 	if $one_by_one; then
 		local temporary_file
 		temporary_file="$(mktemp)" || return 1
@@ -2326,7 +2292,7 @@ function llm-commit-msg()(
 			for file_path in "${diff_targets[@]}"; do
 				print -r -- "${diff_per_file[$file_path]}" | llm-what-changed "${llm_what_changed_options[@]}" | tee -a "$temporary_file" || failed_files_count+=1
 			done
-			(( failed_files_count == 0 )) || log.warn "${failed_files_count} files failed. Aggregating the rest."
+			(( failed_files_count == 0 )) || { log.error "${failed_files_count} analyses failed. No commit message generated."; return 1; }
 			if [[ "$assume_yes" = false ]] && ! confirm "Done collecting changes for each file. Shall I aggregate them into a single commit message?"; then
 				cat "$temporary_file"
 				return 0
