@@ -13,7 +13,7 @@
 | Function (`util.sh`) | Question it answers | Used for |
 |---|---|---|
 | `is_agent` | Does an AI agent harness run this shell? | Every mode decision |
-| `is_human` | `is_interactive && [[ -t 0 && -t 2 ]] && ! is_agent` | Prompts: `input`, `confirm`, `ghg-run`, `git-structured-diff`, the `llm` viewer |
+| `is_human` | `is_interactive && [[ -t 0 && -t 2 ]] && ! is_agent` | Prompts: `input`, `confirm`, `ghg-run`, the `llm` viewer |
 | `is_piped` | Is stdin a pipe or a regular file? | Functions that read input from stdin |
 | `is_piping` | Is stdout something other than a terminal? | Output formatting |
 | `is_interactive` | Did zsh start with `-i`? | Loading completions, hooks, and the `cd` patch |

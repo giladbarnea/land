@@ -389,8 +389,8 @@
   assert "$(strip "hello world ")" same_as "hello world"
   assert "$(strip "hello world")" same_as "hello world"
   assert "$(strip '  h  e  l  o   o ')" same_as "h e l o o"  # zah precmd fc
-  assert "$(strip 'hello\n')" same_as "hello"
-  run strip 'hello\n'
+  assert "$(strip $'hello\n')" same_as "hello"
+  run strip $'hello\n'
   run str.has_newline "$output"
   assert "$state" equals 1
 

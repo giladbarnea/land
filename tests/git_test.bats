@@ -19,7 +19,6 @@ function git_structured_diff() {
     alias gstaa=true gstc=true gstd=true gstl=true gstp=true gsts=true gstu=true gstall=true
     alias gignore=true gunignore=true
     source "$LAND/git.sh"
-    is_piped() { [[ -p /dev/stdin || -f /dev/stdin ]]; }
     cd "$GIT_TEST_REPOSITORY"
     git-structured-diff -y "$@"
   ' -- "$@"
@@ -218,7 +217,54 @@ function gsd_launcher() {
   printf 'binary\000after\n' > "$GIT_TEST_REPOSITORY/data.bin"
   printf 'tracked after\n' > "$GIT_TEST_REPOSITORY/renamed.txt"
   assert_git_output --binary HEAD
-  assert_git_output HEAD
+  assert_git_output HEAD -- data.bin
+}
+
+@test 'git-structured-diff formats text changes next to a binary change' {
+  printf '\211PNG\r\n\032\n\000\000' > "$GIT_TEST_REPOSITORY/image.png"
+  git -C "$GIT_TEST_REPOSITORY" add image.png
+  git -C "$GIT_TEST_REPOSITORY" commit -qm image
+  printf '\211PNG\r\n\032\n\000\001' > "$GIT_TEST_REPOSITORY/image.png"
+  printf 'tracked after\n' > "$GIT_TEST_REPOSITORY/tracked.txt"
+
+  run git_structured_diff HEAD
+
+  [ "$status" -eq 0 ] || { echo "Expected success: $status $output"; return 1; }
+  [[ "$output" == *'<tracked.txt added=0 modified=1 deleted=0>'* && "$output" == *'1 │tracked after'* ]] || { echo "One binary file turned off formatting for the text change: $output"; return 1; }
+  [[ "$output" == *'Binary files a/image.png and b/image.png differ'* ]] || { echo "Dropped the binary change: $output"; return 1; }
+}
+
+@test 'git-structured-diff formats changed lines that contain a raw escape byte' {
+  printf 'plain \033[31mred\n' > "$GIT_TEST_REPOSITORY/tracked.txt"
+
+  run git_structured_diff HEAD
+
+  [[ "$output" == *'<tracked.txt added=0 modified=1 deleted=0>'* ]] || { echo "An escape byte in file content turned off formatting: $output"; return 1; }
+  [[ "$output" == *$'1 │plain \033[31mred'* ]] || { echo "Changed the escape byte content: $output"; return 1; }
+}
+
+@test 'git-structured-diff passes text patches with NUL bytes through unchanged' {
+  local filler
+  filler=$(head -c 9000 /dev/zero | tr '\0' x)
+  printf '%s\nbefore\000tail\n' "$filler" > "$GIT_TEST_REPOSITORY/data.log"
+  git -C "$GIT_TEST_REPOSITORY" add data.log
+  git -C "$GIT_TEST_REPOSITORY" commit -qm log
+  printf '%s\nafter\000tail\n' "$filler" > "$GIT_TEST_REPOSITORY/data.log"
+  git -C "$GIT_TEST_REPOSITORY" --no-pager diff HEAD > "$BATS_TEST_TMPDIR/expected"
+  rg -q --text 'after' "$BATS_TEST_TMPDIR/expected" || { echo 'Fixture error: Git did not treat the file as text'; return 1; }
+
+  git_structured_diff HEAD > "$BATS_TEST_TMPDIR/actual"
+
+  cmp "$BATS_TEST_TMPDIR/expected" "$BATS_TEST_TMPDIR/actual" || { echo 'Lost or changed bytes after a NUL in a text patch'; return 1; }
+}
+
+@test 'gsd without --stdin runs Git even when stdin is an idle pipe' {
+  printf 'tracked after\n' > "$GIT_TEST_REPOSITORY/tracked.txt"
+
+  run gsd_launcher < <(sleep 3 3>&-)
+
+  [ "$status" -eq 0 ] || { echo "Expected success: $status $output"; return 1; }
+  [[ "$output" == *'<tracked.txt added=0 modified=1 deleted=0>'* ]] || { echo "Read stdin instead of running git diff: $output"; return 1; }
 }
 
 @test 'git-structured-diff preserves metadata and missing-newline information in text patches' {
@@ -236,15 +282,18 @@ function gsd_launcher() {
   git -C "$GIT_TEST_REPOSITORY" --no-pager diff HEAD > "$BATS_TEST_TMPDIR/input"
   export GIT_TEST_REPOSITORY="$BATS_TEST_TMPDIR"
 
-  run git_structured_diff < "$BATS_TEST_TMPDIR/input"
+  run git_structured_diff --stdin < "$BATS_TEST_TMPDIR/input"
   [[ "$output" == *'<modified patch 1/1'* ]] || { echo "Did not format stdin: $output"; return 1; }
 
+  run git_structured_diff --stdin HEAD < "$BATS_TEST_TMPDIR/input"
+  [ "$status" -eq 2 ] && [[ "$output" != *'patch'* ]] || { echo "Accepted Git arguments with --stdin: $status $output"; return 1; }
+
   printf 'no final newline\000after NUL' > "$BATS_TEST_TMPDIR/input"
-  git_structured_diff < "$BATS_TEST_TMPDIR/input" > "$BATS_TEST_TMPDIR/actual"
+  git_structured_diff --stdin < "$BATS_TEST_TMPDIR/input" > "$BATS_TEST_TMPDIR/actual"
   cmp "$BATS_TEST_TMPDIR/input" "$BATS_TEST_TMPDIR/actual" || { echo 'Changed non-patch stdin bytes'; return 1; }
 
   printf 'diff --git a/a b/a\n--- a/a\n+++ b/a\n@@ -1 +1 @@\n-before\n' > "$BATS_TEST_TMPDIR/input"
-  git_structured_diff < "$BATS_TEST_TMPDIR/input" > "$BATS_TEST_TMPDIR/actual"
+  git_structured_diff --stdin < "$BATS_TEST_TMPDIR/input" > "$BATS_TEST_TMPDIR/actual"
   cmp "$BATS_TEST_TMPDIR/input" "$BATS_TEST_TMPDIR/actual" || { echo 'Silently formatted an incomplete hunk'; return 1; }
 }
 

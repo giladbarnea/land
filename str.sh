@@ -420,23 +420,20 @@ function str.repeat_char(){
 # Strips surrounding whitespce with var expansion. Keeps whitespace in the middle.
 # shellcheck disable=SC2120
 function strip(){
+	setopt localoptions extendedglob
 	local string
-  if [[ ! "$1" ]]; then
+  if (( $# == 0 )) && is_piped; then
     string="$(<&0)"
   else
     string="$1"
-    shift || {
-      log.error "$0: Not enough args (expected 1, got $#). Usage:\n$(docstring "$0")"
-      return 2
-    }
   fi
   [[ "$string" ]] || {
-    log.error "$0: Not enough args (expected 1, got $#). Usage:\n$(docstring "$0")"
+    log.error "$0: Got no text to strip. Usage:\n$(docstring "$0")"
     return 2
   }
 
 	# shellcheck disable=SC2299  # Parameter expansions can't be nested.
-	printf "%s" "${${string##[\\n $'\t']##}%%[\\n $'\t']##}"
+	printf "%s" "${${string##[[:space:]]##}%%[[:space:]]##}"
 }
 
 # # also <stdin> <text...>

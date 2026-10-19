@@ -34,8 +34,11 @@ function commit_message() {
       print -r -- REQUEST >> "$COMMIT_TEST_REQUESTS"
       command cat
     }
-    builtin cd "$COMMIT_TEST_REPOSITORY"
+    builtin cd "${COMMIT_TEST_DIRECTORY:-$COMMIT_TEST_REPOSITORY}"
     llm-commit-msg -y "$@"
+    commit_status=$?
+    print -ru2 -- "CALLER_DIRECTORY=$PWD"
+    exit $commit_status
   ' -- "$@"
 }
 
@@ -89,12 +92,69 @@ function commit_message() {
   printf 'OUTSIDE_CONTENT\n' > "$COMMIT_TEST_REPOSITORY/outside.txt"
   printf 'selected/ignored.txt\n' > "$COMMIT_TEST_REPOSITORY/.git/info/exclude"
 
-  run commit_message -- selected selected/new.txt
+  run commit_message -- selected
 
   [ "$status" -eq 0 ] || { echo "Expected success: $status $output"; return 1; }
   [[ "$output" == *'DIRECTORY_TRACKED_CONTENT'* && "$output" == *'DIRECTORY_NEW_CONTENT'* ]] || { echo "Omitted a directory change: $output"; return 1; }
   [[ "$output" != *'IGNORED_CONTENT'* && "$output" != *'OUTSIDE_CONTENT'* ]] || { echo "Included an excluded file: $output"; return 1; }
+
+  run commit_message -- selected selected/new.txt
+
   [ "$(printf '%s' "$output" | rg -o DIRECTORY_NEW_CONTENT | wc -l | tr -d ' ')" -eq 1 ] || { echo "Duplicated the new file: $output"; return 1; }
+}
+
+@test 'automatic selection from a subdirectory includes staged changes anywhere and spaced names' {
+  mkdir "$COMMIT_TEST_REPOSITORY/src"
+  printf 'before\n' > "$COMMIT_TEST_REPOSITORY/src/code.txt"
+  git -C "$COMMIT_TEST_REPOSITORY" add src/code.txt
+  git -C "$COMMIT_TEST_REPOSITORY" commit -qm src
+  printf 'STAGED_SUBDIRECTORY_CONTENT\n' > "$COMMIT_TEST_REPOSITORY/src/code.txt"
+  printf 'STAGED_ROOT_SPACED_CONTENT\n' > "$COMMIT_TEST_REPOSITORY/my notes.txt"
+  git -C "$COMMIT_TEST_REPOSITORY" add src/code.txt 'my notes.txt'
+
+  COMMIT_TEST_DIRECTORY="$COMMIT_TEST_REPOSITORY/src" run commit_message
+
+  [ "$status" -eq 0 ] || { echo "Expected success: $status $output"; return 1; }
+  [[ "$output" == *'STAGED_SUBDIRECTORY_CONTENT'* ]] || { echo "Lost a staged change when run from a subdirectory: $output"; return 1; }
+  [[ "$output" == *'STAGED_ROOT_SPACED_CONTENT'* ]] || { echo "Lost a staged file with a space in its name: $output"; return 1; }
+  [[ "$output" == *"CALLER_DIRECTORY=$COMMIT_TEST_REPOSITORY/src"* ]] || { echo "Changed the caller's directory: $output"; return 1; }
+}
+
+@test 'automatic selection includes both names of a staged rename' {
+  git -C "$COMMIT_TEST_REPOSITORY" mv tracked.txt moved.txt
+
+  run commit_message
+
+  [ "$status" -eq 0 ] || { echo "Expected success: $status $output"; return 1; }
+  [[ "$output" == *'moved.txt added=1'* && "$output" == *'tracked.txt added=0 modified=0 deleted=1'* ]] || { echo "Lost one side of the rename: $output"; return 1; }
+}
+
+@test 'the first commit in a new repository compares staged files with an empty tree' {
+  export COMMIT_TEST_DIRECTORY="$BATS_TEST_TMPDIR/new-repository"
+  git init -q "$COMMIT_TEST_DIRECTORY"
+  printf 'FIRST_COMMIT_CONTENT\n' > "$COMMIT_TEST_DIRECTORY/first.txt"
+  git -C "$COMMIT_TEST_DIRECTORY" add first.txt
+  local mode
+  for mode in false true; do
+    run commit_message "--one-by-one=$mode"
+
+    [ "$status" -eq 0 ] || { echo "The first commit failed in mode $mode: $status $output"; return 1; }
+    [[ "$output" == *'FIRST_COMMIT_CONTENT'* && "$output" == *'added patch'* ]] || { echo "Did not describe the first file in mode $mode: $output"; return 1; }
+  done
+}
+
+@test 'untracked nested repositories are described without reading their files' {
+  git init -q "$COMMIT_TEST_REPOSITORY/vendor-clone"
+  printf 'NESTED_CONTENT_MUST_NOT_BE_READ\n' > "$COMMIT_TEST_REPOSITORY/vendor-clone/inner.txt"
+  printf 'TRACKED_CHANGE\n' > "$COMMIT_TEST_REPOSITORY/tracked.txt"
+  local mode
+  for mode in false true; do
+    run commit_message "--one-by-one=$mode"
+
+    [ "$status" -eq 0 ] || { echo "A nested repository failed in mode $mode: $status $output"; return 1; }
+    [[ "$output" == *'New nested Git repository: vendor-clone/'* && "$output" == *'TRACKED_CHANGE'* ]] || { echo "Lost the nested repository or the tracked change: $output"; return 1; }
+    [[ "$output" != *'NESTED_CONTENT_MUST_NOT_BE_READ'* ]] || { echo "Read files inside the nested repository: $output"; return 1; }
+  done
 }
 
 @test 'staged additions and tracked deletions still compare against HEAD in both modes' {
@@ -111,7 +171,10 @@ function commit_message() {
 }
 
 @test 'Git failures stop both modes before any model request' {
-  git -C "$COMMIT_TEST_REPOSITORY" update-ref -d HEAD
+  local blob
+  blob=$(git -C "$COMMIT_TEST_REPOSITORY" rev-parse HEAD:tracked.txt)
+  rm -f "$COMMIT_TEST_REPOSITORY/.git/objects/${blob:0:2}/${blob:2}"
+  printf 'changed so Git must read the missing object\n' > "$COMMIT_TEST_REPOSITORY/tracked.txt"
   local mode
   for mode in false true; do
     run commit_message "--one-by-one=$mode" -- tracked.txt
@@ -141,6 +204,24 @@ function commit_message() {
 
   [ "$status" -eq 0 ] || { echo "Treated Git difference status 1 as an error: $status $output"; return 1; }
   [[ "$output" == *'STRICT_SHELL_NEW_CONTENT'* ]] || { echo "Lost the new file under strict shell options: $output"; return 1; }
+}
+
+@test 'untracked links to existing directories describe the link without reading its contents' {
+  mkdir "$COMMIT_TEST_REPOSITORY/target-directory"
+  printf 'DIRECTORY_CONTENT_MUST_NOT_BE_READ\n' > "$COMMIT_TEST_REPOSITORY/target-directory/secret.txt"
+  ln -s target-directory "$COMMIT_TEST_REPOSITORY/relative-link"
+  ln -s "$COMMIT_TEST_REPOSITORY/target-directory" "$COMMIT_TEST_REPOSITORY/absolute-link"
+  git -C "$COMMIT_TEST_REPOSITORY" ls-files --stage > "$BATS_TEST_TMPDIR/index-before"
+  local mode
+  for mode in false true; do
+    run commit_message "--one-by-one=$mode" -- relative-link absolute-link
+
+    [ "$status" -eq 0 ] || { echo "Directory symlinks failed in mode $mode: $status $output"; return 1; }
+    [[ "$output" == *'relative-link'* && "$output" == *'absolute-link'* && "$output" == *'target-directory'* ]] || { echo "Missing link names or targets: $output"; return 1; }
+    [[ "$output" == *'symlink'* && "$output" != *'DIRECTORY_CONTENT_MUST_NOT_BE_READ'* ]] || { echo "Compared the directory instead of the link: $output"; return 1; }
+  done
+  git -C "$COMMIT_TEST_REPOSITORY" ls-files --stage > "$BATS_TEST_TMPDIR/index-after"
+  cmp "$BATS_TEST_TMPDIR/index-before" "$BATS_TEST_TMPDIR/index-after" || { echo 'Changed the real Git index'; return 1; }
 }
 
 @test 'empty and symlink untracked files reach the model without changing the index' {

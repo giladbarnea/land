@@ -227,6 +227,7 @@ function gac() {
     git_commit_args=(-m "$(strip "$commitmsg")")
   elif [[ "${git_commit_args[1]}" != -* ]]; then
     local commitmsg="${git_commit_args[1]}"
+    [[ -n "${commitmsg//[[:space:]]/}" ]] || { log.error "Commit message is empty. Aborting before staging."; return 2; }
     local -a normalized_git_commit_args=(-m "$(strip "$commitmsg")")
     local -i git_commit_arg_index=2
     while (( git_commit_arg_index <= ${#git_commit_args[@]} )); do
@@ -877,8 +878,8 @@ function git.beforeafter(){
   
 }
 
-# # git-structured-diff [-y,--yes] [STDIN DIFF] [GIT_DIFF_OPTS...] [--no-function-context] [--only-line-ranges]
-# Runs one git diff, or formats stdin when no Git arguments are given.
+# # git-structured-diff [-y,--yes] [--stdin | GIT_DIFF_OPTS...] [--no-function-context] [--only-line-ranges]
+# Runs one git diff, or formats stdin with --stdin. Never reads stdin otherwise.
 # Formats unified text patches; preserves other output and Git exit statuses.
 # - Keeps change metadata and wraps each file in <filepath> ... </filepath>.
 # - Context lines carry line numbers. Change blocks are wrapped as:
@@ -891,17 +892,19 @@ function git.beforeafter(){
 # `git-structured-diff --unified=20 --inter-hunk-context=10 --no-function-context -- path/to/treeish`
 function git-structured-diff(){
   setopt localoptions noerrexit noerrreturn
-  local only_line_ranges=0
+  local only_line_ranges=0 read_stdin=0
   local -a git_diff_args
   while (( $# )); do
     case "$1" in
       --only-line-ranges) only_line_ranges=1 ;;
+      --stdin) read_stdin=1 ;;
       -y|--yes) ;;
       --) git_diff_args+=("$@"); break ;;
       *) git_diff_args+=("$1") ;;
     esac
     shift
   done
+  (( read_stdin && ${#git_diff_args[@]} )) && { log.error "--stdin formats stdin and takes no Git arguments. Got: ${git_diff_args[*]}"; return 2; }
 
   local parse_diff_program
   parse_diff_program='
@@ -1117,7 +1120,6 @@ function git-structured-diff(){
     function unrecognized_format() { unrecognized = 1; exit 42; }
 
     {
-      if (index($0, "\033")) unrecognized_format();
       if (file_open) file_lines++;
       if (file_open && $0 ~ /^\\ No newline at end of file$/) {
         flush_block(); out($0); next;
@@ -1182,7 +1184,8 @@ function git-structured-diff(){
         n = split($0, parts, " "); file_dissim = parts[n];
       }
       if ($0 ~ /^(new|deleted) file mode / || $0 ~ /^(old|new) mode / ||
-          $0 ~ /^(rename|copy) (from|to) / || $0 ~ /^(dis)?similarity index /) {
+          $0 ~ /^(rename|copy) (from|to) / || $0 ~ /^(dis)?similarity index / ||
+          $0 ~ /^Binary files .* differ$/) {
         out($0); next;
       }
       unrecognized_format();
@@ -1198,7 +1201,7 @@ function git-structured-diff(){
   temporary_directory="$(mktemp -d "${TMPDIR:-/tmp}/gsd.XXXXXXXXXX")" || return $?
   local git_status formatter_status
   {
-    if (( ${#git_diff_args[@]} == 0 )) && is_piped; then
+    if (( read_stdin )); then
       command cat > "$temporary_directory/input"
     else
       command git --no-pager diff "${git_diff_args[@]}" > "$temporary_directory/input"

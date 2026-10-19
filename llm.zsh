@@ -2156,9 +2156,10 @@ function llm-search(){
 # # llm-commit-msg [-y,--yes] [--append-prompt APPEND_STRING] [--one-by-one[=true|false] (default false)] [--max-diff-length N (default 1,000,000 ≈ 1 MB)] [-- PATH...]
 # Generates a commit message for the given files against HEAD.
 # Paths must come after a '--' separator, consistent with git and llm-what-changed.
-# If no paths are provided, uses all available files with -y or prompts which files to use otherwise.
+# If no paths are provided, uses all changed files in the repository with -y or prompts which files to use otherwise.
 # If the combined diff exceeds --max-diff-length chars, confirms (-y assumes yes) and shortens each file's diff to fit.
-function llm-commit-msg(){
+# Runs in a subshell, so working from the repository root does not move the caller.
+function llm-commit-msg()(
 	setopt localoptions pipefail
 	local -a diff_targets
 	local template_path
@@ -2200,39 +2201,29 @@ function llm-commit-msg(){
 	[[ -n "$append_prompt" ]] && llm_prompt="$(printf "%s\n%s" "$llm_prompt" "$append_prompt")"
 	local untracked_listing
 	if [[ "${#diff_targets[@]}" = 0 ]]; then
+		# Git lists staged paths from the repository root, so every automatic path is root-relative.
+		local repository_root
+		repository_root="$(command git rev-parse --show-toplevel)" || return $?
+		builtin cd -q -- "$repository_root" || return $?
 		local -a staged_files
 		local -a modified_files
 		local -a untracked_files
 		local -a added_files
 		local -a committed_files
 		local -a deleted_files
-		local has_staged_files has_modified_files has_untracked_files has_added_files has_committed_files has_deleted_files
-		has_staged_files=false
-		has_modified_files=false
-		has_untracked_files=false
-		has_added_files=false
-		has_committed_files=false
-		has_deleted_files=false
-		if staged_files=($(git.staged)); then
-			has_staged_files=true
-		fi
-		if modified_files=($(git.modified)); then
-			has_modified_files=true
-		fi
-		untracked_listing="$(command git ls-files --others --exclude-standard -z)" || return $?
-		untracked_files=(${(0)untracked_listing})
-		if (( ${#untracked_files[@]} )); then
-			has_untracked_files=true
-		fi
-		if added_files=($(git.stagedadded)); then
-			has_added_files=true
-		fi
-		if committed_files=($(git.committed)); then
-			has_committed_files=true
-		fi
-		if deleted_files=($(git.deleted)); then
-			has_deleted_files=true
-		fi
+		local listing
+		listing="$(command git diff --cached --name-only --no-renames -z)" || return $?
+		staged_files=(${(0)listing})
+		listing="$(command git ls-files --modified -z)" || return $?
+		modified_files=(${(0)listing})
+		listing="$(command git ls-files --others --exclude-standard -z)" || return $?
+		untracked_files=(${(0)listing})
+		listing="$(command git diff --cached --name-only --diff-filter=A -z)" || return $?
+		added_files=(${(0)listing})
+		# git.committed returns 1 when nothing is committed ahead of the upstream.
+		committed_files=($(git.committed)) || true
+		listing="$(command git ls-files --deleted -z)" || return $?
+		deleted_files=(${(0)listing})
 		if $assume_yes; then
 			diff_targets+=(
 				"${staged_files[@]}"
@@ -2242,7 +2233,7 @@ function llm-commit-msg(){
 				"${committed_files[@]}"
 				"${deleted_files[@]}"
 			)
-		elif $has_staged_files || $has_modified_files || $has_untracked_files || $has_added_files || $has_committed_files || $has_deleted_files; then
+		elif (( ${#staged_files} + ${#modified_files} + ${#untracked_files} + ${#added_files} + ${#committed_files} + ${#deleted_files} )); then
 			local -a message
 			message=("No files provided and at least one of the following files exists:")
 			# Remove duplicates from all files arrays
@@ -2254,12 +2245,12 @@ function llm-commit-msg(){
 			deleted_files=( "${(@u)deleted_files[@]}" )
 			
 			# Build message
-			$has_staged_files && message+=("Staged:\n • ${(j.\n • .)staged_files}")
-			$has_modified_files && message+=("Modified:\n • ${(j.\n • .)modified_files}")
-			$has_untracked_files && message+=("Untracked:\n • ${(j.\n • .)untracked_files}")
-			$has_added_files && message+=("Added:\n • ${(j.\n • .)added_files}")
-			$has_committed_files && message+=("Committed:\n • ${(j.\n • .)committed_files}")
-			$has_deleted_files && message+=("Deleted:\n • ${(j.\n • .)deleted_files}")
+			(( ${#staged_files} )) && message+=("Staged:\n • ${(j.\n • .)staged_files}")
+			(( ${#modified_files} )) && message+=("Modified:\n • ${(j.\n • .)modified_files}")
+			(( ${#untracked_files} )) && message+=("Untracked:\n • ${(j.\n • .)untracked_files}")
+			(( ${#added_files} )) && message+=("Added:\n • ${(j.\n • .)added_files}")
+			(( ${#committed_files} )) && message+=("Committed:\n • ${(j.\n • .)committed_files}")
+			(( ${#deleted_files} )) && message+=("Deleted:\n • ${(j.\n • .)deleted_files}")
 			message+=("Specify which files to use in [smuacd] format or 'A' to use all.")
 			local user_choice
 			user_choice="$(input "${(F)message[@]}")" || { log.error "No file selection made."; return 1; }
@@ -2295,19 +2286,32 @@ function llm-commit-msg(){
 	local -a structured_diff_options
 	structured_diff_options=(--src-prefix='[SOURCE] ' --dst-prefix='[DESTINATION] ')
 	$assume_yes && structured_diff_options+=(-y)
-	local -A diff_per_file
+	local -A diff_per_file symlink_metadata
 	local file_path
 	local -a comparison_arguments
 	local -i comparison_status difference_status total_length=0
+	# Before the first commit, HEAD does not exist yet. Compare with the empty tree instead.
+	local base_revision=HEAD
+	command git rev-parse -q --verify HEAD > /dev/null || base_revision="$(command git hash-object -t tree /dev/null)" || return $?
 	for file_path in "${diff_targets[@]}"; do
-		comparison_arguments=(HEAD -- "$file_path")
+		comparison_arguments=("$base_revision" -- "$file_path")
 		difference_status=0
 		if (( ${selected_untracked_paths[(Ie)$file_path]} )); then
 			comparison_arguments=(--no-index -- /dev/null "$file_path")
 			difference_status=1
 		fi
 		comparison_status=0
-		diff_per_file[$file_path]="$(git-structured-diff "${structured_diff_options[@]}" "${comparison_arguments[@]}")" || comparison_status=$?
+		if (( difference_status == 1 )) && [[ -L "$file_path" ]]; then
+			# Git --no-index treats a link to an existing directory as that directory.
+			zmodload -F zsh/stat b:zstat || return $?
+			zstat -L -H symlink_metadata -- "$file_path" || return $?
+			diff_per_file[$file_path]="New symlink: ${(q)file_path} -> ${(q)symlink_metadata[link]}"
+		elif (( difference_status == 1 )) && [[ -d "$file_path" ]]; then
+			# Git lists an untracked directory only when it is a nested repository, and --no-index cannot compare it.
+			diff_per_file[$file_path]="New nested Git repository: ${(q)file_path}"
+		else
+			diff_per_file[$file_path]="$(git-structured-diff "${structured_diff_options[@]}" "${comparison_arguments[@]}")" || comparison_status=$?
+		fi
 		if (( comparison_status == 1 && difference_status == 1 )) && [[ -n "${diff_per_file[$file_path]}" ]]; then
 			comparison_status=0
 		fi
@@ -2383,7 +2387,7 @@ function llm-commit-msg(){
 	full_prompt="$(printf "%s\n\n%s" "$tagged_git_diff" "$user_instructions")"
 	log.notice "Running pi with full prompt (${#full_prompt} chars):"
 	print -r -- "$full_prompt" | pi --model openai-codex/gpt-6-luna --thinking low --no-session --no-skills --no-prompt-templates --no-extensions --no-tools --no-context-files --no-themes --print || { log.error "pi failed."; return 1; }
-}
+)
 
 # # llm-what-changed [-y,--yes] [git diff OPT...] [--force-prompt PROMPT='What has changed? Clearly, ...'] [--append-prompt APPEND_STRING] [--dry-run] [--one-by-one[=true|false] (default false)] [-- TREEISH...]
 # Asks an LLM what has changed based on a git diff context, tagging changes in a unified diff.
@@ -2484,7 +2488,7 @@ function llm-what-changed(){
 	$assume_yes && structured_diff_options+=(-y)
 	local tagged_git_diff
 	if (( ${#additional_git_diff_args[@]} == 0 && ${#file_paths[@]} == 0 )) && is_piped; then
-		tagged_git_diff="$(git-structured-diff)" || return $?
+		tagged_git_diff="$(git-structured-diff --stdin)" || return $?
 	else
 		tagged_git_diff="$(git-structured-diff "${structured_diff_options[@]}" -- "${file_paths[@]}")"
 	fi
