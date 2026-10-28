@@ -1,5 +1,5 @@
 ---
-last_updated: 2026-10-28T13-07
+last_updated: 2026-10-28T13-48
 ---
 
 # Human mode and script mode
@@ -18,7 +18,7 @@ last_updated: 2026-10-28T13-07
 |---|---|---|
 | `is_agent` | Does an AI agent harness run this shell? | Every mode decision |
 | `is_human` | `is_interactive && [[ -t 0 && -t 2 ]] && ! is_agent` | Prompts: `input`, `confirm`, `ghg-run`, the `llm` viewer |
-| `IS_HUMAN` | Human session at startup, before instant prompt redirects stdin and stderr | Loading the `eza` function for `ls` |
+| `IS_HUMAN` | Human session at startup, before instant prompt redirects stdin and stderr | Loading the `eza` function for `ls`; `skills sync` cleanup confirmation |
 | `is_piped` | Is stdin a pipe or a regular file? | Functions that read input from stdin |
 | `is_piping` | Is stdout something other than a terminal? | Output formatting |
 | `is_interactive` | Did zsh start with `-i`? | Loading completions, hooks, and the `cd` patch |
@@ -52,9 +52,11 @@ Agent shells are often interactive. `zshi` is `zsh -i`, and Pi's `zsh` tool is i
 
 Two variables are excluded on purpose. `CODEX_SANDBOX` was absent in a Codex run with full access, so it is not reliable. `CODEX_CI` is not used, by Gilad's choice. `VSCODE_INJECTION` and `CURSOR_TRACE_ID` mark IDE terminals, and a person types in those terminals, so they are not agent signals.
 
-### 2. Prompts need a terminal on stdin and on stderr
+### 2. Stdin-based prompts need terminal stdin and stderr
 
-A prompt writes to stderr and reads the answer from stdin. If either one is not a terminal, nobody can answer. Every agent harness gives `/dev/null` as stdin. This alone puts agents in script mode, and `! is_agent` is a second, independent check. `input` refuses with a warning and returns 1 in script mode, and `confirm` uses `input`.
+`input` writes its question to stderr and reads the answer from stdin. It requires both to be terminals. Every agent harness gives `/dev/null` as stdin. This alone puts agents in script mode, and `! is_agent` is a second, independent check. `input` refuses with a warning and returns 1 in script mode, and `confirm` uses `input`.
+
+`skills sync` cleanup instead uses `IS_HUMAN` and opens `/dev/tty` for its questions and answers. Piped input or output does not suppress these questions. Without a human session or a usable terminal, it keeps each obsolete link and reports its absolute link path.
 
 ### 3. Log colors use stderr, not `is_human`
 
@@ -95,7 +97,7 @@ These terminals do not set `KITTY_WINDOW_ID`, so `~/.zshrc` used to return early
 ## Rules to keep
 
 1. Change the agent list in `is_agent` and in `~/.zshrc` together.
-2. Gate every new prompt with `is_human`.
+2. Gate prompts that read stdin with `is_human`. The `skills sync` cleanup prompt uses `IS_HUMAN` and `/dev/tty` instead.
 3. Send colored output through `log`, or gate it with `[[ -t <fd> ]] && ! is_agent` for the file descriptor that gets the output.
 4. Check live terminal descriptors at call time for prompts. Startup choices such as the `eza` function for `ls` use `IS_HUMAN`, because instant prompt temporarily redirects stdin and stderr. The `cd` patch uses `is_interactive && ! is_agent` at source time.
 

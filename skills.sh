@@ -19,7 +19,8 @@
 #
 # skills sync:
 #   Syncs skills from SOURCE into each TARGET/skills/ as individual symlinks (ln -sfn).
-#   Asks whether to remove each target symlink whose skill is absent from SOURCE.
+#   Human sessions confirm obsolete link removal through /dev/tty, even with piped output.
+#   Without interactive confirmation, keeps each obsolete link and reports its path.
 #   SOURCE may be a parent directory containing skills/, the skills/ directory itself, or a specific skills/<name> directory.
 #   TARGET may be a parent directory (e.g. .claude) or a skills/ directory directly.
 #
@@ -247,16 +248,20 @@ function _skills_autodiscover_target_skills_dirs() {
 
 function _skills_confirm_orphaned_link_removal() {
   emulate -L zsh
-  local orphaned_link="$1" reply=""
+  local orphaned_link="${1:a}" reply="" terminal_descriptor
 
-  [[ -t 1 ]] || {
-    echo "skills sync: no TTY; keeping orphaned link $orphaned_link" >&2
+  [[ "$IS_HUMAN" = true ]] && { exec {terminal_descriptor}<>/dev/tty; } 2>/dev/null || {
+    print -ru2 -- "Kept obsolete link $orphaned_link because removal requires interactive confirmation."
     return 1
   }
 
-  printf "Remove orphaned link '%s'? [y/N] " "$orphaned_link" >/dev/tty
-  read -r reply </dev/tty || return 1
-  [[ "$reply" == [Yy] ]]
+  {
+    printf "Remove obsolete link '%s'? [y/N] " "$orphaned_link" >&$terminal_descriptor || return 1
+    read -r -u "$terminal_descriptor" reply || return 1
+    [[ "$reply" == [Yy] ]]
+  } always {
+    exec {terminal_descriptor}>&-
+  }
 }
 
 function _skills_clean_orphaned_links_in_target() {
@@ -278,10 +283,7 @@ function _skills_clean_orphaned_links_in_target() {
     [[ -n "${source_skill_names[$target_skill_name]-}" ]] && continue
 
     echo "skills sync: found orphaned link $target_skill" >&2
-    _skills_confirm_orphaned_link_removal "$target_skill" || {
-      echo "skills sync: kept $target_skill" >&2
-      continue
-    }
+    _skills_confirm_orphaned_link_removal "$target_skill" || continue
     rm -- "$target_skill" || return 1
     echo "✓ skills sync: removed $target_skill"
   done
