@@ -1,3 +1,7 @@
+---
+last_updated: 2026-10-28T13-07
+---
+
 # Human mode and script mode
 
 `land` functions run in many contexts. A person can type in a terminal, a cron job can run unattended, and an AI agent can run a shell that it drives. This document explains how `land` decides which features each context gets, and why. The decisions were made on 2026-10-11, after experiments in every agent harness that Gilad uses.
@@ -14,6 +18,7 @@
 |---|---|---|
 | `is_agent` | Does an AI agent harness run this shell? | Every mode decision |
 | `is_human` | `is_interactive && [[ -t 0 && -t 2 ]] && ! is_agent` | Prompts: `input`, `confirm`, `ghg-run`, the `llm` viewer |
+| `IS_HUMAN` | Human session at startup, before instant prompt redirects stdin and stderr | Loading the `eza` function for `ls` |
 | `is_piped` | Is stdin a pipe or a regular file? | Functions that read input from stdin |
 | `is_piping` | Is stdout something other than a terminal? | Output formatting |
 | `is_interactive` | Did zsh start with `-i`? | Loading completions, hooks, and the `cd` patch |
@@ -75,7 +80,7 @@ The old check was `[[ ! -t 0 ]]`. In agent shells stdin is `/dev/null`, so every
 
 ### 6. `~/.zshrc` repeats the agent check
 
-`~/.zshrc` decides whether to load Oh My Zsh and `land` at all. It makes this decision before `land` loads, so it cannot call `is_agent`. It repeats the same variable list, with a comment that says to keep the two lists in sync.
+`~/.zshrc` decides whether to load Oh My Zsh and `land` at all. It makes this decision before `land` loads, so it cannot call `is_agent`. It repeats the same variable list, with a comment that says to keep the two lists in sync. Before loading Powerlevel10k instant prompt, it also sets the non-exported global `IS_HUMAN` to `true` or `false`. Child shells calculate their own value.
 
 `FORCE_OMZ=true` skips that early return. `~/.zshrc` sets it for herdr, SSH, Moshi, and VS Code or Cursor terminals. So an agent inside herdr also loads `land`. This is intentional. `land` gives agents useful functions and `PATH` entries. The gates in section "Gates" limit what an agent gets, at call time.
 
@@ -92,7 +97,7 @@ These terminals do not set `KITTY_WINDOW_ID`, so `~/.zshrc` used to return early
 1. Change the agent list in `is_agent` and in `~/.zshrc` together.
 2. Gate every new prompt with `is_human`.
 3. Send colored output through `log`, or gate it with `[[ -t <fd> ]] && ! is_agent` for the file descriptor that gets the output.
-4. Decide at call time, not at source time. A function can run with a different stdin or stderr than the shell that loaded it. `tools.sh` (the `eza` choice for `ls`) and `nav.sh` (the `cd` patch) decide at source time, and that is acceptable for them.
+4. Check live terminal descriptors at call time for prompts. Startup choices such as the `eza` function for `ls` use `IS_HUMAN`, because instant prompt temporarily redirects stdin and stderr. The `cd` patch uses `is_interactive && ! is_agent` at source time.
 
 ## Read stdin only when no input argument was given
 
